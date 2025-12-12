@@ -1,0 +1,24 @@
+@startuml
+title Sequência: Gerar PDF de Proposta e Enviar por E-mail
+actor Usuario as Browser
+participant "public/index.php\n(Front Controller)" as Front
+participant "OrcamentoController" as Controller
+participant "PropostaModel" as Model
+participant "Views (proposta_pdf)" as View
+participant "Dompdf (vendor)" as Dompdf
+participant "PHPMailer (vendor)" as Mailer
+participant "SMTP Server" as SMTP
+participant "Navegador" as BrowserOut
+
+Browser -> Front : HTTP POST /orcamento/enviarEmailProposta/{id}
+Front -> Controller : enviarEmailProposta(id)
+Controller -> Model : getPropostaById(id)
+Controller -> View : renderPartial('orcamento/proposta_pdf', proposta)
+View --> Controller : HTML
+Controller -> Dompdf : loadHtml(html)\nsetPaper('A4')\nrender()\nDomP_output = output()
+Controller -> Mailer : addStringAttachment(pdfOutput, filename)\nset SMTP config\nset From/To/Subject/Body
+Controller -> Mailer : send()
+Mailer -> SMTP : SMTP conversation
+Mailer --> Controller : success/failure
+Controller -> BrowserOut : Redirect to /orcamento/verProposta/{id}
+@enduml

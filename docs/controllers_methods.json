@@ -1,0 +1,351 @@
+[
+  {
+    "controller": "AuthController",
+    "file": "app\\controllers\\AuthController.php",
+    "methods": [
+      "login",
+      "processLogin",
+      "logout",
+      "register",
+      "processRegister"
+    ]
+  },
+  {
+    "controller": "BancoController",
+    "file": "app\\controllers\\BancoController.php",
+    "methods": [
+      "index",
+      "form",
+      "salvar",
+      "excluir"
+    ]
+  },
+  {
+    "controller": "BaseController",
+    "file": "app\\controllers\\BaseController.php",
+    "methods": [
+      "renderFlashMessage"
+    ]
+  },
+  {
+    "controller": "BensAtivosController",
+    "file": "app\\controllers\\BensAtivosController.php",
+    "methods": [
+      "index",
+      "detalheAtivo"
+    ]
+  },
+  {
+    "controller": "CategoriasController",
+    "file": "app\\controllers\\CategoriasController.php",
+    "methods": [
+      "index",
+      "salvarCategoria",
+      "excluirCategoria",
+      "salvarSegmento",
+      "excluirSegmento"
+    ]
+  },
+  {
+    "controller": "ClassificacaoController",
+    "file": "app\\controllers\\ClassificacaoController.php",
+    "methods": [
+      "index",
+      "form",
+      "salvar",
+      "excluir"
+    ]
+  },
+  {
+    "controller": "ClientesController",
+    "file": "app\\controllers\\ClientesController.php",
+    "methods": [
+      "index",
+      "detalhe",
+      "novo",
+      "getFormForEdit",
+      "getFormForNew",
+      "salvar",
+      "addCategoria",
+      "getSegmentosAjax",
+      "addSegmentoAjax",
+      "excluir",
+      "registrarInteracao",
+      "consultarCnpj"
+    ]
+  },
+  {
+    "controller": "ConfiguracoesController",
+    "file": "app\\controllers\\ConfiguracoesController.php",
+    "methods": [
+      "index"
+    ]
+  },
+  {
+    "controller": "ContratosController",
+    "file": "app\\controllers\\ContratosController.php",
+    "methods": [
+      "index",
+      "novo",
+      "salvar",
+      "getFormForEdit",
+      "vigencia",
+      "obrigacoes",
+      "financeiro",
+      "compliance",
+      "gerenciarCompliance",
+      "salvarCompliance",
+      "relatorios",
+      "exportarRelatorioVigenciaPdf",
+      "detalhe",
+      "excluir",
+      "salvarAditivo",
+      "excluirAditivo",
+      "getFormForEditAditivo",
+      "gerenciarObrigacoes",
+      "salvarObrigacao",
+      "atualizarStatusObrigacao",
+      "excluirObrigacao",
+      "gerenciarFinanceiro",
+      "salvarParcela",
+      "lancarParcela",
+      "enviarAlerta",
+      "uploadDocumento",
+      "processarAlerta",
+      "processarUpload",
+      "download",
+      "removerDocumento",
+      "relatorioCompliance"
+    ]
+  },
+  {
+    "controller": "DashboardController",
+    "file": "app\\controllers\\DashboardController.php",
+    "methods": [
+      "index"
+    ]
+  },
+  {
+    "controller": "EmpresaController",
+    "file": "app\\controllers\\EmpresaController.php",
+    "methods": [
+      "index",
+      "salvar"
+    ]
+  },
+  {
+    "controller": "FinanceiroController",
+    "file": "app\\controllers\\FinanceiroController.php",
+    "methods": [
+      "index",
+      "relatorio",
+      "exportarRelatorioPdf",
+      "novo",
+      "detalhe",
+      "salvar",
+      "excluir",
+      "addClassificacao",
+      "addCentroCusto",
+      "pagar",
+      "receber"
+    ]
+  },
+  {
+    "controller": "FornecedoresController",
+    "file": "app\\controllers\\FornecedoresController.php",
+    "methods": [
+      "index",
+      "novo",
+      "detalhe",
+      "salvar",
+      "salvarOcorrencia",
+      "getFormForNew"
+    ]
+  },
+  {
+    "controller": "LicencasOperacaoController",
+    "file": "app\\controllers\\LicencasOperacaoController.php",
+    "methods": [
+      "index",
+      "detalheLicenca"
+    ]
+  },
+  {
+    "controller": "LicitacoesController",
+    "file": "app\\controllers\\LicitacoesController.php",
+    "methods": [
+      "index",
+      "detalheProposta"
+    ]
+  },
+  {
+    "controller": "NotaFiscalController",
+    "file": "app\\controllers\\NotaFiscalController.php",
+    "methods": [
+      "index",
+      "form",
+      "salvar",
+      "excluir"
+    ]
+  },
+  {
+    "controller": "OrcamentoController",
+    "file": "app\\controllers\\OrcamentoController.php",
+    "methods": [
+      "proposta",
+      "propostas",
+      "novaProposta",
+      "clonarProposta",
+      "salvarProposta",
+      "verProposta",
+      "pdfProposta",
+      "historicoProposta",
+      "verHistoricoDetalhe",
+      "enviarEmailProposta",
+      "getOrcamentosAjax",
+      "getProjectDetailsAjax",
+      "comercial"
+    ]
+  },
+  {
+    "controller": "OrganogramaController",
+    "file": "app\\controllers\\OrganogramaController.php",
+    "methods": [
+      "index",
+      "adicionarCargo",
+      "atualizarCargo",
+      "excluirCargo",
+      "adicionarAtividade",
+      "atualizarAtividade",
+      "excluirAtividade"
+    ]
+  },
+  {
+    "controller": "PatrimonioController",
+    "file": "app\\controllers\\PatrimonioController.php",
+    "methods": [
+      "index",
+      "cadastro",
+      "salvar",
+      "getBemJson",
+      "excluir",
+      "movimentacoes",
+      "salvarMovimentacao",
+      "depreciacao",
+      "salvarReavaliacao",
+      "inventario",
+      "conciliarInventario",
+      "relatorios"
+    ]
+  },
+  {
+    "controller": "PerfilController",
+    "file": "app\\controllers\\PerfilController.php",
+    "methods": [
+      "index",
+      "form",
+      "salvar",
+      "excluir"
+    ]
+  },
+  {
+    "controller": "PopsController",
+    "file": "app\\controllers\\PopsController.php",
+    "methods": [
+      "index",
+      "visualizarPop"
+    ]
+  },
+  {
+    "controller": "PradController",
+    "file": "app\\controllers\\PradController.php",
+    "methods": [
+      "index",
+      "detalhePrad"
+    ]
+  },
+  {
+    "controller": "ProjetosController",
+    "file": "app\\controllers\\ProjetosController.php",
+    "methods": [
+      "index",
+      "detalhe",
+      "novo",
+      "salvarItemOrcamento",
+      "salvarArt",
+      "excluirArt",
+      "salvarCDT",
+      "excluirCDT",
+      "salvarMapa",
+      "excluirMapa",
+      "salvarArquivo",
+      "excluirArquivo",
+      "salvar",
+      "getFormulario",
+      "arquivados"
+    ]
+  },
+  {
+    "controller": "RhController",
+    "file": "app\\controllers\\RhController.php",
+    "methods": [
+      "index",
+      "registroFuncionario",
+      "salvar",
+      "detalhe",
+      "editar",
+      "excluir",
+      "fichaCadastral",
+      "folhaDePagamento",
+      "calcularFolha",
+      "verFolha",
+      "holerite",
+      "relatorioFichaCadastral",
+      "relatorios",
+      "lancamentos",
+      "salvarLancamentos",
+      "encargos",
+      "exportarFolhaContabil",
+      "calculoRescisao",
+      "espelhoFolha",
+      "exportarFolhaPdf",
+      "calculoFerias",
+      "processarCalculoFerias",
+      "gerarAvisoFeriasPdf",
+      "gerarRelatorioFeriasPdf",
+      "gerarReciboFeriasPdf",
+      "historicoFerias",
+      "editarHistoricoFerias",
+      "atualizarHistoricoFerias",
+      "excluirHistoricoFerias"
+    ]
+  },
+  {
+    "controller": "TreinamentosController",
+    "file": "app\\controllers\\TreinamentosController.php",
+    "methods": [
+      "index",
+      "novo",
+      "editar",
+      "salvar",
+      "excluir"
+    ]
+  },
+  {
+    "controller": "UsuarioController",
+    "file": "app\\controllers\\UsuarioController.php",
+    "methods": [
+      "index",
+      "novo",
+      "salvar",
+      "editar",
+      "atualizar",
+      "toggleStatus"
+    ]
+  },
+  {
+    "controller": "detalhe",
+    "file": "app\\controllers\\detalhe.php",
+    "methods": []
+  }
+]

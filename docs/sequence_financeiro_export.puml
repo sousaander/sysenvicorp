@@ -1,0 +1,20 @@
+@startuml
+title Sequência: Exportar Relatório Financeiro (PDF)
+actor Usuario as Browser
+participant "public/index.php\n(Front Controller)" as Front
+participant "FinanceiroController" as Controller
+participant "FinancialModel" as Model
+participant "Views (relatorio_pdf)" as View
+participant "Dompdf (vendor)" as Dompdf
+participant "Navegador" as BrowserOut
+
+Browser -> Front : HTTP GET /financeiro/exportarRelatorioPdf?params
+Front -> Controller : exportarRelatorioPdf(params)
+Controller -> Model : getTransacoesParaRelatorio(filtros)
+Controller -> Model : getBancos()
+Controller -> View : renderPartial('financeiro/relatorio_pdf', data)
+View --> Controller : HTML
+Controller -> Dompdf : loadHtml(html)\nsetPaper('A4')\nrender()
+Controller -> Dompdf : stream(filename, [Attachment=>true])
+Dompdf -> BrowserOut : PDF (download)
+@enduml
