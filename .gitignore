@@ -1,0 +1,14 @@
+/.idea/
+.vscode/
+/vendor/
+/storage/
+/node_modules/
+.env
+.DS_Store
+/.history/
+/*.log
+/.coverage
+.phpunit.result.cache
+/.cache
+/.sass-cache
+/.env.local

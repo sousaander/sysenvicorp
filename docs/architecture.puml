@@ -1,0 +1,52 @@
+@startuml
+title Arquitetura - SysEnvicorp (Simplificada)
+
+actor User as "Usuário / Navegador"
+
+package "Public" {
+  [index.php] as FrontController
+}
+
+package "App" {
+  package "Controllers" {
+    [FinanceiroController]
+    [ContratosController]
+    [RhController]
+    [UsuarioController]
+  }
+  package "Models" {
+    [FinancialModel]
+    [EmpresaModel]
+    [UsuarioModel]
+  }
+  [SessionManager]
+  [Connection]
+}
+
+database "Banco de Dados" as DB
+folder "vendor/ (Composer)" as Vendor
+folder "storage/" as Storage
+
+User --> FrontController : HTTP Request
+FrontController --> FinanceiroController
+FrontController --> ContratosController
+FrontController --> RhController
+FrontController --> UsuarioController
+
+FinanceiroController --> FinancialModel
+ContratosController --> EmpresaModel
+UsuarioController --> UsuarioModel
+
+FinancialModel --> Connection
+EmpresaModel --> Connection
+UsuarioModel --> Connection
+Connection --> DB
+
+FinanceiroController --> Vendor : usa (Dompdf, libs)
+FinanceiroController --> Storage
+
+note right of FrontController
+  Roteamento: URL -> Controller -> Ação
+end note
+
+@enduml
