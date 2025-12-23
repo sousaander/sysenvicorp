@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Define a base da reescrita se o projeto estiver em um subdiretório
+    # Ex: se o acesso for http://localhost/sysenvicorp/, a linha seria: RewriteBase /sysenvicorp/
+    # RewriteBase /
+
+    # Redireciona todas as requisições que não são um arquivo ou diretório existente para o index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Para o arquivo index.php (ajuste o caminho se necessário)
+    RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
+</IfModule>

@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* c:\xampp\htdocs\sysenvicorp\public\css\input.css */
+@import "tailwindcss";
+
+@source "../../views";

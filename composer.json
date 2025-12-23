@@ -1,0 +1,21 @@
+{
+  "name": "seu-usuario/sysenvicorp",
+  "description": "Sistema de Gestão Integrado para Consultoria Ambiental",
+  "type": "project",
+  "license": "proprietary",
+  "autoload": {
+    "psr-4": {
+      "App\\Controllers\\": "app/controllers/",
+      "App\\Core\\": "app/core/",
+      "App\\Models\\": "models/"
+    },
+    "files": [
+      "app/helpers/finance_helpers.php"
+    ]
+  },
+  "require": {
+    "dompdf/dompdf": "^3.1",
+    "jfcherng/php-diff": "^6.10",
+    "phpmailer/phpmailer": "^6.9"
+  }
+}
