@@ -570,7 +570,7 @@
                     const normalizedLinkPath = linkPath.length > 1 && linkPath.endsWith('/') ? linkPath.slice(0, -1) : linkPath;
 
                     // Lógica de correspondência aprimorada
-                    const basePath = '<?php echo str_replace('/public/index.php', '', $_SERVER['SCRIPT_NAME']); ?>';
+                    const basePath = '<?php echo rtrim(str_replace("/index.php", "", $_SERVER["SCRIPT_NAME"]), "/"); ?>';
                     const isRootLink = normalizedLinkPath === basePath || normalizedLinkPath === basePath + '/';
 
                     // Se o link é para a raiz, só ativa se o caminho atual também for a raiz.
