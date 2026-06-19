@@ -26,15 +26,19 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 <?php if (!empty($funcionarios)): ?>
                     <?php foreach ($funcionarios as $func): ?>
+                        <?php
+                        // Busca o lançamento existente para este funcionário, se houver
+                        $lancamentoAtual = $lancamentos[$func['id']] ?? null;
+                        ?>
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <?php echo htmlspecialchars($func['nome']); ?>
                                 <input type="hidden" name="lancamentos[<?php echo $func['id']; ?>][id]" value="<?php echo $func['id']; ?>">
                             </td>
-                            <td class="px-6 py-4"><input type="number" name="lancamentos[<?php echo $func['id']; ?>][horas_extras_50]" class="w-24 border-gray-300 rounded-md shadow-sm p-2" value="0"></td>
-                            <td class="px-6 py-4"><input type="number" name="lancamentos[<?php echo $func['id']; ?>][horas_extras_100]" class="w-24 border-gray-300 rounded-md shadow-sm p-2" value="0"></td>
-                            <td class="px-6 py-4"><input type="number" name="lancamentos[<?php echo $func['id']; ?>][faltas]" class="w-24 border-gray-300 rounded-md shadow-sm p-2" value="0"></td>
-                            <td class="px-6 py-4"><input type="number" step="0.01" name="lancamentos[<?php echo $func['id']; ?>][outros_descontos]" class="w-32 border-gray-300 rounded-md shadow-sm p-2" value="0.00"></td>
+                            <td class="px-6 py-4"><input type="number" step="0.01" name="lancamentos[<?php echo $func['id']; ?>][horas_extras_50]" class="w-24 border-gray-300 rounded-md shadow-sm p-2" value="<?php echo htmlspecialchars($lancamentoAtual['horas_extras_50'] ?? '0.00'); ?>"></td>
+                            <td class="px-6 py-4"><input type="number" step="0.01" name="lancamentos[<?php echo $func['id']; ?>][horas_extras_100]" class="w-24 border-gray-300 rounded-md shadow-sm p-2" value="<?php echo htmlspecialchars($lancamentoAtual['horas_extras_100'] ?? '0.00'); ?>"></td>
+                            <td class="px-6 py-4"><input type="number" name="lancamentos[<?php echo $func['id']; ?>][faltas]" class="w-24 border-gray-300 rounded-md shadow-sm p-2" value="<?php echo htmlspecialchars($lancamentoAtual['faltas'] ?? '0'); ?>"></td>
+                            <td class="px-6 py-4"><input type="number" step="0.01" name="lancamentos[<?php echo $func['id']; ?>][outros_descontos]" class="w-32 border-gray-300 rounded-md shadow-sm p-2" value="<?php echo htmlspecialchars($lancamentoAtual['outros_descontos'] ?? '0.00'); ?>"></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>

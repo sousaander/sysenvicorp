@@ -4,10 +4,34 @@ namespace App\Controllers;
 
 use App\Core\Connection;
 use App\Models\PatrimonioModel;
+use App\Models\EmpresaModel;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class PatrimonioController extends BaseController
 {
     private $model;
+
+    /**
+     * Mapeia ações para as permissões necessárias.
+     * @var array
+     */
+    protected $requiredPermissions = [
+        'index' => 'patrimonio_view',
+        'cadastro' => 'patrimonio_create',
+        'editar' => 'patrimonio_edit',
+        'salvar' => 'patrimonio_create',
+        'getBemJson' => 'patrimonio_view',
+        'excluir' => 'patrimonio_delete',
+        'movimentacoes' => 'patrimonio_movimentacoes_manage',
+        'salvarMovimentacao' => 'patrimonio_movimentacoes_manage',
+        'depreciacao' => 'patrimonio_view',
+        'salvarReavaliacao' => 'patrimonio_edit',
+        'inventario' => 'patrimonio_inventario_run',
+        'conciliarInventario' => 'patrimonio_inventario_run',
+        'relatorios' => 'patrimonio_view',
+        'etiqueta' => 'patrimonio_view',
+    ];
 
     public function __construct()
     {
@@ -20,13 +44,19 @@ class PatrimonioController extends BaseController
         // Coleta dados do modelo
         $summary = $this->model->getAssetsSummary();
 
+        // Filtros
+        $filtros = [
+            'busca' => filter_input(INPUT_GET, 'busca', FILTER_SANITIZE_SPECIAL_CHARS),
+            'tipo'  => filter_input(INPUT_GET, 'tipo', FILTER_SANITIZE_SPECIAL_CHARS)
+        ];
+
         // Lógica de Paginação para bens recentes
         $paginaAtual = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?: 1;
-        $itensPorPagina = 3; // 3 itens por página, conforme solicitado
+        $itensPorPagina = 10;
         $offset = ($paginaAtual - 1) * $itensPorPagina;
 
-        $recentes = $this->model->getRecentementeAdicionados($itensPorPagina, $offset);
-        $totalBens = $this->model->getBensCount(); // Total de bens para calcular as páginas
+        $recentes = $this->model->getBens($filtros, $itensPorPagina, $offset);
+        $totalBens = $this->model->getBensCount($filtros);
         $totalPaginas = ceil($totalBens / $itensPorPagina);
 
         $data = array_merge([
@@ -34,6 +64,7 @@ class PatrimonioController extends BaseController
             'bensRecentes' => $recentes,
             'paginaAtual' => $paginaAtual,
             'totalPaginas' => $totalPaginas,
+            'filtros' => $filtros
         ], $summary);
 
         $this->renderView('patrimonio/index', $data);
@@ -53,11 +84,38 @@ class PatrimonioController extends BaseController
     }
 
     /**
+     * Exibe o formulário para edição de um bem existente.
+     * @param int $id O ID do bem.
+     */
+    public function editar(int $id)
+    {
+        $bem = $this->model->getBemById($id);
+        if (!$bem) {
+            $this->session->setFlash('Bem patrimonial não encontrado.', 'error');
+            header('Location: ' . BASE_URL . '/patrimonio');
+            exit();
+        }
+
+        $data = [
+            'pageTitle' => 'Editar Bem Patrimonial',
+            'bem' => $bem,
+        ];
+        $this->renderView('patrimonio/form', $data);
+    }
+
+    /**
      * Salva um bem novo ou atualiza um existente.
      */
     public function salvar()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Validação de CSRF
+            if (!isset($_POST['csrf_token']) || !$this->validateCsrfToken($_POST['csrf_token'])) {
+                $this->session->setFlash('Erro de validação de segurança (CSRF). Por favor, tente novamente.', 'error');
+                header('Location: ' . BASE_URL . '/patrimonio');
+                exit();
+            }
+
             $dados = $_POST;
 
             try {
@@ -65,7 +123,8 @@ class PatrimonioController extends BaseController
                 if ($success) {
                     $this->session->setFlash('Bem salvo com sucesso!', 'success');
                 } else {
-                    $this->session->setFlash('Erro ao salvar o bem. Verifique os dados e tente novamente.', 'error');
+                    $errorMessage = $this->model->getLastError();
+                    $this->session->setFlash('Erro ao salvar o bem: ' . ($errorMessage ?: 'Verifique os dados e tente novamente.'), 'error');
                 }
             } catch (\Exception $e) {
                 $this->session->setFlash('Ocorreu um erro inesperado: ' . $e->getMessage(), 'error');
@@ -97,16 +156,32 @@ class PatrimonioController extends BaseController
     public function excluir()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+            // DEBUG: Registra todos os dados POST recebidos
+            error_log("PatrimonioController::excluir - Dados POST: " . print_r($_POST, true));
 
-            if ($id) {
+            // Validação de CSRF
+            if (!isset($_POST['csrf_token']) || !$this->validateCsrfToken($_POST['csrf_token'])) {
+                $this->session->setFlash('Erro de validação de segurança (CSRF). Por favor, tente novamente.', 'error');
+                header('Location: ' . BASE_URL . '/patrimonio');
+                exit();
+            }
+
+            // Obtém o ID e valida como inteiro. filter_var é mais confiável que filter_input em certos ambientes.
+            $idRaw = $_POST['id'] ?? null;
+            $id = filter_var($idRaw, FILTER_VALIDATE_INT);
+
+            // DEBUG: Registra o valor do ID após a filtragem
+            error_log("PatrimonioController::excluir - ID processado: " . var_export($id, true));
+
+            if ($id !== false && $id !== null) {
                 if ($this->model->excluirBem($id)) {
                     $this->session->setFlash('Bem excluído com sucesso!', 'success');
                 } else {
-                    $this->session->setFlash('Erro ao excluir o bem.', 'error');
+                    $this->session->setFlash('Erro ao excluir o bem no banco de dados. ID: ' . $id, 'error');
                 }
             } else {
-                $this->session->setFlash('ID inválido para exclusão.', 'error');
+                $receivedIdRaw = $_POST['id'] ?? 'vazio';
+                $this->session->setFlash('ID inválido para exclusão. Valor recebido: ' . htmlspecialchars((string)$receivedIdRaw), 'error');
             }
         }
         header('Location: ' . BASE_URL . '/patrimonio');
@@ -136,6 +211,13 @@ class PatrimonioController extends BaseController
     public function salvarMovimentacao()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Validação de CSRF
+            if (!isset($_POST['csrf_token']) || !$this->validateCsrfToken($_POST['csrf_token'])) {
+                $this->session->setFlash('Erro de validação de segurança (CSRF). Por favor, tente novamente.', 'error');
+                header('Location: ' . BASE_URL . '/patrimonio/movimentacoes');
+                exit();
+            }
+
             $dados = $_POST;
 
             // Validação básica
@@ -189,6 +271,13 @@ class PatrimonioController extends BaseController
     public function salvarReavaliacao()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Validação de CSRF
+            if (!isset($_POST['csrf_token']) || !$this->validateCsrfToken($_POST['csrf_token'])) {
+                $this->session->setFlash('Erro de validação de segurança (CSRF). Por favor, tente novamente.', 'error');
+                header('Location: ' . BASE_URL . '/patrimonio/depreciacao');
+                exit();
+            }
+
             $dados = $_POST;
 
             // Validação básica
@@ -239,6 +328,13 @@ class PatrimonioController extends BaseController
     public function conciliarInventario()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            // Validação de CSRF
+            if (!isset($_POST['csrf_token']) || !$this->validateCsrfToken($_POST['csrf_token'])) {
+                $this->session->setFlash('Erro de validação de segurança (CSRF). Por favor, tente novamente.', 'error');
+                header('Location: ' . BASE_URL . '/patrimonio/inventario');
+                exit();
+            }
+
             $dadosInventario = $_POST['inventario'] ?? [];
 
             try {
@@ -274,5 +370,40 @@ class PatrimonioController extends BaseController
         ];
 
         $this->renderView('patrimonio/relatorios', $data);
+    }
+
+    /**
+     * Gera uma etiqueta de patrimônio com QR Code em PDF.
+     * @param int $id O ID do bem.
+     */
+    public function etiqueta(int $id)
+    {
+        $bem = $this->model->getBemById($id);
+        if (!$bem) {
+            $this->session->setFlash('Bem patrimonial não encontrado.', 'error');
+            header('Location: ' . BASE_URL . '/patrimonio');
+            exit();
+        }
+
+        $empresaModel = new EmpresaModel();
+        $empresa = $empresaModel->getDadosEmpresa();
+
+        $data = [
+            'bem' => $bem,
+            'empresa' => $empresa,
+        ];
+
+        ob_start();
+        $this->renderPartial('patrimonio/etiqueta_pdf', $data);
+        $html = ob_get_clean();
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
+        $dompdf->setPaper([0, 0, 226.77, 113.39], 'portrait'); // Dimensão aproximada de 80mm x 40mm
+        $dompdf->loadHtml($html);
+        $dompdf->render();
+        $dompdf->stream("etiqueta_" . ($bem['numero_patrimonio'] ?: $bem['id']) . ".pdf", ["Attachment" => false]);
+        exit();
     }
 }

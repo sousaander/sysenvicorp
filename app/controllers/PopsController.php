@@ -9,6 +9,20 @@ class PopsController extends BaseController
 {
     private $model;
 
+    /**
+     * Mapeia ações para as permissões necessárias.
+     * O BaseController usará este mapa para verificar o acesso.
+     * @var array
+     */
+    protected $requiredPermissions = [
+        'index' => 'pops_view',
+        'visualizarPop' => 'pops_view',
+        'novo' => 'pops_manage',
+        'salvar' => 'pops_manage',
+        'editar' => 'pops_manage',
+        'excluir' => 'pops_manage',
+    ];
+
     public function __construct()
     {
         parent::__construct();

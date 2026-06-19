@@ -7,9 +7,67 @@ use PDO;
 
 class PatrimonioModel extends Model
 {
+    private $lastError = '';
+
     public function __construct()
     {
         parent::__construct();
+        $this->ensureColumnsExist();
+    }
+
+    /**
+     * Garante que as colunas necessárias existam na tabela, evitando erros de SQL 1054.
+     */
+    private function ensureColumnsExist()
+    {
+        try {
+            $stmt = $this->db->query("SHOW COLUMNS FROM patrimonio_bens LIKE 'numero_serie'");
+            if ($stmt->rowCount() == 0) {
+                $this->db->exec("ALTER TABLE patrimonio_bens ADD COLUMN numero_serie VARCHAR(100) NULL AFTER observacoes");
+            }
+        } catch (\PDOException $e) {
+            error_log("Erro ao sincronizar schema da tabela patrimonio_bens: " . $e->getMessage());
+        }
+    }
+
+    public function getLastError(): string
+    {
+        return $this->lastError;
+    }
+
+    public function numeroPatrimonioExiste(string $numero, ?int $excludeId = null): bool
+    {
+        $sql = "SELECT COUNT(*) FROM patrimonio_bens WHERE numero_patrimonio = :numero";
+        if ($excludeId) {
+            $sql .= " AND id != :excludeId";
+        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':numero', $numero);
+        if ($excludeId) {
+            $stmt->bindValue(':excludeId', $excludeId, \PDO::PARAM_INT);
+        }
+        $stmt->execute();
+        return (int)$stmt->fetchColumn() > 0;
+    }
+
+    /**
+     * Retorna o próximo número sequencial de patrimônio.
+     * Formato: PAT-001
+     */
+    public function getNextPatrimonioNumber(): string
+    {
+        $prefix = "PAT-";
+        try {
+            // Extrai a parte numérica após o prefixo "PAT-" (que tem 4 caracteres)
+            $stmt = $this->db->prepare("SELECT MAX(CAST(SUBSTRING(numero_patrimonio, 5) AS UNSIGNED)) FROM patrimonio_bens WHERE numero_patrimonio LIKE :prefix");
+            $stmt->execute([':prefix' => $prefix . '%']);
+            $lastNumber = (int)$stmt->fetchColumn();
+            
+            return $prefix . str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
+        } catch (\PDOException $e) {
+            error_log("Erro ao gerar próximo número de patrimônio: " . $e->getMessage());
+            return $prefix . "001";
+        }
     }
 
     /**
@@ -21,8 +79,8 @@ class PatrimonioModel extends Model
             $totalAtivos = $this->db->query("SELECT COUNT(*) FROM patrimonio_bens WHERE status = 'Ativo'")->fetchColumn();
             $bensBaixadosAno = $this->db->query("SELECT COUNT(*) FROM patrimonio_movimentacoes WHERE tipo_movimentacao = 'Baixa' AND YEAR(data_movimentacao) = YEAR(CURDATE())")->fetchColumn();
 
-            // Reutiliza a função de cálculo de depreciação para obter o valor contábil total
-            $bensComDepreciacao = $this->getBensComDepreciacao();
+            // Busca TODOS os bens depreciáveis para o cálculo do resumo (sem o limite de 3 da paginação)
+            $bensComDepreciacao = $this->getBensComDepreciacao(9999, 0);
             $valorContabilTotal = array_sum(array_column($bensComDepreciacao, 'valor_contabil'));
             $totalDepreciaveis = count($bensComDepreciacao);
 
@@ -47,11 +105,33 @@ class PatrimonioModel extends Model
     /**
      * Busca uma lista dos últimos ativos adicionados.
      */
-    public function getRecentementeAdicionados(int $limit = 3, int $offset = 0): array
+    public function getBens(array $filtros = [], int $limit = 10, int $offset = 0): array
     {
         try {
-            $sql = "SELECT id, nome, classificacao, localizacao, data_aquisicao FROM patrimonio_bens ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+            $sql = "SELECT id, nome, numero_patrimonio, classificacao, localizacao, data_aquisicao 
+                    FROM patrimonio_bens WHERE status != 'Baixado'";
+            
+            $where = [];
+            $params = [];
+
+            if (!empty($filtros['busca'])) {
+                $where[] = "(nome LIKE :busca OR numero_patrimonio LIKE :busca)";
+                $params[':busca'] = '%' . $filtros['busca'] . '%';
+            }
+
+            if (!empty($filtros['tipo'])) {
+                $where[] = "classificacao = :tipo";
+                $params[':tipo'] = $filtros['tipo'];
+            }
+
+            if (!empty($where)) {
+                $sql .= " AND " . implode(' AND ', $where);
+            }
+
+            $sql .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+            
             $stmt = $this->db->prepare($sql);
+            foreach ($params as $key => $val) $stmt->bindValue($key, $val);
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();
@@ -66,10 +146,30 @@ class PatrimonioModel extends Model
      * Conta o número total de bens cadastrados.
      * @return int
      */
-    public function getBensCount(): int
+    public function getBensCount(array $filtros = []): int
     {
         try {
-            return (int) $this->db->query("SELECT COUNT(*) FROM patrimonio_bens")->fetchColumn();
+            $sql = "SELECT COUNT(*) FROM patrimonio_bens";
+            $where = [];
+            $params = [];
+
+            if (!empty($filtros['busca'])) {
+                $where[] = "(nome LIKE :busca OR numero_patrimonio LIKE :busca)";
+                $params[':busca'] = '%' . $filtros['busca'] . '%';
+            }
+
+            if (!empty($filtros['tipo'])) {
+                $where[] = "classificacao = :tipo";
+                $params[':tipo'] = $filtros['tipo'];
+            }
+
+            if (!empty($where)) {
+                $sql .= " WHERE " . implode(' AND ', $where);
+            }
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return (int) $stmt->fetchColumn();
         } catch (\PDOException $e) {
             error_log("Erro ao contar bens: " . $e->getMessage());
             return 0;
@@ -122,31 +222,49 @@ class PatrimonioModel extends Model
         $id = !empty($dados['id']) ? (int)$dados['id'] : null;
         $nome = trim($dados['nome'] ?? '');
         $numero_patrimonio = trim($dados['numero_patrimonio'] ?? '');
+
+        // Se for um novo cadastro e o número de patrimônio não foi informado, gera automaticamente
+        if (!$id && empty($numero_patrimonio)) {
+            $numero_patrimonio = $this->getNextPatrimonioNumber();
+        }
+
         $classificacao = trim($dados['classificacao'] ?? '');
         $localizacao = trim($dados['localizacao'] ?? '');
         $responsavel = trim($dados['responsavel'] ?? '');
         $observacoes = trim($dados['observacoes'] ?? '');
+        $numero_serie = trim($dados['numero_serie'] ?? '');
         // Novos campos
         $data_aquisicao = !empty($dados['data_aquisicao']) ? $dados['data_aquisicao'] : null;
 
-        // CORREÇÃO: Trata o valor monetário corretamente, convertendo vírgula para ponto
-        // e removendo pontos de milhar, antes de converter para float.
+        // Trata o valor monetário de forma robusta
         $valor_aquisicao_str = $dados['valor_aquisicao'] ?? '0';
-        // Remove pontos de milhar
-        $valor_aquisicao_str = str_replace('.', '', $valor_aquisicao_str);
-        // Substitui a vírgula decimal por ponto
-        $valor_aquisicao_str = str_replace(',', '.', $valor_aquisicao_str);
-        $valor_aquisicao = !empty($valor_aquisicao_str) ? (float)$valor_aquisicao_str : null;
+        $valor_aquisicao_str = preg_replace('/[^\d.,]/', '', $valor_aquisicao_str);
+        
+        if (strpos($valor_aquisicao_str, ',') !== false && strpos($valor_aquisicao_str, '.') !== false) {
+            $valor_aquisicao_str = str_replace('.', '', $valor_aquisicao_str);
+            $valor_aquisicao_str = str_replace(',', '.', $valor_aquisicao_str);
+        } elseif (strpos($valor_aquisicao_str, ',') !== false) {
+            $valor_aquisicao_str = str_replace(',', '.', $valor_aquisicao_str);
+        }
+        $valor_aquisicao = (float)$valor_aquisicao_str;
 
         $vida_util_meses = !empty($dados['vida_util_meses']) ? (int)$dados['vida_util_meses'] : null;
         $centro_custo = trim($dados['centro_custo'] ?? '');
+
+        // Validação: Verificar unicidade do número de patrimônio se fornecido
+        if (!empty($numero_patrimonio)) {
+            if ($this->numeroPatrimonioExiste($numero_patrimonio, $id)) {
+                $this->lastError = "O número de patrimônio '{$numero_patrimonio}' já está em uso.";
+                return false;
+            }
+        }
 
         try {
             if ($id) {
                 // UPDATE: Atualiza um bem existente
                 $sql = "UPDATE patrimonio_bens 
                         SET nome = :nome, numero_patrimonio = :numero_patrimonio, classificacao = :classificacao, 
-                            localizacao = :localizacao, responsavel = :responsavel, observacoes = :observacoes,
+                            localizacao = :localizacao, responsavel = :responsavel, observacoes = :observacoes, numero_serie = :numero_serie,
                             data_aquisicao = :data_aquisicao, valor_aquisicao = :valor_aquisicao, 
                             vida_util_meses = :vida_util_meses, centro_custo = :centro_custo
                         WHERE id = :id";
@@ -154,8 +272,8 @@ class PatrimonioModel extends Model
                 $stmt->bindParam(':id', $id, \PDO::PARAM_INT);
             } else {
                 // INSERT: Cria um novo bem
-                $sql = "INSERT INTO patrimonio_bens (nome, numero_patrimonio, classificacao, localizacao, responsavel, observacoes, data_aquisicao, valor_aquisicao, vida_util_meses, centro_custo) 
-                        VALUES (:nome, :numero_patrimonio, :classificacao, :localizacao, :responsavel, :observacoes, :data_aquisicao, :valor_aquisicao, :vida_util_meses, :centro_custo)";
+                $sql = "INSERT INTO patrimonio_bens (nome, numero_patrimonio, classificacao, localizacao, responsavel, observacoes, numero_serie, data_aquisicao, valor_aquisicao, vida_util_meses, centro_custo) 
+                        VALUES (:nome, :numero_patrimonio, :classificacao, :localizacao, :responsavel, :observacoes, :numero_serie, :data_aquisicao, :valor_aquisicao, :vida_util_meses, :centro_custo)";
                 $stmt = $this->db->prepare($sql);
             }
 
@@ -165,6 +283,7 @@ class PatrimonioModel extends Model
             $stmt->bindParam(':localizacao', $localizacao);
             $stmt->bindParam(':responsavel', $responsavel);
             $stmt->bindParam(':observacoes', $observacoes);
+            $stmt->bindParam(':numero_serie', $numero_serie);
             // Bind dos novos campos
             $stmt->bindValue(':data_aquisicao', $data_aquisicao);
             $stmt->bindValue(':valor_aquisicao', $valor_aquisicao);

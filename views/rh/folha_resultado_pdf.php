@@ -1,3 +1,11 @@
+<?php
+// Prepara o logo em Base64
+$logoPath = ROOT_PATH . '/public/assets/images/logo.png';
+$logoSrc = '';
+if (file_exists($logoPath) && extension_loaded('gd')) {
+    $logoSrc = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -45,10 +53,15 @@
     <div class="max-w-6xl mx-auto my-8 bg-white p-8 shadow-lg" id="print-area">
         <!-- Cabeçalho -->
         <div class="flex justify-between items-start border-b-2 pb-4 mb-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800"><?php echo htmlspecialchars($dados['info_empresa']['nome']); ?></h1>
-                <p class="text-sm text-gray-500">CNPJ: <?php echo htmlspecialchars($dados['info_empresa']['cnpj']); ?></p>
-                <p class="text-sm text-gray-500"><?php echo htmlspecialchars($dados['info_empresa']['endereco']); ?></p>
+            <div class="flex items-center gap-4">
+                <?php if (!empty($logoSrc)): ?>
+                    <img src="<?php echo $logoSrc; ?>" alt="Logo" class="h-16 w-auto">
+                <?php endif; ?>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800"><?php echo htmlspecialchars($dados['info_empresa']['nome']); ?></h1>
+                    <p class="text-sm text-gray-500">CNPJ: <?php echo htmlspecialchars($dados['info_empresa']['cnpj']); ?></p>
+                    <p class="text-sm text-gray-500"><?php echo htmlspecialchars($dados['info_empresa']['endereco']); ?></p>
+                </div>
             </div>
             <div class="text-right">
                 <h2 class="text-xl font-semibold text-gray-700">Resultados da Folha de Pagamento</h2>
@@ -68,6 +81,7 @@
                         <th class="px-3 py-2 text-right font-semibold text-gray-700">INSS</th>
                         <th class="px-3 py-2 text-right font-semibold text-gray-700">IRRF</th>
                         <th class="px-3 py-2 text-right font-semibold text-gray-700">Outros Desc.</th>
+                        <th class="px-3 py-2 text-right font-semibold text-gray-700">Sal. Família</th>
                         <th class="px-3 py-2 text-right font-semibold text-gray-700">Sal. Líquido</th>
                     </tr>
                 </thead>
@@ -80,6 +94,7 @@
                             <td class="px-3 py-2 whitespace-nowrap text-right text-red-600">R$ <?php echo number_format($func['inss'], 2, ',', '.'); ?></td>
                             <td class="px-3 py-2 whitespace-nowrap text-right text-red-600">R$ <?php echo number_format($func['irrf'], 2, ',', '.'); ?></td>
                             <td class="px-3 py-2 whitespace-nowrap text-right text-red-600">R$ <?php echo number_format($func['outros_descontos'], 2, ',', '.'); ?></td>
+                            <td class="px-3 py-2 whitespace-nowrap text-right text-blue-600">R$ <?php echo number_format($func['salario_familia'], 2, ',', '.'); ?></td>
                             <td class="px-3 py-2 whitespace-nowrap text-right font-bold text-green-700">R$ <?php echo number_format($func['salario_liquido'], 2, ',', '.'); ?></td>
                         </tr>
                     <?php endforeach; ?>
@@ -91,6 +106,7 @@
                         <td class="px-3 py-2 text-right text-red-700">R$ <?php echo number_format($dados['totais']['inss'], 2, ',', '.'); ?></td>
                         <td class="px-3 py-2 text-right text-red-700">R$ <?php echo number_format($dados['totais']['irrf'], 2, ',', '.'); ?></td>
                         <td class="px-3 py-2 text-right text-red-700">R$ <?php echo number_format($dados['totais']['outros_descontos'], 2, ',', '.'); ?></td>
+                        <td class="px-3 py-2 text-right text-blue-700">R$ <?php echo number_format($dados['totais']['salario_familia'], 2, ',', '.'); ?></td>
                         <td class="px-3 py-2 text-right text-green-800">R$ <?php echo number_format($dados['totais']['salario_liquido'], 2, ',', '.'); ?></td>
                     </tr>
                 </tfoot>

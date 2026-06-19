@@ -1,5 +1,12 @@
-<h2 class="text-2xl font-bold mb-4"><?php echo htmlspecialchars($pageTitle); ?></h2>
-<p class="mb-6 text-gray-600">Acompanhe os prazos e gerencie as renovações dos seus contratos de forma proativa.</p>
+<div class="flex justify-between items-start mb-6">
+    <div>
+        <h2 class="text-2xl font-bold mb-2"><?php echo htmlspecialchars($pageTitle); ?></h2>
+        <p class="text-gray-600">Acompanhe os prazos e gerencie as renovações dos seus contratos de forma proativa.</p>
+    </div>
+    <a href="<?php echo BASE_URL; ?>/contratos" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 font-medium flex-shrink-0">
+        &larr; Voltar para Contratos
+    </a>
+</div>
 
 <?php
 // Função auxiliar para renderizar uma tabela de contratos
@@ -30,7 +37,7 @@ function render_contratos_table($contratos, $title, $bgColor, $textColor)
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php foreach ($contratos as $contrato) : ?>
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 <?php echo $contrato['dias_para_vencer'] < 0 ? 'bg-red-50' : ''; ?>">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <?php echo htmlspecialchars($contrato['parteContratada'] ?? 'N/A'); ?>
                             </td>
@@ -88,7 +95,7 @@ if ($totalContratos === 0) :
             Não há contratos ativos para exibir na gestão de vigência.
         </p>
         <div class="mt-6">
-            <a href="<?php echo BASE_URL; ?>/contratos" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+            <a href="<?php echo BASE_URL; ?>/contratos/wizard" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
                 <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                 </svg>

@@ -36,11 +36,50 @@
             </div>
             <div>
                 <label for="ie" class="block text-sm font-medium text-gray-700">Inscrição Estadual</label>
-                <input type="text" id="ie" name="ie" value="<?php echo htmlspecialchars($empresa['ie'] ?? ''); ?>" class="mt-1 input-form">
+                <div class="flex items-center mt-1">
+                    <select id="status_ie" class="input-form rounded-r-none border-r-0 !mt-0 bg-gray-50" style="width: 140px;">
+                        <option value="contribuinte">Contribuinte</option>
+                        <option value="isento">Isento</option>
+                    </select>
+                    <input type="text" id="ie" name="ie" value="<?php echo htmlspecialchars($empresa['ie'] ?? ''); ?>" class="input-form flex-1 rounded-l-none !mt-0">
+                </div>
             </div>
-            <div class="md:col-span-2">
-                <label for="endereco" class="block text-sm font-medium text-gray-700">Endereço Completo</label>
-                <input type="text" id="endereco" name="endereco" value="<?php echo htmlspecialchars($empresa['endereco'] ?? ''); ?>" class="mt-1 input-form">
+            <div>
+                <label for="cnae" class="block text-sm font-medium text-gray-700">CNAE Principal</label>
+                <input type="text" id="cnae" name="cnae" value="<?php echo htmlspecialchars($empresa['cnae'] ?? ''); ?>" class="mt-1 input-form" placeholder="Código - Descrição">
+            </div>
+            <div>
+                <label for="cnpj_cei_tomador" class="block text-sm font-medium text-gray-700">CNPJ/CEI Tomador/Obra</label>
+                <input type="text" id="cnpj_cei_tomador" name="cnpj_cei_tomador" value="<?php echo htmlspecialchars($empresa['cnpj_cei_tomador'] ?? ''); ?>" class="mt-1 input-form" placeholder="Caso aplicável">
+            </div>
+            <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-6 gap-6">
+                <div class="md:col-span-2">
+                    <label for="cep" class="block text-sm font-medium text-gray-700">CEP</label>
+                    <div class="flex rounded-md shadow-sm mt-1">
+                        <input type="text" id="cep" name="cep" value="<?php echo htmlspecialchars($empresa['cep'] ?? ''); ?>" class="input-form flex-1 rounded-r-none !mt-0" placeholder="Apenas números">
+                        <button type="button" id="buscar-cep-btn" class="inline-flex items-center px-3 rounded-l-none rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm hover:bg-gray-100">
+                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="md:col-span-4">
+                    <label for="endereco" class="block text-sm font-medium text-gray-700">Endereço (Rua, Nº)</label>
+                    <input type="text" id="endereco" name="endereco" value="<?php echo htmlspecialchars($empresa['endereco'] ?? ''); ?>" class="mt-1 input-form">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="bairro" class="block text-sm font-medium text-gray-700">Bairro</label>
+                    <input type="text" id="bairro" name="bairro" value="<?php echo htmlspecialchars($empresa['bairro'] ?? ''); ?>" class="mt-1 input-form">
+                </div>
+                <div class="md:col-span-3">
+                    <label for="cidade" class="block text-sm font-medium text-gray-700">Cidade</label>
+                    <input type="text" id="cidade" name="cidade" value="<?php echo htmlspecialchars($empresa['cidade'] ?? ''); ?>" class="mt-1 input-form">
+                </div>
+                <div class="md:col-span-1">
+                    <label for="uf" class="block text-sm font-medium text-gray-700">UF</label>
+                    <input type="text" id="uf" name="uf" value="<?php echo htmlspecialchars($empresa['uf'] ?? ''); ?>" class="mt-1 input-form">
+                </div>
             </div>
             <div>
                 <label for="telefone" class="block text-sm font-medium text-gray-700">Telefone</label>
@@ -49,6 +88,27 @@
             <div>
                 <label for="email" class="block text-sm font-medium text-gray-700">E-mail</label>
                 <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($empresa['email'] ?? ''); ?>" class="mt-1 input-form">
+            </div>
+        </div>
+
+        <h3 class="text-lg font-semibold text-gray-800 border-b pb-2 mt-10 mb-6">Logomarca da Empresa</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div>
+                <label for="logo" class="block text-sm font-medium text-gray-700">Alterar Logomarca (JPG, PNG, WEBP)</label>
+                <input type="file" id="logo" name="logo" accept="image/*" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                <p class="mt-1 text-xs text-gray-500">Recomendado: Fundo transparente e proporção retangular para o cabeçalho do PDF.</p>
+            </div>
+            <div id="logo-preview-container" class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg p-4 bg-gray-50">
+                <span class="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Visualização Atual</span>
+                <?php if (!empty($empresa['logo_path']) && file_exists(ROOT_PATH . '/public/uploads/logos/' . $empresa['logo_path'])): ?>
+                    <img src="<?php echo BASE_URL . '/uploads/logos/' . $empresa['logo_path']; ?>" alt="Logo da Empresa" class="max-h-24 object-contain shadow-sm rounded">
+                <?php else: ?>
+                    <div class="h-24 w-48 flex flex-col items-center justify-center text-gray-400 bg-white border border-gray-200 rounded italic">
+                        <i class="fas fa-image text-3xl mb-1"></i>
+                        <span class="text-[10px]">Sem Logomarca</span>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -104,6 +164,8 @@
         const inputCnpj = document.getElementById('cnpj');
         const searchIcon = document.getElementById('search-icon');
         const loadingSpinner = document.getElementById('loading-spinner');
+        const ieInput = document.getElementById('ie');
+        const statusIeSelect = document.getElementById('status_ie');
 
         btnBuscar.addEventListener('click', async () => {
             const cnpj = inputCnpj.value.replace(/\D/g, ''); // Remove caracteres não numéricos
@@ -131,7 +193,18 @@
                 // Preenche os campos do formulário
                 document.getElementById('razao_social').value = data.razao_social || '';
                 document.getElementById('nome_fantasia').value = data.nome_fantasia || '';
-                document.getElementById('ie').value = data.inscricao_estadual || '';
+
+                ieInput.value = data.inscricao_estadual || '';
+                if (ieInput.value && ieInput.value.toUpperCase() !== 'ISENTO') {
+                    statusIeSelect.value = 'contribuinte';
+                }
+                // Atualiza o estado visual
+                updateIeState();
+
+                // Preenche o CNAE automaticamente
+                const cnaeTexto = data.cnae_fiscal ? `${data.cnae_fiscal} - ${data.cnae_fiscal_descricao}` : '';
+                document.getElementById('cnae').value = cnaeTexto;
+
                 document.getElementById('email').value = data.email || '';
                 document.getElementById('telefone').value = data.ddd_telefone_1 || '';
 
@@ -139,12 +212,16 @@
                 const endereco = [
                     data.descricao_tipo_de_logradouro,
                     data.logradouro,
+                ].filter(Boolean).join(' ');
+                const numeroComplemento = [
                     data.numero,
                     data.complemento,
                 ].filter(Boolean).join(', ');
-
-                const enderecoCompleto = `${endereco} - ${data.bairro}, ${data.municipio} - ${data.uf}, CEP: ${data.cep}`;
-                document.getElementById('endereco').value = enderecoCompleto;
+                document.getElementById('endereco').value = [endereco, numeroComplemento].filter(Boolean).join(', ');
+                document.getElementById('bairro').value = data.bairro || '';
+                document.getElementById('cidade').value = data.municipio || '';
+                document.getElementById('uf').value = data.uf || '';
+                document.getElementById('cep').value = (data.cep || '').replace(/\D/g, '');
 
             } catch (error) {
                 alert(`Erro ao buscar CNPJ: ${error.message}`);
@@ -155,5 +232,108 @@
                 btnBuscar.disabled = false;
             }
         });
+
+        // Lógica para busca de endereço via CEP
+        const buscarCepBtn = document.getElementById('buscar-cep-btn');
+        const cepInput = document.getElementById('cep');
+
+        const buscarEnderecoPorCep = async () => {
+            const cep = cepInput.value.replace(/\D/g, ''); // Remove caracteres não numéricos
+
+            if (cep.length !== 8) {
+                return; // Sai se o CEP não tiver 8 dígitos
+            }
+
+            // Mostra um feedback de carregamento
+            document.getElementById('endereco').value = 'Buscando...';
+            document.getElementById('bairro').value = 'Buscando...';
+            document.getElementById('cidade').value = 'Buscando...';
+            document.getElementById('uf').value = '...';
+
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                if (!response.ok) throw new Error('Falha na requisição ao ViaCEP.');
+
+                const data = await response.json();
+                if (data.erro) throw new Error('CEP não encontrado.');
+
+                // Preenche os campos com os dados retornados
+                document.getElementById('endereco').value = data.logradouro || '';
+                document.getElementById('bairro').value = data.bairro || '';
+                document.getElementById('cidade').value = data.localidade || '';
+                document.getElementById('uf').value = data.uf || '';
+
+            } catch (error) {
+                alert(`Erro ao buscar CEP: ${error.message}`);
+                // Limpa os campos em caso de erro
+                document.getElementById('endereco').value = '';
+                document.getElementById('bairro').value = '';
+                document.getElementById('cidade').value = '';
+                document.getElementById('uf').value = '';
+            }
+        };
+
+        cepInput.addEventListener('blur', buscarEnderecoPorCep);
+        buscarCepBtn.addEventListener('click', buscarEnderecoPorCep);
+
+        // Lógica para controle do campo Inscrição Estadual
+        function updateIeState() {
+            if (statusIeSelect.value === 'isento') {
+                ieInput.value = 'ISENTO';
+                ieInput.readOnly = true;
+                ieInput.classList.add('bg-gray-100', 'text-gray-500');
+            } else {
+                if (ieInput.value.toUpperCase() === 'ISENTO') {
+                    ieInput.value = '';
+                }
+                ieInput.readOnly = false;
+                ieInput.classList.remove('bg-gray-100', 'text-gray-500');
+            }
+        }
+
+        // Inicialização
+        if (ieInput.value.toUpperCase() === 'ISENTO') {
+            statusIeSelect.value = 'isento';
+        }
+        updateIeState();
+        statusIeSelect.addEventListener('change', updateIeState);
+
+        // Lógica para prévia instantânea da logomarca
+        const logoInput = document.getElementById('logo');
+        const logoPreviewContainer = document.getElementById('logo-preview-container');
+
+        if (logoInput && logoPreviewContainer) {
+            logoInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    // Validação básica de tipo de arquivo no cliente
+                    if (!file.type.startsWith('image/')) {
+                        alert('Por favor, selecione um arquivo de imagem válido (JPG, PNG ou WEBP).');
+                        this.value = '';
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        // Remove a imagem antiga ou o placeholder de "Sem Logomarca"
+                        const existingImg = logoPreviewContainer.querySelector('img');
+                        const placeholder = logoPreviewContainer.querySelector('div');
+                        if (existingImg) existingImg.remove();
+                        if (placeholder) placeholder.remove();
+
+                        // Cria e adiciona a nova imagem de prévia
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.alt = "Nova Logomarca";
+                        img.className = "max-h-24 object-contain shadow-sm rounded border border-indigo-200 animate-pulse";
+                        logoPreviewContainer.appendChild(img);
+                        
+                        // Remove o efeito de pulso após o carregamento visual
+                        setTimeout(() => img.classList.remove('animate-pulse'), 500);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
     });
 </script>

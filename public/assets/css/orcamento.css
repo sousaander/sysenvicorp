@@ -1,0 +1,119 @@
+/* assets/css/orcamento.css */
+/* Estilos modernizados seguindo a estética Tailwind CSS */
+
+/* ─── Tabela de itens ─── */
+.tabela-itens {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.tabela-itens thead th {
+    background-color: #f9fafb; /* gray-50 */
+    color: #6b7280; /* gray-500 */
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f3f4f6; /* gray-100 */
+    white-space: nowrap;
+}
+
+.tabela-itens td {
+    padding: 0.5rem 1rem;
+    vertical-align: middle;
+}
+
+.tabela-itens .btn-remover-item {
+    color: #d1d5db; /* gray-300 */
+    background: transparent;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.tabela-itens tr:hover .btn-remover-item {
+    color: #9ca3af; /* gray-400 */
+}
+
+.tabela-itens .btn-remover-item:hover {
+    color: #ef4444 !important; /* red-500 */
+    background-color: #fef2f2 !important; /* red-50 */
+}
+
+/* Ghost Inputs: Inputs discretos que ganham destaque no foco ou hover */
+.tabela-itens .form-control-sm {
+    border: 1px solid transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    font-size: 0.875rem;
+    color: #374151; /* gray-700 */
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tabela-itens tr:hover .form-control-sm {
+    border-color: #f3f4f6 !important; /* gray-100 */
+    background-color: #f9fafb !important; /* gray-50 */
+}
+
+.tabela-itens .form-control-sm:focus {
+    border-color: #0ea5e9 !important; /* sky-500 */
+    background-color: #fff !important;
+    box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1) !important;
+    outline: none !important;
+}
+
+/* Estilo para rótulos */
+form label {
+    display: inline-block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #343a40;
+}
+
+/* ─── Resumo financeiro ─── */
+.sticky-sidebar {
+    position: sticky;
+    top: 1.5rem;
+}
+
+.resumo-financeiro .total-final {
+    font-size: 1.875rem;
+    font-weight: 900;
+    color: #0284c7; /* sky-700 */
+    letter-spacing: -0.025em;
+}
+
+/* ─── Badge de status ─── */
+.badge-status { font-size: .75rem; letter-spacing: .03em; }
+
+/* ─── Impressão ─── */
+@media print {
+    .no-print    { display: none !important; }
+    .page-break  { page-break-before: always; }
+    body         { font-size: 12pt; }
+    .card        { border: none !important; box-shadow: none !important; }
+    .tabela-itens thead th { background: #eee !important; }
+}
+
+/* ─── Timeline de histórico ─── */
+.timeline { list-style: none; padding: 0; position: relative; }
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 16px; top: 0; bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+.timeline-item { padding-left: 44px; margin-bottom: 1rem; position: relative; }
+.timeline-item .tl-dot {
+    position: absolute; left: 8px; top: 4px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+}
+.timeline-item .tl-dot i { font-size: .55rem; color: #fff; }

@@ -4,17 +4,34 @@ namespace App\Controllers;
 
 use App\Core\Connection;
 use App\Models\RhModel;
+use App\Models\EmpresaModel;
+use App\Models\TreinamentosModel;
 
 use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class RhController extends BaseController
 {
     private $rhModel;
+    private $empresaModel;
+    private $treinamentosModel;
 
     public function __construct()
     {
         parent::__construct(); // Garante que a sessão seja inicializada
         $this->rhModel = new RhModel();
+        $this->empresaModel = new EmpresaModel();
+        $this->treinamentosModel = new TreinamentosModel();
+    }
+
+    public function registroFuncionario()
+    {
+        $csrf_token = $this->generateCsrfToken();
+        $data = [
+            'pageTitle' => 'Novo Funcionário',
+            'csrf_token' => $csrf_token
+        ];
+        $this->renderView('rh/registro_funcionario', $data);
     }
 
     public function index()
@@ -26,6 +43,33 @@ class RhController extends BaseController
         ];
 
         $summary = $this->rhModel->getRhSummaryData();
+
+        // Busca a quantidade de funcionários atualmente em férias
+        $funcionariosFerias = $this->rhModel->getFuncionariosEmFeriasCount();
+
+        // Busca retornos próximos
+        $retornosBreve = $this->rhModel->getRetornosFeriasBreve(7);
+
+        // Lógica de Meta de Contratação (Exemplo: meta de 5 por mês)
+        $metaContratacao = 5;
+        $percentualContratacao = ($summary['novasContratacoesMes'] / $metaContratacao) * 100;
+        $percentualContratacao = min($percentualContratacao, 100); // Limita a 100%
+
+        // Busca a lista de funcionários em férias
+        $listaFuncionariosFerias = $this->rhModel->getFuncionariosEmFeriasList();
+
+        // Busca a distribuição real por setores
+        $summary['setores'] = $this->rhModel->getFuncionariosPorSetor();
+
+        // Busca o próximo treinamento corporativo do banco de dados
+        $proximo = $this->treinamentosModel->getProximoTreinamento();
+        if ($proximo) {
+            $summary['proximoTreinamento'] = $proximo;
+        }
+
+        // Busca a contagem real de treinamentos para o KPI
+        $summary['totalTreinamentos'] = $this->treinamentosModel->getTreinamentosCount();
+
         $aniversariantes = $this->rhModel->getAniversariantesSemana();
 
         // Lógica de Paginação
@@ -39,25 +83,25 @@ class RhController extends BaseController
         $totalFuncionarios = $this->rhModel->getFuncionariosCount($filtros);
         $totalPaginas = ceil($totalFuncionarios / $itensPorPagina);
 
+        $csrf_token = $this->generateCsrfToken();
+
         $data = array_merge([
             'pageTitle' => 'Recursos Humanos - Gestão de Pessoas',
             'aniversariantes' => $aniversariantes,
+            'funcionariosFerias' => $funcionariosFerias,
+            'listaFuncionariosFerias' => $listaFuncionariosFerias,
             'funcionarios' => $funcionarios,
             'filtros' => $filtros, // Envia os filtros de volta para a view
             'paginaAtual' => $paginaAtual,
             'totalPaginas' => $totalPaginas,
+            'retornosBreve' => $retornosBreve,
+            'metaContratacao' => $metaContratacao,
+            'csrf_token' => $csrf_token,
+            'percentualContratacao' => $percentualContratacao
         ], $summary);
 
         $this->renderView('rh/index', $data);
     }
-
-    // Exemplo de outra ação
-    public function registroFuncionario()
-    {
-        $data = ['pageTitle' => 'RH - Registro de Funcionário'];
-        $this->renderView('rh/registro_funcionario', $data);
-    }
-
     /**
      * Salva um novo funcionário.
      */
@@ -68,8 +112,28 @@ class RhController extends BaseController
             exit();
         }
 
+        // Validação de CSRF para segurança
+        $postToken = $_POST['csrf_token'] ?? '';
+        if (!$this->validateCsrfToken($postToken)) {
+            $this->setFlashMessage('error', 'Token de segurança inválido ou expirado.');
+            header('Location: ' . BASE_URL . '/rh');
+            exit();
+        }
+
         // Coleta e valida os dados do $_POST
         $dadosFuncionario = $_POST;
+
+        // Remove a máscara do campo celular antes de salvar (mantém apenas números)
+        if (!empty($dadosFuncionario['celular'])) {
+            $dadosFuncionario['celular'] = preg_replace('/\D/', '', $dadosFuncionario['celular']);
+        } else {
+            $dadosFuncionario['celular'] = null;
+        }
+
+        // Garante que o ID seja um inteiro se estiver presente (correção para edição)
+        if (!empty($dadosFuncionario['id'])) {
+            $dadosFuncionario['id'] = (int)$dadosFuncionario['id'];
+        }
         $id = $dadosFuncionario['id'] ?? null;
 
         // Validação de campos obrigatórios no servidor
@@ -83,30 +147,60 @@ class RhController extends BaseController
             exit();
         }
 
-        // Agora, a chamada real ao Model para salvar no banco de dados.
-        $resultado = $this->rhModel->salvarFuncionario($dadosFuncionario);
+        try {
+            // --- LÓGICA DE UPLOAD DE ARQUIVOS ---
+            $funcionarioAntigo = $id ? $this->rhModel->getFuncionarioById($id) : null;
 
-        if ($resultado) {
-            $mensagem = $id ? 'Funcionário atualizado com sucesso!' : 'Funcionário cadastrado com sucesso!';
-            $this->setFlashMessage('success', $mensagem);
-            // Redireciona para a lista principal, que é um comportamento mais seguro
-            header('Location: ' . BASE_URL . '/rh');
-        } else {
-            // Busca a mensagem de erro do model, se houver, para diagnóstico
-            $erroDetalhado = method_exists($this->rhModel, 'getLastError') ? $this->rhModel->getLastError() : null;
-
-            // Personaliza a mensagem de erro para o usuário final.
-            if ($erroDetalhado && strpos($erroDetalhado, 'E-mail já cadastrado') !== false) {
-                $mensagemErro = 'Não foi possível salvar. O e-mail informado já está em uso por outro usuário.';
-            } else {
-                $mensagemErro = 'Erro ao salvar funcionário.' . ($erroDetalhado ? " Detalhe: $erroDetalhado" : '');
+            // Foto
+            if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
+                $fotoDir = ROOT_PATH . '/storage/fotos_funcionarios/';
+                if (!is_dir($fotoDir)) mkdir($fotoDir, 0775, true);
+                
+                $ext = strtolower(pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION));
+                $newFotoFilename = "foto_" . ($id ?? 'new') . "_" . time() . '.' . $ext;
+                
+                if (move_uploaded_file($_FILES['foto']['tmp_name'], $fotoDir . $newFotoFilename)) {
+                    $dadosFuncionario['foto_path'] = $newFotoFilename;
+                    if ($funcionarioAntigo && !empty($funcionarioAntigo['foto_path'])) {
+                        @unlink($fotoDir . $funcionarioAntigo['foto_path']);
+                    }
+                }
             }
-            $this->setFlashMessage('error', $mensagemErro);
-            // Armazena os dados do post na sessão para repreencher o formulário
+
+            // Documentos
+            $documentosDir = ROOT_PATH . '/storage/documentos_pessoais/';
+            if (!is_dir($documentosDir)) mkdir($documentosDir, 0775, true);
+
+            $docs = ['anexo_rg', 'anexo_cnh', 'anexo_titulo', 'anexo_reservista'];
+            foreach ($docs as $key) {
+                if (isset($_FILES[$key]) && $_FILES[$key]['error'] === UPLOAD_ERR_OK) {
+                    $ext = strtolower(pathinfo($_FILES[$key]['name'], PATHINFO_EXTENSION));
+                    $prefix = str_replace('anexo_', '', $key);
+                    $newFile = "func_{$prefix}_" . ($id ?? 'new') . "_" . time() . ".{$ext}";
+                    
+                    if (move_uploaded_file($_FILES[$key]['tmp_name'], $documentosDir . $newFile)) {
+                        $dadosFuncionario["{$key}_path"] = $newFile;
+                        if ($funcionarioAntigo && !empty($funcionarioAntigo["{$key}_path"])) {
+                            @unlink($documentosDir . $funcionarioAntigo["{$key}_path"]);
+                        }
+                    }
+                }
+            }
+
+            $resultado = $this->rhModel->salvarFuncionario($dadosFuncionario);
+
+            if ($resultado) {
+                $this->setFlashMessage('success', $id ? 'Funcionário atualizado!' : 'Funcionário cadastrado!');
+                $this->logAction($id ? 'UPDATE' : 'CREATE', ($id ? "Atualizou" : "Cadastrou") . " funcionário: {$dadosFuncionario['nome']}", 'RH', $id ?: $resultado);
+                header('Location: ' . BASE_URL . '/rh');
+            } else {
+                throw new \Exception($this->rhModel->getLastError() ?: 'Erro desconhecido no banco de dados.');
+            }
+
+        } catch (\Exception $e) {
+            $this->setFlashMessage('error', 'Erro: ' . $e->getMessage());
             $this->session->set('form_data', $dadosFuncionario);
-            // Volta para o formulário em caso de erro, mantendo os dados se possível
-            $redirectUrl = $id ? '/rh/editar/' . $id : '/rh/registroFuncionario';
-            header('Location: ' . BASE_URL . $redirectUrl);
+            header('Location: ' . BASE_URL . ($id ? "/rh/editar/$id" : "/rh/registroFuncionario"));
         }
         exit();
     }
@@ -144,10 +238,13 @@ class RhController extends BaseController
             exit();
         }
 
+        $csrf_token = $this->generateCsrfToken();
+
         // Reutiliza a view de registro, passando os dados do funcionário
         $data = [
             'pageTitle' => 'Editar Funcionário',
-            'funcionario' => $funcionario
+            'funcionario' => $funcionario,
+            'csrf_token' => $csrf_token
         ];
         $this->renderView('rh/registro_funcionario', $data);
     }
@@ -158,6 +255,11 @@ class RhController extends BaseController
      */
     public function excluir(int $id)
     {
+        // Se o ID não veio pela rota (argumento zerado), tenta pegar do POST
+        if ($id <= 0) {
+            $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT) ?: 0;
+        }
+
         // Validação para garantir que o ID é válido
         if ($id <= 0) {
             $this->setFlashMessage('error', 'ID de funcionário inválido.');
@@ -182,19 +284,45 @@ class RhController extends BaseController
     public function fichaCadastral(int $id)
     {
         $funcionario = $this->rhModel->getFuncionarioById($id);
+        $empresa = $this->empresaModel->getDadosEmpresa();
 
         if (!$funcionario) {
             $this->setFlashMessage('error', 'Funcionário não encontrado.');
-            // Fecha a aba/janela se o funcionário não for encontrado
-            echo "<script>window.close();</script>";
+            // Redireciona de volta para a lista de RH
+            header('Location: ' . BASE_URL . '/rh');
             exit();
         }
 
         $data = [
             'pageTitle' => 'Ficha Cadastral - ' . $funcionario['nome'],
-            'funcionario' => $funcionario
+            'funcionario' => $funcionario,
+            'empresa' => $empresa
         ];
-        $this->renderView('rh/ficha_cadastral_pdf', $data);
+
+        // 1. Captura o HTML da view do relatório em uma variável
+        ob_start();
+        // Usamos renderPartial para não incluir o layout principal do sistema
+        $this->renderPartial('rh/ficha_cadastral_pdf', $data);
+        $html = ob_get_clean();
+
+        // 2. Configura e instancia o Dompdf
+        $options = new Options();
+        // Habilita o carregamento de imagens e CSS locais ou remotos
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
+
+        // 3. Carrega o HTML no Dompdf
+        $dompdf->loadHtml($html);
+
+        // 4. Define o tamanho e a orientação do papel
+        $dompdf->setPaper('A4', 'portrait');
+
+        // 5. Renderiza o HTML como PDF
+        $dompdf->render();
+
+        // 6. Envia o PDF gerado para o navegador para ser exibido
+        $dompdf->stream("ficha_cadastral_" . $funcionario['id'] . ".pdf", ["Attachment" => false]);
+        exit();
     }
 
     /**
@@ -244,8 +372,9 @@ class RhController extends BaseController
      */
     public function verFolha(int $mes, int $ano)
     {
-        // Busca os dados calculados do model
-        $resultados = $this->rhModel->getFolhaCalculada($mes, $ano);
+        // Busca os dados calculados do model, agora usando os lançamentos do BD
+        $lancamentos = $this->rhModel->getLancamentos($mes, $ano);
+        $resultados = $this->rhModel->getFolhaCalculada($mes, $ano, $lancamentos);
 
         $data = [
             'pageTitle' => "Resultados da Folha - $mes/$ano",
@@ -269,7 +398,9 @@ class RhController extends BaseController
     public function holerite(int $mes, int $ano, int $funcionario_id = null)
     {
         // Busca os dados do(s) holerite(s) no model
-        $holerites = $this->rhModel->getDadosHolerite($mes, $ano, $funcionario_id);
+        // Busca os lançamentos do banco de dados para passar para o cálculo
+        $lancamentos = $this->rhModel->getLancamentos($mes, $ano);
+        $holerites = $this->rhModel->getDadosHolerite($mes, $ano, $funcionario_id, $lancamentos);
 
         $data = [
             'pageTitle' => $funcionario_id ? "Holerite Individual - $mes/$ano" : "Holerites em Lote - $mes/$ano",
@@ -326,11 +457,15 @@ class RhController extends BaseController
         // Busca funcionários ativos para a lista de lançamento
         $funcionarios = $this->rhModel->getFuncionarios(['status' => 'Ativo']);
 
+        // Busca lançamentos existentes no banco para preencher o formulário
+        $lancamentosExistentes = $this->rhModel->getLancamentos($mes, $ano);
+
         $data = [
             'pageTitle' => "Lançamentos da Folha - $mes/$ano",
             'funcionarios' => $funcionarios,
             'mes' => $mes,
-            'ano' => $ano
+            'ano' => $ano,
+            'lancamentos' => $lancamentosExistentes,
         ];
 
         $this->renderView('rh/lancamentos', $data);
@@ -350,10 +485,13 @@ class RhController extends BaseController
         $ano = $_POST['ano'];
         $lancamentos = $_POST['lancamentos'];
 
-        // Armazena os lançamentos na sessão, separados por competência.
-        $this->session->set("lancamentos_folha.{$ano}.{$mes}", $lancamentos);
+        // Salva os lançamentos no banco de dados através do model
+        if ($this->rhModel->salvarLancamentosBD($lancamentos, (int)$mes, (int)$ano)) {
+            $this->setFlashMessage('success', "Eventos para a folha de $mes/$ano salvos com sucesso!");
+        } else {
+            $this->setFlashMessage('error', "Erro ao salvar os eventos da folha.");
+        }
 
-        $this->setFlashMessage('success', "Eventos para a folha de $mes/$ano salvos com sucesso!");
         header('Location: ' . BASE_URL . '/rh/folhaDePagamento');
         exit();
     }
@@ -372,7 +510,9 @@ class RhController extends BaseController
             exit();
         }
 
-        $encargos = $this->rhModel->getEncargosCalculados($mes, $ano);
+        // Busca os lançamentos do banco de dados para passar para o cálculo
+        $lancamentos = $this->rhModel->getLancamentos($mes, $ano);
+        $encargos = $this->rhModel->getEncargosCalculados($mes, $ano, $lancamentos);
 
         $data = [
             'pageTitle' => "Encargos Sociais - $mes/$ano",
@@ -398,7 +538,9 @@ class RhController extends BaseController
             exit();
         }
 
-        $dadosExportacao = $this->rhModel->getDadosExportacaoContabil($mes, $ano);
+        // Busca os lançamentos do banco de dados para passar para o cálculo
+        $lancamentos = $this->rhModel->getLancamentos($mes, $ano);
+        $dadosExportacao = $this->rhModel->getDadosExportacaoContabil($mes, $ano, $lancamentos);
 
         if (empty($dadosExportacao)) {
             $this->setFlashMessage('error', 'Não há dados para exportar para esta competência.');
@@ -431,10 +573,177 @@ class RhController extends BaseController
      */
     public function calculoRescisao()
     {
+        // Busca todos os funcionários ativos para o select
+        $funcionarios = $this->rhModel->getFuncionarios(['status' => 'Ativo'], 999, 0);
+
         $data = [
-            'pageTitle' => 'RH - Cálculo de Rescisão'
+            'pageTitle' => 'RH - Cálculo de Rescisão',
+            'funcionarios' => $funcionarios,
         ];
-        $this->renderView('layouts/calculo_rescisao', $data);
+        $this->renderView('rh/calculo_rescisao', $data);
+    }
+
+    /**
+     * Processa o cálculo de rescisão e exibe os resultados.
+     */
+    public function processarCalculoRescisao()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . BASE_URL . '/rh/calculoRescisao');
+            exit();
+        }
+
+        // Coleta e valida os dados do formulário
+        $dadosFormulario = [
+            'funcionario_id' => filter_input(INPUT_POST, 'funcionario_id', FILTER_VALIDATE_INT),
+            'data_admissao' => filter_input(INPUT_POST, 'data_admissao'),
+            'data_desligamento' => filter_input(INPUT_POST, 'data_desligamento'),
+            'data_aviso_previo' => filter_input(INPUT_POST, 'data_aviso_previo'),
+            'motivo_rescisao' => filter_input(INPUT_POST, 'motivo_rescisao', FILTER_SANITIZE_SPECIAL_CHARS),
+            'aviso_previo' => filter_input(INPUT_POST, 'aviso_previo', FILTER_SANITIZE_SPECIAL_CHARS),
+            'ferias_vencidas' => filter_input(INPUT_POST, 'ferias_vencidas', FILTER_SANITIZE_SPECIAL_CHARS) === 'sim',
+            'data_fim_contrato' => filter_input(INPUT_POST, 'data_fim_contrato'),
+            'tipo_contrato' => filter_input(INPUT_POST, 'tipo_contrato', FILTER_SANITIZE_SPECIAL_CHARS),
+            'adiantamento_salarial' => filter_input(INPUT_POST, 'adiantamento_salarial', FILTER_SANITIZE_SPECIAL_CHARS),
+            'adiantamento_13' => filter_input(INPUT_POST, 'adiantamento_13', FILTER_SANITIZE_SPECIAL_CHARS),
+            'horas_extras_50_qtd' => filter_input(INPUT_POST, 'horas_extras_50_qtd', FILTER_VALIDATE_FLOAT),
+            'horas_extras_100_qtd' => filter_input(INPUT_POST, 'horas_extras_100_qtd', FILTER_VALIDATE_FLOAT),
+            'comissoes' => filter_input(INPUT_POST, 'comissoes', FILTER_SANITIZE_SPECIAL_CHARS),
+            'gratificacoes' => filter_input(INPUT_POST, 'gratificacoes', FILTER_SANITIZE_SPECIAL_CHARS),
+            'adicional_noturno' => filter_input(INPUT_POST, 'adicional_noturno', FILTER_SANITIZE_SPECIAL_CHARS),
+            'adicional_periculosidade' => filter_input(INPUT_POST, 'adicional_periculosidade', FILTER_SANITIZE_SPECIAL_CHARS),
+            'dsr' => filter_input(INPUT_POST, 'dsr', FILTER_SANITIZE_SPECIAL_CHARS),
+            'ajuste_saldo_devedor' => filter_input(INPUT_POST, 'ajuste_saldo_devedor', FILTER_SANITIZE_SPECIAL_CHARS),
+            'outros_descontos' => filter_input(INPUT_POST, 'outros_descontos', FILTER_SANITIZE_SPECIAL_CHARS),
+            'cod_afastamento' => filter_input(INPUT_POST, 'cod_afastamento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'remuneracao_mes_anterior' => filter_input(INPUT_POST, 'remuneracao_mes_anterior', FILTER_SANITIZE_SPECIAL_CHARS),
+            'pensao_trct_percent' => filter_input(INPUT_POST, 'pensao_trct_percent', FILTER_VALIDATE_FLOAT),
+            'pensao_fgts_percent' => filter_input(INPUT_POST, 'pensao_fgts_percent', FILTER_VALIDATE_FLOAT),
+            'pensao_alimenticia_valor' => filter_input(INPUT_POST, 'pensao_alimenticia_valor', FILTER_SANITIZE_SPECIAL_CHARS),
+            'dependentes' => filter_input(INPUT_POST, 'dependentes', FILTER_VALIDATE_INT) ?? 0,
+            'categoria_trabalhador' => filter_input(INPUT_POST, 'categoria_trabalhador', FILTER_SANITIZE_SPECIAL_CHARS),
+            'codigo_sindical' => filter_input(INPUT_POST, 'codigo_sindical', FILTER_SANITIZE_SPECIAL_CHARS),
+            'cnpj_sindicato' => filter_input(INPUT_POST, 'cnpj_sindicato', FILTER_SANITIZE_SPECIAL_CHARS),
+            'nome_sindicato' => filter_input(INPUT_POST, 'nome_sindicato', FILTER_SANITIZE_SPECIAL_CHARS),
+        ];
+
+        // Validação básica
+        if (!$dadosFormulario['funcionario_id'] || !$dadosFormulario['data_desligamento'] || !$dadosFormulario['motivo_rescisao']) {
+            $this->setFlashMessage('error', 'Dados inválidos para o cálculo de rescisão. Preencha todos os campos obrigatórios.');
+            header('Location: ' . BASE_URL . '/rh/calculoRescisao');
+            exit();
+        }
+
+        // Chama o model para realizar o cálculo
+        $calculo = $this->rhModel->calcularValoresRescisao($dadosFormulario);
+
+        if (!$calculo) {
+            $this->setFlashMessage('error', 'Não foi possível calcular a rescisão. Verifique os dados do funcionário e as regras de cálculo.');
+            header('Location: ' . BASE_URL . '/rh/calculoRescisao');
+            exit();
+        }
+
+        $this->renderView('rh/calculo_rescisao_resultado', ['pageTitle' => 'Resultado do Cálculo de Rescisão', 'calculo' => $calculo]);
+    }
+
+    /**
+     * Retorna a remuneração do mês anterior de um funcionário via AJAX.
+     */
+    public function getRemuneracaoAjax()
+    {
+        header('Content-Type: application/json');
+
+        $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+
+        if (!$id) {
+            echo json_encode(['valor' => '']);
+            exit;
+        }
+
+        $valor = $this->rhModel->getRemuneracaoAnterior($id);
+
+        echo json_encode(['valor' => number_format($valor, 2, ',', '.')]);
+        exit;
+    }
+
+    /**
+     * Gera o Aviso Prévio em PDF.
+     */
+    public function gerarAvisoPrevioPdf()
+    {
+        // Validação básica para garantir que os dados foram passados
+        if (empty($_GET['calculo'])) {
+            $this->setFlashMessage('error', 'Dados insuficientes para gerar o Aviso Prévio.');
+            header('Location: ' . BASE_URL . '/rh/calculoRescisao');
+            exit();
+        }
+
+        // Decodifica os dados do cálculo passados via GET
+        $calculo = json_decode(urldecode($_GET['calculo']), true);
+
+        // Busca dados adicionais da empresa para o cabeçalho do PDF
+        $empresa = $this->empresaModel->getDadosEmpresa();
+
+        $data = [
+            'pageTitle' => 'Aviso Prévio',
+            'calculo' => $calculo,
+            'empresa' => $empresa,
+        ];
+
+        ob_start();
+        $this->renderPartial('rh/aviso_previo_pdf', $data);
+        $html = ob_get_clean();
+
+        $dompdf = new Dompdf(['isRemoteEnabled' => true]);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $nomeArquivo = "Aviso_Previo_" . preg_replace('/[^A-Za-z0-9]/', '_', $calculo['funcionario']['nome']) . ".pdf";
+        $dompdf->stream($nomeArquivo, ["Attachment" => false]);
+        exit();
+    }
+
+    /**
+     * Gera o Termo de Rescisão de Contrato de Trabalho (TRCT) em PDF.
+     */
+    public function gerarTrctPdf()
+    {
+        // Validação básica para garantir que os dados foram passados
+        if (empty($_GET['calculo'])) {
+            $this->setFlashMessage('error', 'Dados insuficientes para gerar o TRCT.');
+            header('Location: ' . BASE_URL . '/rh/calculoRescisao');
+            exit();
+        }
+
+        // Decodifica os dados do cálculo passados via GET
+        $calculo = json_decode(urldecode($_GET['calculo']), true);
+
+        // Busca dados adicionais da empresa para o cabeçalho do PDF
+        $empresa = $this->empresaModel->getDadosEmpresa();
+
+        $data = [
+            'pageTitle' => 'Termo de Rescisão de Contrato de Trabalho',
+            'calculo' => $calculo,
+            'empresa' => $empresa,
+        ];
+
+        // Renderiza a view do PDF em uma variável
+        ob_start();
+        $this->renderPartial('rh/trct_pdf', $data);
+        $html = ob_get_clean();
+
+        // Configura e instancia o Dompdf
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $nomeArquivo = "TRCT_" . preg_replace('/[^A-Za-z0-9]/', '_', $calculo['funcionario']['nome']) . ".pdf";
+        $dompdf->stream($nomeArquivo, ["Attachment" => false]);
+        exit();
     }
 
     /**
@@ -445,7 +754,9 @@ class RhController extends BaseController
     public function espelhoFolha(int $mes, int $ano)
     {
         // Busca os dados consolidados do model
-        $dadosEspelho = $this->rhModel->getDadosEspelhoFolha($mes, $ano);
+        // Busca os lançamentos do banco de dados para passar para o cálculo
+        $lancamentos = $this->rhModel->getLancamentos($mes, $ano);
+        $dadosEspelho = $this->rhModel->getDadosEspelhoFolha($mes, $ano, $lancamentos);
 
         $data = [
             'pageTitle' => "Espelho da Folha de Pagamento - $mes/$ano",
@@ -469,7 +780,8 @@ class RhController extends BaseController
     public function exportarFolhaPdf(int $mes, int $ano)
     {
         // Reutiliza a mesma lógica de busca de dados do espelho da folha
-        $dadosRelatorio = $this->rhModel->getDadosEspelhoFolha($mes, $ano);
+        $lancamentos = $this->rhModel->getLancamentos($mes, $ano);
+        $dadosRelatorio = $this->rhModel->getDadosEspelhoFolha($mes, $ano, $lancamentos);
 
         $data = [
             'pageTitle' => "Resultados da Folha de Pagamento - $mes/$ano",
@@ -565,7 +877,9 @@ class RhController extends BaseController
         $html = ob_get_clean();
 
         // Gera o PDF
-        $dompdf = new Dompdf();
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
@@ -579,14 +893,17 @@ class RhController extends BaseController
     public function gerarRelatorioFeriasPdf()
     {
         $calculo = json_decode(urldecode($_GET['calculo']), true);
+        $empresa = $this->empresaModel->getDadosEmpresa();
 
         // Renderiza a view do PDF em uma variável
         ob_start();
-        $this->renderPartial('rh/relatorio_ferias_pdf', ['calculo' => $calculo]);
+        $this->renderPartial('rh/relatorio_ferias_pdf', ['calculo' => $calculo, 'empresa' => $empresa]);
         $html = ob_get_clean();
 
         // Gera o PDF
-        $dompdf = new Dompdf();
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
@@ -600,14 +917,17 @@ class RhController extends BaseController
     public function gerarReciboFeriasPdf()
     {
         $calculo = json_decode(urldecode($_GET['calculo']), true);
+        $empresa = $this->empresaModel->getDadosEmpresa();
 
         // Renderiza a view do PDF em uma variável
         ob_start();
-        $this->renderPartial('rh/recibo_ferias_pdf', ['calculo' => $calculo]);
+        $this->renderPartial('rh/recibo_ferias_pdf', ['calculo' => $calculo, 'empresa' => $empresa]);
         $html = ob_get_clean();
 
         // Gera o PDF
-        $dompdf = new Dompdf();
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
@@ -719,5 +1039,117 @@ class RhController extends BaseController
 
         header('Location: ' . BASE_URL . '/rh/historicoFerias');
         exit();
+    }
+
+    /**
+     * Exibe a tela de Gestão de Treinamentos.
+     */
+    public function treinamentos()
+    {
+        // Recupera os treinamentos do banco de dados corporativo
+        $paginaAtual = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?: 1;
+        $itensPorPagina = 10;
+        $offset = ($paginaAtual - 1) * $itensPorPagina;
+
+        $treinamentos = $this->treinamentosModel->getAllTreinamentos($itensPorPagina, $offset);
+        $totalRegistros = $this->treinamentosModel->getTreinamentosCount();
+        $totalPaginas = ceil($totalRegistros / $itensPorPagina);
+
+        $data = [
+            'pageTitle' => 'Gestão de Treinamentos',
+            'treinamentos' => $treinamentos,
+            'paginaAtual' => $paginaAtual,
+            'totalPaginas' => $totalPaginas
+        ];
+        $this->renderView('rh/treinamentos', $data);
+    }
+
+    /**
+     * Salva um novo treinamento (corporativo).
+     */
+    public function salvarTreinamento()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . BASE_URL . '/rh/treinamentos');
+            exit();
+        }
+
+        $dados = [
+            'id' => !empty($_POST['id']) ? (int)$_POST['id'] : null,
+            'nome_treinamento' => filter_input(INPUT_POST, 'nome_treinamento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'descricao' => filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS) ?? '',
+            'data_prevista' => filter_input(INPUT_POST, 'data_prevista'),
+            'instrutor' => filter_input(INPUT_POST, 'instrutor', FILTER_SANITIZE_SPECIAL_CHARS),
+            'local' => filter_input(INPUT_POST, 'local', FILTER_SANITIZE_SPECIAL_CHARS) ?? '',
+            'status' => filter_input(INPUT_POST, 'status', FILTER_SANITIZE_SPECIAL_CHARS) ?? 'Agendado',
+        ];
+
+        if (empty($dados['nome_treinamento']) || empty($dados['data_prevista'])) {
+            $this->setFlashMessage('error', 'Nome e Data Prevista são obrigatórios.');
+            header('Location: ' . BASE_URL . '/rh/treinamentos');
+            exit();
+        }
+
+        if ($this->treinamentosModel->salvarTreinamento($dados)) {
+            $this->setFlashMessage('success', 'Treinamento salvo com sucesso!');
+        } else {
+            $this->setFlashMessage('error', 'Erro ao agendar treinamento.');
+        }
+
+        header('Location: ' . BASE_URL . '/rh/treinamentos');
+        exit();
+    }
+
+    /**
+     * Exclui um treinamento agendado.
+     * @param int $id
+     */
+    public function excluirTreinamento(int $id)
+    {
+        if ($this->treinamentosModel->excluirTreinamento($id)) {
+            $this->setFlashMessage('success', 'Treinamento excluído com sucesso!');
+        } else {
+            $this->setFlashMessage('error', 'Erro ao excluir treinamento.');
+        }
+        header('Location: ' . BASE_URL . '/rh/treinamentos');
+        exit();
+    }
+
+    /**
+     * Gera o relatório de funcionários em PDF.
+     */
+    public function gerarRelatorioFuncionariosPdf()
+    {
+        // Pega o status da URL, com 'Todos' como valor padrão.
+        $status = $_GET['status'] ?? 'Todos';
+
+        // Busca os dados no banco de dados usando o método do model.
+        $funcionarios = $this->rhModel->getFuncionariosRelatorio($status);
+        $empresa = $this->empresaModel->getDadosEmpresa();
+
+        // Prepara os dados para a view do PDF.
+        $data = [
+            'funcionarios' => $funcionarios,
+            'filtroStatus' => $status,
+            'empresa' => $empresa
+        ];
+
+        // Renderiza a view HTML do PDF em uma variável.
+        ob_start();
+        $this->renderPartial('rh/relatorio_funcionarios_pdf', $data);
+        $html = ob_get_clean();
+
+        // Configuração e inicialização do Dompdf.
+        $options = new Options();
+        $options->set('isRemoteEnabled', true); // Permite carregar imagens/CSS externos, se necessário.
+        $dompdf = new Dompdf($options);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait'); // Define o papel como A4 em modo retrato.
+        $dompdf->render();
+
+        // Envia o PDF para o navegador para ser exibido (não para download forçado).
+        $dompdf->stream("relatorio_funcionarios_" . date('Y-m-d') . ".pdf", ["Attachment" => false]);
+        exit(); // Garante que o script pare após enviar o PDF.
     }
 }

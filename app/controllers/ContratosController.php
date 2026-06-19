@@ -3,11 +3,14 @@
 namespace App\Controllers;
 
 use App\Core\Connection;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 use App\Models\ContratosModel;
 use App\Models\ClientesModel;
 use App\Models\FornecedoresModel;
 use App\Models\ProjetosModel;
 use App\Models\FinancialModel; // Importa o FinancialModel
+use App\Models\EmpresaModel;
 // Importa as classes da biblioteca Dompdf
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -19,21 +22,76 @@ class ContratosController extends BaseController
     private $fornecedoresModel;
     private $projetosModel;
     private $financialModel; // Adiciona a propriedade para o FinancialModel
+    private $empresaModel;
+
+    /**
+     * Mapeia ações para as permissões necessárias.
+     * @var array
+     */
+    protected $requiredPermissions = [
+        'index'                         => 'contratos_view',
+        'configuracoes'                 => 'contratos_edit',
+        'salvarConfiguracoes'           => 'contratos_edit',
+        'wizard'                        => 'contratos_create',
+        'clonar'                        => 'contratos_create',
+        'novo'                          => 'contratos_create',
+        'salvar'                        => 'contratos_create',
+        'detalhe'                       => 'contratos_view',
+        'excluir'                       => 'contratos_delete',
+        'exportar'                      => 'contratos_view',
+        'gerarPdfFinal'                 => 'contratos_view',
+        'gerarPdfWizard'                => 'contratos_view',
+        'vigencia'                      => 'contratos_view',
+        'obrigacoes'                    => 'contratos_obrigacoes_manage',
+        'financeiro'                    => 'contratos_financeiro_manage',
+        'compliance'                    => 'contratos_view',
+        'gerenciarCompliance'           => 'contratos_compliance_manage',
+        'salvarCompliance'              => 'contratos_compliance_manage',
+        'relatorios'                    => 'contratos_view',
+        'exportarRelatorioVigenciaPdf'  => 'contratos_view',
+        'salvarAditivo'                 => 'contratos_edit',
+        'excluirAditivo'                => 'contratos_delete',
+        'gerenciarObrigacoes'           => 'contratos_obrigacoes_manage',
+        'salvarObrigacao'               => 'contratos_obrigacoes_manage',
+        'atualizarStatusObrigacao'      => 'contratos_obrigacoes_manage',
+        'excluirObrigacao'              => 'contratos_obrigacoes_manage',
+        'gerenciarFinanceiro'           => 'contratos_financeiro_manage',
+        'salvarParcela'                 => 'contratos_financeiro_manage',
+        'lancarParcela'                 => 'contratos_financeiro_manage',
+        'processarAlerta'               => 'contratos_view',
+        'processarUpload'               => 'contratos_create',
+        'download'                      => 'contratos_view',
+        'getContratoDados'              => 'contratos_view',
+        'removerDocumento'              => 'contratos_delete',
+        'enviarParaAssinatura'          => 'contratos_edit',
+        'assinarDigitalmente'           => '*',
+        'relatorioCompliance'           => 'contratos_view',
+        'exportarJson'                  => 'contratos_view',
+    ];
 
     public function __construct()
     {
         parent::__construct();
+
+        // Libera a ação pública de assinatura
+        $action = $this->getCurrentActionName();
+        if ($action === 'assinarDigitalmente' && !$this->session->isAuthenticated()) {
+            // Permite acesso público sem redirecionar para login
+        }
+
         $this->model = new ContratosModel(); // Correção
         $this->clientesModel = new ClientesModel(); // Correção
         $this->fornecedoresModel = new FornecedoresModel(); // Correção
         $this->projetosModel = new ProjetosModel(); // Correção
         $this->financialModel = new FinancialModel(); // Correção
+        $this->empresaModel = new EmpresaModel();
     }
 
     public function index()
     {
         // Coleta dados do modelo
         $summary = $this->model->getContratosSummary();
+        $settings = $this->model->getSettings();
 
         // Lógica de Paginação
         $paginaAtual = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?: 1;
@@ -60,9 +118,49 @@ class ContratosController extends BaseController
             'clientes' => $clientes,
             'fornecedores' => $fornecedores,
             'projetos' => $projetos,
+            'settings' => $settings,
         ], $summary);
 
         $this->renderView('contratos/index', $data);
+    }
+
+    /**
+     * Exibe a página de configurações de modelos de contrato.
+     */
+    public function configuracoes()
+    {
+        $settings = $this->model->getSettings();
+        $data = [
+            'pageTitle' => 'Configurações e Modelos de Contrato',
+            'settings' => $settings
+        ];
+        $this->renderView('contratos/configuracoes', $data);
+    }
+
+    /**
+     * Salva as configurações do módulo.
+     */
+    public function salvarConfiguracoes()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . BASE_URL . '/contratos/configuracoes');
+            exit();
+        }
+
+        $settings = [
+            'modelo_padrao' => $_POST['modelo_padrao'] ?? '',
+            'modelo_responsabilidades_contratante' => $_POST['modelo_responsabilidades_contratante'] ?? '',
+            'modelo_responsabilidades_contratado' => $_POST['modelo_responsabilidades_contratado'] ?? '',
+            'modelo_clausulas_adicionais' => $_POST['modelo_clausulas_adicionais'] ?? ''
+        ];
+
+        if ($this->model->saveSettings($settings)) {
+            $this->setFlashMessage('success', 'Configurações atualizadas com sucesso!');
+        } else {
+            $this->setFlashMessage('error', 'Erro ao salvar configurações.');
+        }
+        header('Location: ' . BASE_URL . '/contratos/configuracoes');
+        exit();
     }
 
     /**
@@ -70,8 +168,343 @@ class ContratosController extends BaseController
      */
     public function novo()
     {
-        // Redireciona para a página de índice com um parâmetro para abrir o modal
-        header('Location: ' . BASE_URL . '/contratos?action=novo');
+        // Redireciona para o Wizard de criação
+        header('Location: ' . BASE_URL . '/contratos/wizard');
+        exit();
+    }
+
+    /**
+     * Fluxo de criação/edição em 3 etapas (Wizard).
+     */
+    public function wizard($id = null)
+    {
+        // Permitir id=0 corretamente. Somente null ou string vazia devem ser tratados como não informados.
+        if ($id === null || $id === '') {
+            $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+            if ($id === false) {
+                $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+            }
+        }
+
+        if ($id === null || $id === '') {
+            $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+            $segments = explode('/', trim($path, '/'));
+            foreach (array_reverse($segments) as $segment) {
+                if (is_numeric($segment)) {
+                    $id = (int)$segment;
+                    break;
+                }
+            }
+        }
+
+        $id = ($id === null || $id === '') ? null : (int)$id;
+
+        $contrato = null;
+        if ($id !== null) {
+            $contrato = $this->model->getContratoById($id);
+
+            // Bloqueia edição de contratos finalizados no Wizard
+            if ($contrato && $contrato['status'] === 'Finalizado') {
+                $this->setFlashMessage('info', 'Contratos com status "Finalizado" não podem ser editados.');
+                header('Location: ' . BASE_URL . '/contratos');
+                exit();
+            }
+        }
+        
+        $isEdit = ($contrato !== null);
+
+        // Se for um novo contrato, gera o número sequencial sugerido (ex: CTR-2026-0001)
+        if (!$isEdit) {
+            $contrato = [
+                'numero_contrato' => $this->model->getNextContractNumber(),
+                'status'          => 'Rascunho' // Status padrão sugerido
+            ];
+        }
+
+        $settings = $this->model->getSettings();
+        $clientes = $this->clientesModel->getAllClientes() ?? [];
+        $fornecedores = $this->fornecedoresModel->getAllFornecedores() ?? [];
+        $projetos = $this->projetosModel->getProjetos([], 999, 0) ?? [];
+
+        $data = [
+            'pageTitle' => $isEdit ? 'Editar Contrato' : 'Novo Contrato',
+            'contrato' => $contrato,
+            'clientes' => $clientes,
+            'fornecedores' => $fornecedores,
+            'projetos' => $projetos,
+            'settings' => $settings,
+            'isEdit' => $isEdit,
+            'baseUrl' => defined('BASE_URL') ? BASE_URL : ''
+        ];
+
+        $this->renderView('contratos/form', $data);
+    }
+
+    /**
+     * Carrega o formulário com os dados de um contrato existente para clonagem.
+     * @param int $id O ID do contrato a ser clonado.
+     */
+    public function clonar($id)
+    {
+        $id = (int)$id;
+        $contratoOriginal = $this->model->getContratoById($id);
+
+        if (!$contratoOriginal) {
+            $this->setFlashMessage('error', 'Contrato original não encontrado para clonagem.');
+            header('Location: ' . BASE_URL . '/contratos');
+            exit();
+        }
+
+        // Validação de Segurança: Impede a clonagem de contratos cancelados
+        if ($contratoOriginal['status'] === 'Cancelado') {
+            $this->setFlashMessage('error', 'Não é permitido duplicar um contrato com status "Cancelado".');
+            header('Location: ' . BASE_URL . '/contratos');
+            exit();
+        }
+
+        // Prepara os dados para o novo contrato clonado
+        $contratoClonado = $contratoOriginal;
+        unset($contratoClonado['id']); // Remove o ID para que o salvamento gere um novo registro
+        $contratoClonado['cloned_from_id'] = $id; // Identifica a origem para duplicar parcelas depois
+        unset($contratoClonado['dataCriacao']);
+        
+        $contratoClonado['titulo'] = ($contratoOriginal['titulo'] ?? '') . ' (Cópia)';
+        $contratoClonado['numero_contrato'] = $this->model->getNextContractNumber();
+        $contratoClonado['status'] = 'Rascunho'; // Define como rascunho por segurança
+        $contratoClonado['documento_path'] = null; // Não clona o arquivo PDF/DOCX físico
+
+        $data = [
+            'pageTitle' => 'Clonar Contrato',
+            'contrato' => $contratoClonado,
+            'clientes' => $this->clientesModel->getAllClientes() ?? [],
+            'fornecedores' => $this->fornecedoresModel->getAllFornecedores() ?? [],
+            'projetos' => $this->projetosModel->getProjetos([], 999, 0) ?? [],
+            'settings' => $this->model->getSettings(),
+            'isEdit' => false, // Importante: força o formulário a se comportar como uma nova criação
+            'baseUrl' => BASE_URL
+        ];
+
+        $this->renderView('contratos/form', $data);
+    }
+
+    /**
+     * Gera o PDF final baseado no conteúdo enviado pelo Wizard (Etapa 3).
+     */
+    public function gerarPdfWizard()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . BASE_URL . '/contratos');
+            exit();
+        }
+
+        $objeto = $_POST['objeto'] ?? '';
+        $tipo = $_POST['tipo'] ?? 'Contrato';
+        
+        // Busca o nome do projeto para exibição no cabeçalho da prévia
+        $projetoNome = '';
+        if (!empty($_POST['projeto_id'])) {
+            $proj = $this->projetosModel->getProjetoById((int)$_POST['projeto_id']);
+            $projetoNome = $proj['nome'] ?? '';
+        }
+
+        $data = [
+            'objeto' => $objeto,
+            'tipo' => $tipo,
+            'empresa' => $this->empresaModel->getDadosEmpresa(),
+            'dataGeracao' => date('d/m/Y H:i'),
+            'status' => 'Rascunho',
+            'contrato' => [
+                'projeto_nome' => $projetoNome,
+                'contratante_nome' => $_POST['contratante_nome'] ?? '',
+                'contratante_documento' => $_POST['contratante_documento'] ?? '',
+                'contratado_nome' => $_POST['contratado_nome'] ?? '',
+                'contratado_documento' => $_POST['contratado_documento'] ?? '',
+                'contratante_endereco' => $_POST['contratante_endereco'] ?? '',
+                'contratante_email' => $_POST['contratante_email'] ?? '',
+                'contratado_endereco' => $_POST['contratado_endereco'] ?? '',
+                'contratado_email' => $_POST['contratado_email'] ?? '',
+                'pix_tipo_chave' => $_POST['pix_tipo_chave'] ?? '',
+                'base_referencia' => $_POST['base_referencia'] ?? '',
+                'local_assinatura' => $_POST['local_assinatura'] ?? '',
+            ]
+        ];
+
+        ob_start();
+        $this->renderPartial('contratos/pdf_final', $data);
+        $html = ob_get_clean();
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', true);
+        $options->set('defaultFont', 'Arial');
+        ini_set('memory_limit', '-1');
+        ini_set('max_execution_time', '300');
+        ini_set('pcre.backtrack_limit', '5000000');
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        
+        $dompdf->stream("Contrato_Previa_" . date('Ymd_His') . ".pdf", ["Attachment" => false]);
+        exit();
+    }
+
+    /**
+     * Gera o PDF final de um contrato já salvo no banco de dados.
+     */
+    public function gerarPdfFinal($id)
+    {
+        $id = (int)$id;
+        $contrato = $this->model->getContratoById($id);
+
+        if (!$contrato) {
+            $this->setFlashMessage('error', 'Contrato não encontrado.');
+            header('Location: ' . BASE_URL . '/contratos');
+            exit();
+        }
+
+        $data = [
+            'objeto' => $contrato['objeto'],
+            'tipo' => $contrato['tipo'],
+            'status' => $contrato['status'],
+            'contrato' => $contrato,
+            'empresa' => $this->empresaModel->getDadosEmpresa(),
+            'dataGeracao' => date('d/m/Y H:i')
+        ];
+
+        ob_start();
+        $this->renderPartial('contratos/pdf_final', $data);
+        $html = ob_get_clean();
+
+        ini_set('memory_limit', '-1');
+        ini_set('max_execution_time', '300');
+        ini_set('pcre.backtrack_limit', '5000000');
+        $dompdf = new Dompdf(['isRemoteEnabled' => true]);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        $dompdf->stream("Contrato_Final_{$id}.pdf", ["Attachment" => false]);
+        exit();
+    }
+
+    /**
+     * Envia o link para assinatura digital ao cliente via e-mail.
+     */
+    public function enviarParaAssinatura($id)
+    {
+        $id = (int)$id;
+        $contrato = $this->model->getContratoById($id);
+
+        if (!$contrato || empty($contrato['contratante_email'])) {
+            $this->setFlashMessage('error', 'Contrato não encontrado ou e-mail do contratante não definido.');
+            header('Location: ' . BASE_URL . '/contratos');
+            exit();
+        }
+
+        // Gera token de segurança único e validade de 7 dias
+        $token = bin2hex(random_bytes(32));
+        $validade = date('Y-m-d H:i:s', strtotime('+7 days'));
+
+        if ($this->model->saveSignatureToken($id, $token, $validade)) {
+            $link = BASE_URL . "/contratos/assinarDigitalmente/" . $token;
+
+            $mail = new PHPMailer(true);
+            try {
+                $mail->isSMTP();
+                $mail->Host       = defined('MAIL_HOST') ? MAIL_HOST : 'localhost';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = defined('MAIL_USERNAME') ? MAIL_USERNAME : '';
+                $mail->Password   = defined('MAIL_PASSWORD') ? MAIL_PASSWORD : '';
+                $mail->SMTPSecure = (defined('MAIL_ENCRYPTION') && MAIL_ENCRYPTION === 'ssl') ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port       = defined('MAIL_PORT') ? MAIL_PORT : 587;
+                $mail->CharSet    = 'UTF-8';
+
+                $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
+                $mail->addAddress($contrato['contratante_email'], $contrato['contratante_nome']);
+
+                $mail->isHTML(true);
+                $mail->Subject = "Assinatura Digital de Instrumento: " . ($contrato['titulo'] ?: 'Contrato');
+                
+                $corpo = "<div style='font-family: sans-serif; color: #333;'>";
+                $corpo .= "<h2>Olá, " . htmlspecialchars($contrato['contratante_nome']) . "</h2>";
+                $corpo .= "<p>O contrato <strong>" . htmlspecialchars($contrato['titulo']) . "</strong> está disponível para sua conferência e assinatura eletrônica.</p>";
+                $corpo .= "<p>Para assinar, clique no link seguro abaixo:</p>";
+                $corpo .= "<p style='margin: 30px 0; text-align:center;'>";
+                $corpo .= "<a href='$link' style='background:#1B4F8C; color:#fff; padding:15px 30px; text-decoration:none; border-radius:8px; font-weight:bold;'>VISUALIZAR E ASSINAR DOCUMENTO</a>";
+                $corpo .= "</p>";
+                $corpo .= "<p style='font-size:12px; color:#999;'>Este link expirará em 7 dias.</p>";
+                $corpo .= "<br><p>Atenciosamente,<br>Equipe " . MAIL_FROM_NAME . "</p>";
+                $corpo .= "</div>";
+                
+                $mail->Body = $corpo;
+                $mail->send();
+
+                // Atualiza status para Pendência Assinatura
+                $this->model->atualizarStatus($id, 'Pendência Assinatura');
+
+                $this->setFlashMessage('success', 'Convite enviado com sucesso para ' . $contrato['contratante_email']);
+            } catch (Exception $e) {
+                $this->setFlashMessage('error', 'Erro ao disparar e-mail: ' . $mail->ErrorInfo);
+            }
+        } else {
+            $this->setFlashMessage('error', 'Falha técnica ao gerar link de assinatura.');
+        }
+
+        header('Location: ' . BASE_URL . '/contratos');
+        exit();
+    }
+
+    /**
+     * Página pública para aceite do contrato pelo cliente.
+     */
+    public function assinarDigitalmente($token)
+    {
+        $contrato = $this->model->getContratoByToken($token);
+
+        if (!$contrato) {
+            die("<div style='text-align:center; padding:100px; font-family:sans-serif;'><h1>Link Inválido</h1><p>Este link expirou ou o contrato já foi assinado.</p></div>");
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $ip = $_SERVER['REMOTE_ADDR'];
+            if ($this->model->marcarComoAssinado($contrato['id'], $ip)) {
+                
+                // Notifica o gestor interno via sistema
+                $this->notificacoesModel->criarNotificacao(
+                    1, 
+                    'Contrato Assinado Digitalmente',
+                    "O cliente " . $contrato['contratante_nome'] . " assinou o contrato #{$contrato['id']}.",
+                    BASE_URL . "/contratos/detalhe/{$contrato['id']}"
+                );
+
+                echo "<div style='text-align:center; padding:100px; font-family:sans-serif;'><h1>Assinado!</h1><p>Obrigado. O contrato foi validado com sucesso.</p></div>";
+                exit();
+            }
+        }
+
+        // Interface simples de visualização pública
+        echo "
+        <div style='max-width:800px; margin: 40px auto; font-family: sans-serif; border: 1px solid #ddd; padding: 40px; background:#fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);'>
+            <h2 style='color:#1B4F8C;'>Conferência de Contrato</h2>
+            <p><strong>Título:</strong> ".htmlspecialchars($contrato['titulo'])."</p>
+            <div style='background:#f9f9f9; padding:20px; border:1px dashed #ccc; height:350px; overflow-y:auto; margin-bottom:20px; white-space: pre-wrap;'>".htmlspecialchars($contrato['objeto'])."</div>
+            <form method='POST' style='text-align:center; border-top:1px solid #eee; padding-top:20px;'>
+                <p>Ao clicar abaixo, você concorda com todos os termos e realiza a <strong>Assinatura Eletrônica</strong>.</p>
+                <button type='submit' style='background:#22A05B; color:#fff; border:none; padding:18px 40px; font-weight:bold; cursor:pointer; border-radius:8px; font-size:16px;'>CONFIRMAR ASSINATURA DIGITAL</button>
+                <p style='font-size:11px; color:#999; margin-top:15px;'>Seu IP: ". $_SERVER['REMOTE_ADDR'] ."</p>
+            </form>
+        </div>
+        ";
+        exit();
+    }
+
+    /**
+     * Retorna o modelo padrão em JSON para o editor.
+     */
+    public function getModeloPadrao()
+    {
+        header('Content-Type: application/json');
+        $settings = $this->model->getSettings();
+        echo json_encode(['modelo' => $settings['modelo_padrao'] ?? '']);
         exit();
     }
 
@@ -85,20 +518,115 @@ class ContratosController extends BaseController
             exit();
         }
 
+        // Validação rigorosa do formato do número do contrato (CTR-YYYY-NNN)
+        $numeroContrato = $_POST['numero_contrato'] ?? '';
+        if (!empty($numeroContrato) && !preg_match('/^CTR-\d{4}-\d{3}$/', $numeroContrato)) {
+            $this->setFlashMessage('error', 'Formato inválido! O campo "Número / Código" deve seguir o padrão CTR-YYYY-NNN (ex: CTR-2026-001).');
+            header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? BASE_URL . '/contratos'));
+            exit();
+        }
+
+        // Verificação de duplicidade do número do contrato
+        $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT) ?: null;
+        if (!empty($numeroContrato) && $this->model->numeroContratoExiste($numeroContrato, $id)) {
+            $this->setFlashMessage('error', "O número de contrato '{$numeroContrato}' já está em uso por outro registro.");
+            header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? BASE_URL . '/contratos'));
+            exit();
+        }
+
         // Coleta e sanitiza os dados do formulário
         $dados = [
             'id' => filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT) ?: null,
-            'cliente_id' => filter_input(INPUT_POST, 'cliente_id', FILTER_VALIDATE_INT),
-            'pessoa_id' => filter_input(INPUT_POST, 'pessoa_id', FILTER_VALIDATE_INT),
-            'projeto_id' => filter_input(INPUT_POST, 'projeto_id', FILTER_VALIDATE_INT) ?: null,
-            'objeto' => filter_input(INPUT_POST, 'objeto', FILTER_SANITIZE_SPECIAL_CHARS),
+            'numero_contrato' => filter_input(INPUT_POST, 'numero_contrato', FILTER_SANITIZE_SPECIAL_CHARS),
+            'base_referencia' => filter_input(INPUT_POST, 'base_referencia', FILTER_SANITIZE_SPECIAL_CHARS),
+            'numero_contrato_cliente' => filter_input(INPUT_POST, 'numero_contrato_cliente', FILTER_SANITIZE_SPECIAL_CHARS),
+            'titulo' => filter_input(INPUT_POST, 'titulo', FILTER_SANITIZE_SPECIAL_CHARS),
             'tipo' => filter_input(INPUT_POST, 'tipo', FILTER_SANITIZE_SPECIAL_CHARS),
             'status' => filter_input(INPUT_POST, 'status', FILTER_SANITIZE_SPECIAL_CHARS),
+            'foro_eleicao' => filter_input(INPUT_POST, 'foro_eleicao', FILTER_SANITIZE_SPECIAL_CHARS),
+            'lei_aplicavel' => filter_input(INPUT_POST, 'lei_aplicavel', FILTER_SANITIZE_SPECIAL_CHARS),
+            'resolucao_disputas' => filter_input(INPUT_POST, 'resolucao_disputas', FILTER_SANITIZE_SPECIAL_CHARS),
+            'local_assinatura' => filter_input(INPUT_POST, 'local_assinatura', FILTER_SANITIZE_SPECIAL_CHARS),
+
+            'contratante_nome' => filter_input(INPUT_POST, 'contratante_nome', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratante_documento' => filter_input(INPUT_POST, 'contratante_documento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'cliente_id' => filter_input(INPUT_POST, 'cliente_id', FILTER_VALIDATE_INT) ?: null,
+            'pessoa_id' => filter_input(INPUT_POST, 'pessoa_id', FILTER_VALIDATE_INT) ?: null,
+            'contratante_endereco' => filter_input(INPUT_POST, 'contratante_endereco', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratante_email' => filter_input(INPUT_POST, 'contratante_email', FILTER_SANITIZE_EMAIL),
+            'contratante_telefone' => filter_input(INPUT_POST, 'contratante_telefone', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratante_representante' => filter_input(INPUT_POST, 'contratante_representante', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratante_rg_cpf_rep' => filter_input(INPUT_POST, 'contratante_rg_cpf_rep', FILTER_SANITIZE_SPECIAL_CHARS),
+
+            'contratado_nome' => filter_input(INPUT_POST, 'contratado_nome', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratado_documento' => filter_input(INPUT_POST, 'contratado_documento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratado_endereco' => filter_input(INPUT_POST, 'contratado_endereco', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratado_email' => filter_input(INPUT_POST, 'contratado_email', FILTER_SANITIZE_EMAIL),
+            'contratado_telefone' => filter_input(INPUT_POST, 'contratado_telefone', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratado_representante' => filter_input(INPUT_POST, 'contratado_representante', FILTER_SANITIZE_SPECIAL_CHARS),
+            'contratado_rg_cpf_rep' => filter_input(INPUT_POST, 'contratado_rg_cpf_rep', FILTER_SANITIZE_SPECIAL_CHARS),
+
+            'valor' => !empty($_POST['valor']) ? (float)str_replace(['.', ','], ['', '.'], $_POST['valor']) : null,
+            'valor_sinal' => !empty($_POST['valor_sinal']) ? (float)str_replace(['.', ','], ['', '.'], $_POST['valor_sinal']) : 0.0,
+            'forma_pagamento' => filter_input(INPUT_POST, 'forma_pagamento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'dados_bancarios' => filter_input(INPUT_POST, 'dados_bancarios', FILTER_SANITIZE_SPECIAL_CHARS),
+            'condicao_pagamento' => filter_input(INPUT_POST, 'condicao_pagamento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'dia_vencimento' => filter_input(INPUT_POST, 'dia_vencimento', FILTER_VALIDATE_INT),
+            'numero_parcelas' => filter_input(INPUT_POST, 'numero_parcelas', FILTER_VALIDATE_INT),
+            'multa_atraso' => filter_input(INPUT_POST, 'multa_atraso', FILTER_VALIDATE_FLOAT),
+            'pix_tipo_chave' => filter_input(INPUT_POST, 'pix_tipo_chave', FILTER_SANITIZE_SPECIAL_CHARS),
+            'juros_mora' => filter_input(INPUT_POST, 'juros_mora', FILTER_VALIDATE_FLOAT),
+            'correcao_monetaria' => filter_input(INPUT_POST, 'correcao_monetaria', FILTER_SANITIZE_SPECIAL_CHARS),
+            'prazo_carencia_multa' => filter_input(INPUT_POST, 'prazo_carencia_multa', FILTER_VALIDATE_INT),
+            'penalidade_descumprimento' => filter_input(INPUT_POST, 'penalidade_descumprimento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'multa_rescisao_antecipada' => filter_input(INPUT_POST, 'multa_rescisao_antecipada', FILTER_SANITIZE_SPECIAL_CHARS),
+            'observacoes_financeiras' => filter_input(INPUT_POST, 'observacoes_financeiras', FILTER_SANITIZE_SPECIAL_CHARS),
+            
+            'confidencialidade_tags' => $_POST['confidencialidade_tags'] ?? null,
+            'prazo_sigilo' => filter_input(INPUT_POST, 'prazo_sigilo', FILTER_SANITIZE_SPECIAL_CHARS),
+            'penalidade_violacao_sigilo' => filter_input(INPUT_POST, 'penalidade_violacao_sigilo', FILTER_SANITIZE_SPECIAL_CHARS),
+            'dpo_encarregado' => filter_input(INPUT_POST, 'dpo_encarregado', FILTER_SANITIZE_SPECIAL_CHARS),
+            'transferencia_internacional' => isset($_POST['transferencia_internacional']) ? 1 : 0,
+            'subcontratacao_dados' => isset($_POST['subcontratacao_dados']) ? 1 : 0,
+            'base_legal_lgpd' => filter_input(INPUT_POST, 'base_legal_lgpd', FILTER_SANITIZE_SPECIAL_CHARS),
+            'lgpd_conformidade' => isset($_POST['lgpd_conformidade']) ? 1 : 0,
+            'clausula_confidencialidade' => filter_input(INPUT_POST, 'clausula_confidencialidade', FILTER_SANITIZE_SPECIAL_CHARS),
+            
+            'aviso_previo_rescisao' => filter_input(INPUT_POST, 'aviso_previo_rescisao', FILTER_SANITIZE_SPECIAL_CHARS),
+            'rescisao_descumprimento' => filter_input(INPUT_POST, 'rescisao_descumprimento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'nao_concorrencia' => filter_input(INPUT_POST, 'nao_concorrencia', FILTER_SANITIZE_SPECIAL_CHARS),
+            'indenizacao_rescisao' => filter_input(INPUT_POST, 'indenizacao_rescisao', FILTER_SANITIZE_SPECIAL_CHARS),
+            'causas_rescisao_imotivada' => filter_input(INPUT_POST, 'causas_rescisao_imotivada', FILTER_SANITIZE_SPECIAL_CHARS),
+            'causas_justa_causa' => filter_input(INPUT_POST, 'causas_justa_causa', FILTER_SANITIZE_SPECIAL_CHARS),
+            'obrigacoes_pos_encerramento' => filter_input(INPUT_POST, 'obrigacoes_pos_encerramento', FILTER_SANITIZE_SPECIAL_CHARS),
+            'responsabilidades_contratante' => filter_input(INPUT_POST, 'responsabilidades_contratante', FILTER_SANITIZE_SPECIAL_CHARS),
+            'responsabilidades_contratado' => filter_input(INPUT_POST, 'responsabilidades_contratado', FILTER_SANITIZE_SPECIAL_CHARS),
+            'criterios_aceite' => filter_input(INPUT_POST, 'criterios_aceite', FILTER_SANITIZE_SPECIAL_CHARS),
+            'renovacao_automatica' => filter_input(INPUT_POST, 'renovacao_automatica', FILTER_SANITIZE_SPECIAL_CHARS),
+            
+            'clausulas_adicionais' => filter_input(INPUT_POST, 'clausulas_adicionais', FILTER_SANITIZE_SPECIAL_CHARS),
+            'assinatura_tipo' => filter_input(INPUT_POST, 'assinatura_tipo', FILTER_SANITIZE_SPECIAL_CHARS),
+            'numero_vias' => filter_input(INPUT_POST, 'numero_vias', FILTER_SANITIZE_SPECIAL_CHARS),
+
             'data_inicio' => filter_input(INPUT_POST, 'data_inicio'),
             'vencimento' => filter_input(INPUT_POST, 'vencimento'),
-            // Trata o valor monetário que vem formatado (ex: "1.234,56")
-            'valor' => !empty($_POST['valor']) ? (float)str_replace(['.', ','], ['', '.'], $_POST['valor']) : null,
+            'duracao_meses' => filter_input(INPUT_POST, 'duracao_meses', FILTER_VALIDATE_INT),
+            'observacoes' => filter_input(INPUT_POST, 'observacoes', FILTER_SANITIZE_SPECIAL_CHARS),
+            'projeto_id' => filter_input(INPUT_POST, 'projeto_id', FILTER_VALIDATE_INT) ?: null,
+            'objeto' => $_POST['objeto'] ?? '', 
         ];
+
+        $clonedFromId = filter_input(INPUT_POST, 'cloned_from_id', FILTER_VALIDATE_INT);
+
+        // Proteção extra no salvamento: impede alteração se o contrato já estiver finalizado
+        if ($dados['id']) {
+            $contratoAtual = $this->model->getContratoById($dados['id']);
+            if ($contratoAtual && $contratoAtual['status'] === 'Finalizado') {
+                $this->setFlashMessage('error', 'Erro: Este contrato já foi finalizado e não permite mais alterações.');
+                header('Location: ' . BASE_URL . '/contratos');
+                exit();
+            }
+        }
 
         // --- Lógica de Upload de Arquivo ---
         if (isset($_FILES['documento']) && $_FILES['documento']['error'] === UPLOAD_ERR_OK) {
@@ -133,8 +661,14 @@ class ContratosController extends BaseController
 
         // Chama o método no model para salvar os dados
         try {
-            if ($this->model->salvarContrato($dados)) {
-                $message = $dados['id'] ? 'Contrato atualizado com sucesso!' : 'Contrato cadastrado com sucesso!';
+            $savedId = $this->model->salvarContrato($dados);
+            if ($savedId) {
+                // Se for um novo contrato vindo de uma clonagem, duplica as parcelas financeiras
+                if (!$dados['id'] && $clonedFromId) {
+                    $this->model->duplicarParcelas($clonedFromId, (int)$savedId);
+                }
+
+                $message = $dados['id'] ? 'Contrato atualizado com sucesso!' : 'Contrato cadastrado com sucesso e parcelas duplicadas!';
                 $this->setFlashMessage('success', $message);
             } else {
                 $this->setFlashMessage('error', 'Ocorreu um erro desconhecido ao salvar o contrato.');
@@ -150,33 +684,90 @@ class ContratosController extends BaseController
 
     /**
      * Busca os dados de um contrato e retorna o HTML do formulário para edição via AJAX.
-     * @param int $id O ID do contrato.
+     * @param mixed $id O ID do contrato.
      */
-    public function getFormForEdit(int $id)
+    public function getFormForEdit($id = null)
     {
-        $contrato = $this->model->getContratoById($id);
+        try {
+            // Impede o cache da resposta AJAX pelo navegador
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
 
-        if (!$contrato) {
-            http_response_code(404);
-            echo "Contrato não encontrado.";
-            exit();
+            // Permitir id=0 corretamente. Somente null ou string vazia devem ser tratados como não informados.
+            if ($id === null || $id === '') {
+                $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+                if ($id === false) {
+                    $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+                }
+            }
+
+            if ($id === null || $id === '') {
+                $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+                $segments = explode('/', trim($path, '/'));
+                foreach (array_reverse($segments) as $segment) {
+                    if (is_numeric($segment)) {
+                        $id = (int)$segment;
+                        break;
+                    }
+                }
+            }
+
+            if ($id === null || $id === '') {
+                http_response_code(400);
+                echo "ID do contrato não informado.";
+                exit();
+            }
+
+            $id = (int)$id;
+
+            // PONTO DE VERIFICAÇÃO 1: O ID foi identificado?
+            error_log("ContratosController::getFormForEdit - ID detectado: " . var_export($id, true));
+
+            $contrato = $this->model->getContratoById($id);
+
+            if (!$contrato) {
+                error_log("ContratosController::getFormForEdit - Contrato não encontrado para o ID: " . var_export($id, true));
+                http_response_code(404);
+                echo "Contrato não encontrado.";
+                exit();
+            }
+
+            // Verificação de Coincidência de Nomes: Log das chaves retornadas pelo BD
+            $colunasBD = array_keys($contrato);
+            error_log("ContratosController::getFormForEdit - Colunas retornadas pelo BD: " . implode(', ', $colunasBD));
+
+            // Bloqueia a abertura do formulário via Modal para contratos finalizados
+            if ($contrato['status'] === 'Finalizado') {
+                http_response_code(403);
+                echo "Edição bloqueada: Este contrato já está finalizado.";
+                exit();
+            }
+
+            $settings = $this->model->getSettings();
+            // Busca listas para os selects do formulário
+            $clientes = $this->clientesModel->getAllClientes() ?? [];
+            $fornecedores = $this->fornecedoresModel->getAllFornecedores() ?? [];
+            $projetos = $this->projetosModel->getProjetos([], 999, 0) ?? [];
+
+            $data = [
+                'pageTitle' => 'Editar Contrato',
+                'contrato' => $contrato,
+                'clientes' => $clientes,
+                'fornecedores' => $fornecedores,
+                'projetos' => $projetos,
+                'settings' => $settings,
+                'isEdit' => true, // Força true pois este método é específico para edição
+                'baseUrl' => BASE_URL
+            ];
+
+            // Renderiza apenas o formulário, sem o template principal
+            $this->renderPartial('contratos/form', $data);
+        } catch (Exception $e) {
+            error_log("Erro em getFormForEdit: " . $e->getMessage());
+            http_response_code(500);
+            echo "Erro interno do servidor: " . $e->getMessage();
         }
-
-        // Busca listas para os selects do formulário
-        $clientes = $this->clientesModel->getAllClientes() ?? [];
-        $fornecedores = $this->fornecedoresModel->getAllFornecedores() ?? [];
-        $projetos = $this->projetosModel->getProjetos([], 999, 0) ?? [];
-
-        $data = [
-            'pageTitle' => 'Editar Contrato',
-            'contrato' => $contrato,
-            'clientes' => $clientes,
-            'fornecedores' => $fornecedores,
-            'projetos' => $projetos,
-        ];
-
-        // Renderiza apenas o formulário, sem o template principal
-        $this->renderPartial('contratos/form', $data);
     }
 
     /**
@@ -335,6 +926,7 @@ class ContratosController extends BaseController
             'pageTitle' => 'Relatório de Vigência de Contratos',
             'contratos' => $contratos,
             'dataGeracao' => date('d/m/Y H:i:s'),
+            'empresa' => $this->empresaModel->getDadosEmpresa(),
         ];
 
         // 2. Captura o HTML da view do relatório em uma variável
@@ -345,6 +937,9 @@ class ContratosController extends BaseController
         // 3. Configura e instancia o Dompdf
         $options = new Options();
         $options->set('isRemoteEnabled', true);
+        ini_set('memory_limit', '-1');
+        ini_set('max_execution_time', '300');
+        ini_set('pcre.backtrack_limit', '5000000');
         $dompdf = new Dompdf($options);
 
         // 4. Carrega o HTML no Dompdf
@@ -379,6 +974,7 @@ class ContratosController extends BaseController
         $fornecedores = $this->fornecedoresModel->getAllFornecedores() ?? [];
         $projetos = $this->projetosModel->getProjetos([], 999, 0) ?? [];
         $aditivos = $this->model->getAditivosByContratoId($id);
+        $settings = $this->model->getSettings();
 
         $data = [
             'pageTitle' => 'Detalhes do Contrato',
@@ -387,6 +983,7 @@ class ContratosController extends BaseController
             'clientes' => $clientes,
             'fornecedores' => $fornecedores,
             'projetos' => $projetos,
+            'settings' => $settings,
             'isDetalhePage' => true, // Flag para a view de detalhes
         ];
         $this->renderView('contratos/detalhe', $data);
@@ -827,42 +1424,38 @@ class ContratosController extends BaseController
             exit();
         }
 
-        // --- Lógica de Envio de E-mail ---
-        // Em um ambiente de produção, é altamente recomendável usar uma biblioteca como PHPMailer ou Symfony Mailer.
-        $destinatario = 'admin@sysenvicorp.com'; // E-mail do responsável/gestor de contratos
-        $assunto = "Alerta de Renovação de Contrato: #" . $contrato['id'];
+        // --- Lógica de Envio de E-mail via PHPMailer ---
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host       = defined('MAIL_HOST') ? MAIL_HOST : 'localhost';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = defined('MAIL_USERNAME') ? MAIL_USERNAME : '';
+            $mail->Password   = defined('MAIL_PASSWORD') ? MAIL_PASSWORD : '';
+            $mail->SMTPSecure = (defined('MAIL_ENCRYPTION') && MAIL_ENCRYPTION === 'ssl') ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = defined('MAIL_PORT') ? MAIL_PORT : 587;
+            $mail->CharSet    = 'UTF-8';
 
-        $corpoEmail = "<h1>Alerta de Renovação de Contrato</h1>";
-        $corpoEmail .= "<p>Um alerta de renovação foi emitido para o seguinte contrato:</p>";
-        $corpoEmail .= "<ul>";
-        $corpoEmail .= "<li><strong>Contrato ID:</strong> " . $contrato['id'] . "</li>";
-        $corpoEmail .= "<li><strong>Objeto:</strong> " . htmlspecialchars($contrato['objeto']) . "</li>";
-        $corpoEmail .= "<li><strong>Parte Contratada:</strong> " . htmlspecialchars($contrato['parteContratada']) . "</li>";
-        $corpoEmail .= "<li><strong>Data de Vencimento:</strong> " . date('d/m/Y', strtotime($contrato['vencimento'])) . "</li>";
-        $corpoEmail .= "</ul>";
-        if (!empty($mensagemAdicional)) {
-            $corpoEmail .= "<h2>Mensagem Adicional:</h2>";
-            $corpoEmail .= "<p>" . nl2br(htmlspecialchars($mensagemAdicional)) . "</p>";
-        }
-        $corpoEmail .= "<p>Por favor, tome as ações necessárias para a renovação.</p>";
+            $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
+            $mail->addAddress(MAIL_ADMIN_RECIPIENT);
 
-        $headers = "MIME-Version: 1.0" . "\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-        $headers .= 'From: <noreply@sysenvicorp.com>' . "\r\n";
-
-        // A função mail() pode não funcionar em ambientes locais (localhost) sem configuração de um servidor SMTP.
-        if (mail($destinatario, $assunto, $corpoEmail, $headers)) {
-            $this->setFlashMessage('success', 'Alerta de renovação enviado com sucesso!');
-        } else {
-            // Em ambiente de desenvolvimento ou localhost, simulamos o sucesso para não bloquear o fluxo.
-            $is_localhost = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1']);
-            $is_dev_env = (defined('ENVIRONMENT') && ENVIRONMENT === 'development');
-
-            if ($is_localhost || $is_dev_env) {
-                $this->setFlashMessage('success', 'Alerta de renovação enviado com sucesso! (Simulação em ambiente local)');
-            } else {
-                $this->setFlashMessage('error', 'Falha ao enviar o e-mail de alerta. Verifique as configurações do servidor.');
+            $mail->isHTML(true);
+            $mail->Subject = "Alerta de Renovação de Contrato: #" . $contrato['id'];
+            
+            $corpo = "<h1>Alerta de Renovação</h1>";
+            $corpo .= "<p>Contrato ID: " . $contrato['id'] . "</p>";
+            $corpo .= "<ul><li><strong>Objeto:</strong> " . htmlspecialchars($contrato['objeto']) . "</li>";
+            $corpo .= "<li><strong>Vencimento:</strong> " . date('d/m/Y', strtotime($contrato['vencimento'])) . "</li></ul>";
+            if (!empty($mensagemAdicional)) {
+                $corpo .= "<p><strong>Mensagem:</strong> " . nl2br(htmlspecialchars($mensagemAdicional)) . "</p>";
             }
+            
+            $mail->Body = $corpo;
+            $mail->send();
+            $this->setFlashMessage('success', 'Alerta de renovação enviado com sucesso!');
+        } catch (Exception $e) {
+            error_log("Erro no alerta de contrato: {$mail->ErrorInfo}");
+            $this->setFlashMessage('error', 'Erro ao enviar e-mail de alerta.');
         }
 
         header('Location: ' . BASE_URL . '/contratos/enviarAlerta');
@@ -1013,17 +1606,244 @@ class ContratosController extends BaseController
             'pageTitle' => $tituloRelatorio,
             'contratos' => $dadosRelatorio,
             'dataGeracao' => date('d/m/Y H:i:s'),
+            'empresa' => $this->empresaModel->getDadosEmpresa(),
         ];
 
         ob_start();
         $this->renderPartial('contratos/relatorio_compliance_pdf', $data);
         $html = ob_get_clean();
 
+        ini_set('memory_limit', '-1');
+        ini_set('max_execution_time', '300');
+        ini_set('pcre.backtrack_limit', '5000000');
         $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => true]);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
         $dompdf->stream("relatorio_compliance_{$tipo}_" . date('Y-m-d') . ".pdf", ["Attachment" => false]);
         exit();
+    }
+
+    /**
+     * Busca dados de um CNPJ via BrasilAPI (Ajax).
+     * @param string $cnpj
+     */
+    public function buscarCnpjAjax($cnpj)
+    {
+        header('Content-Type: application/json');
+        $cnpj = preg_replace('/\D/', '', $cnpj);
+
+        if (strlen($cnpj) !== 14) {
+            echo json_encode(['success' => false, 'message' => 'O CNPJ deve conter exatamente 14 dígitos para a busca.']);
+            exit;
+        }
+
+        $urlBrasilApi = "https://brasilapi.com.br/api/cnpj/v1/{$cnpj}";
+        $urlReceitaWs = "https://www.receitaws.com.br/v1/cnpj/{$cnpj}";
+
+        try {
+            // 1. Tenta BrasilAPI
+            $res = $this->executarCurlCnpj($urlBrasilApi);
+
+            if ($res['httpCode'] === 200) {
+                $data = json_decode($res['body'], true);
+                echo json_encode(['success' => true, 'data' => $data]);
+                exit;
+            }
+
+            // 2. Se falhar por limite (429) ou erro de servidor (5xx), tenta ReceitaWS (Fallback)
+            if ($res['httpCode'] === 429 || $res['httpCode'] >= 500 || $res['body'] === false) {
+                $resFallback = $this->executarCurlCnpj($urlReceitaWs);
+
+                if ($resFallback['httpCode'] === 200) {
+                    $dataRaw = json_decode($resFallback['body'], true);
+                    
+                    if (($dataRaw['status'] ?? '') !== 'ERROR') {
+                        // Mapeia o formato da ReceitaWS para o padrão da BrasilAPI esperado pelo seu JS
+                        $mapped = [
+                            'razao_social'  => $dataRaw['nome'] ?? '',
+                            'nome_fantasia' => $dataRaw['fantasia'] ?? '',
+                            'logradouro'    => $dataRaw['logradouro'] ?? '',
+                            'numero'        => $dataRaw['numero'] ?? '',
+                            'complemento'   => $dataRaw['complemento'] ?? '',
+                            'bairro'        => $dataRaw['bairro'] ?? '',
+                            'municipio'     => $dataRaw['municipio'] ?? '',
+                            'uf'            => $dataRaw['uf'] ?? '',
+                            'cep'           => preg_replace('/\D/', '', $dataRaw['cep'] ?? ''),
+                            'email'         => $dataRaw['email'] ?? '',
+                            'telefone'      => $dataRaw['telefone'] ?? '',
+                            'ddd_telefone_1'=> '' // ReceitaWS já traz o DDD no campo telefone
+                        ];
+                        echo json_encode(['success' => true, 'data' => $mapped]);
+                        exit;
+                    }
+                }
+            }
+
+            // 3. Tratamento de erros finais
+            if ($res['httpCode'] === 404) {
+                echo json_encode(['success' => false, 'message' => 'CNPJ não encontrado na base da Receita Federal.']);
+            } elseif ($res['httpCode'] === 429) {
+                echo json_encode(['success' => false, 'message' => 'Limite de consultas excedido em todos os serviços gratuitos. Por favor, tente novamente em 1 minuto.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Os serviços de consulta estão instáveis no momento.']);
+            }
+        } catch (\Exception $e) {
+            error_log("Erro em buscarCnpjAjax: " . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Erro interno ao processar a consulta.']);
+        }
+        exit;
+    }
+
+    /**
+     * Helper para executar requisições cURL para as APIs de CNPJ.
+     */
+    private function executarCurlCnpj(string $url): array
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+        $body = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return ['body' => $body, 'httpCode' => $httpCode];
+    }
+
+    /**
+     * Verifica via AJAX se o documento já existe no banco.
+     */
+    public function verificarDocumentoExistente($doc)
+    {
+        header('Content-Type: application/json');
+        try {
+            // Garante que o documento seja tratado como string
+            $resultado = $this->model->buscarEntidadePorDocumento((string)$doc);
+            echo json_encode(['exists' => !empty($resultado), 'entidade' => $resultado]);
+        } catch (\Exception $e) {
+            error_log("Erro em verificarDocumentoExistente: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['exists' => false, 'error' => true, 'message' => 'Erro interno ao processar consulta local.']);
+        }
+        exit;
+    }
+
+    /**
+     * Exporta os metadados do contrato em formato JSON para integração com sistemas de assinatura.
+     * @param int $id O ID do contrato.
+     */
+    public function exportarJson(int $id)
+    {
+        $contrato = $this->model->getContratoDetalhadoById($id);
+
+        if (!$contrato) {
+            $this->setFlashMessage('error', 'Contrato não encontrado.');
+            header('Location: ' . BASE_URL . '/contratos');
+            exit();
+        }
+
+        // Estrutura os dados para exportação amigável e organizada
+        $data = [
+            'metadata_info' => [
+                'sistema' => 'SysEnviCorp',
+                'data_exportacao' => date('Y-m-d H:i:s'),
+                'versao_schema' => '1.0'
+            ],
+            'contrato' => [
+                'id' => $contrato['id'],
+                'titulo' => $contrato['titulo'] ?? '',
+                'tipo' => $contrato['tipo'],
+                'status' => $contrato['status'],
+                'foro' => $contrato['foro_eleicao'] ?? '',
+                'valor_total' => (float)($contrato['valor'] ?? 0),
+                'forma_pagamento' => $contrato['forma_pagamento'] ?? '',
+                'data_inicio' => $contrato['data_inicio'],
+                'data_vencimento' => $contrato['vencimento'],
+                'contratante' => ['nome' => $contrato['contratante_nome'], 'documento' => $contrato['contratante_documento'], 'email' => $contrato['contratante_email'], 'endereco' => $contrato['contratante_endereco']],
+                'contratado' => ['nome' => $contrato['contratado_nome'], 'documento' => $contrato['contratado_documento'], 'email' => $contrato['contratado_email'], 'endereco' => $contrato['contratado_endereco']],
+                'texto_contrato' => $contrato['objeto']
+            ]
+        ];
+
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="metadata_contrato_' . $id . '.json"');
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+
+    /**
+     * Exporta a lista de contratos em formato CSV para planilhas.
+     * Resolve o erro 404 ao tentar acessar a ação 'exportar'.
+     */
+    public function exportar()
+    {
+        // Busca todos os contratos vigentes com os dados necessários para o relatório
+        $contratos = $this->model->getTodosContratosParaRelatorio();
+
+        if (empty($contratos)) {
+            $this->setFlashMessage('info', 'Não há contratos vigentes disponíveis para exportação.');
+            header('Location: ' . BASE_URL . '/contratos');
+            exit();
+        }
+
+        $filename = "export_contratos_" . date('Y-m-d_H-i') . ".csv";
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $output = fopen('php://output', 'w');
+        
+        // Adiciona o BOM para garantir que o Excel reconheça caracteres acentuados (UTF-8)
+        fputs($output, "\xEF\xBB\xBF");
+
+        // Cabeçalhos do arquivo CSV
+        fputcsv($output, ['ID/Código', 'ID/CTR-CLIENTE', 'Base de Referência', 'Objeto', 'Tipo', 'Parte Contratada', 'Valor (R$)', 'Data Início', 'Vencimento', 'Status'], ';');
+
+        foreach ($contratos as $c) {
+            fputcsv($output, [
+                $c['numero_contrato'] ?? $c['id'],
+                $c['numero_contrato_cliente'] ?? 'N/A',
+                $c['base_referencia'] ?? 'N/A',
+                $c['objeto'],
+                $c['tipo'],
+                $c['parteContratada'] ?? 'N/A',
+                number_format((float)$c['valor'], 2, ',', ''),
+                $c['data_inicio'] ? date('d/m/Y', strtotime($c['data_inicio'])) : '',
+                $c['vencimento'] ? date('d/m/Y', strtotime($c['vencimento'])) : 'Indeterminado',
+                $c['status']
+            ], ';');
+        }
+
+        fclose($output);
+        exit();
+    }
+
+    /**
+     * Busca os dados de um contrato via AJAX (para o formulário de orçamento).
+     * @param int $id
+     */
+    public function getContratoDados(int $id)
+    {
+        header('Content-Type: application/json');
+        $id = (int)$id;
+        $contrato = $this->model->getContratoById($id);
+        if ($contrato) {
+            echo json_encode([
+                'success' => true,
+                'data' => [
+                    'id' => $contrato['id'],
+                    'vencimento' => $contrato['vencimento'] ? date('d/m/Y', strtotime($contrato['vencimento'])) : 'Indeterminado',
+                    'valor' => (float)($contrato['valor'] ?? 0),
+                    'cliente_id' => $contrato['cliente_id'] ?? null
+                ]
+            ]);
+        } else {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'message' => 'Contrato não encontrado.']);
+        }
+        exit;
     }
 }

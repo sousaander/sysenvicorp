@@ -31,6 +31,7 @@
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">INSS</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">IRRF</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Outros Desc.</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Sal. Família</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Salário Líquido</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
             </tr>
@@ -40,11 +41,13 @@
                 <?php
                 $totalBruto = 0;
                 $totalLiquido = 0;
+                $totalSalarioFamilia = 0;
                 ?>
                 <?php foreach ($resultados as $res): ?>
                     <?php
                     $totalBruto += $res['salario_bruto'];
                     $totalLiquido += $res['salario_liquido'];
+                    $totalSalarioFamilia += $res['salario_familia'];
                     ?>
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($res['nome']); ?></td>
@@ -52,6 +55,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right">R$ <?php echo number_format($res['inss'], 2, ',', '.'); ?></td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right">R$ <?php echo number_format($res['irrf'], 2, ',', '.'); ?></td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right">R$ <?php echo number_format($res['outros_descontos'], 2, ',', '.'); ?></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 text-right">R$ <?php echo number_format($res['salario_familia'], 2, ',', '.'); ?></td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-700 text-right">R$ <?php echo number_format($res['salario_liquido'], 2, ',', '.'); ?></td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <a href="<?php echo BASE_URL; ?>/rh/holerite/<?php echo $mes; ?>/<?php echo $ano; ?>/<?php echo htmlspecialchars($res['id']); ?>" class="text-indigo-600 hover:text-indigo-900">Ver Holerite</a>
@@ -61,13 +65,13 @@
                 <tr class="bg-gray-100 font-bold">
                     <td class="px-6 py-4 text-right">TOTAIS:</td>
                     <td class="px-6 py-4 text-right">R$ <?php echo number_format($totalBruto, 2, ',', '.'); ?></td>
-                    <td colspan="3"></td>
+                    <td colspan="4"></td>
                     <td class="px-6 py-4 text-right">R$ <?php echo number_format($totalLiquido, 2, ',', '.'); ?></td>
                     <td></td>
                 </tr>
             <?php else: ?>
                 <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhum resultado encontrado para esta competência.</td>
+                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">Nenhum resultado encontrado para esta competência.</td>
                 </tr>
             <?php endif; ?>
         </tbody>

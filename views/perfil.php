@@ -1,7 +1,17 @@
 <div class="page-wrapper">
     <div class="page-content">
-        <div class="page-header mb-3">
-            <h1 class="text-2xl font-semibold">Meu Perfil</h1>
+        <div class="page-header mb-6 flex items-center gap-4">
+            <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-sky-400 p-0.5 shadow-sm">
+                <?php 
+                $nomeUsuario = $usuario['nome'] ?? 'Usuário';
+                $avatarUrl = $usuario['foto_url'] ?? 'https://ui-avatars.com/api/?name=' . urlencode($nomeUsuario) . '&background=38bdf8&color=fff&size=128';
+                ?>
+                <img src="<?= htmlspecialchars($avatarUrl) ?>" alt="Avatar" class="w-full h-full rounded-full object-cover">
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800"><?= htmlspecialchars($nomeUsuario) ?></h1>
+                <p class="text-sm text-gray-500 font-medium">Configurações da Conta e Perfil Pessoal</p>
+            </div>
         </div>
         <!--end header-->
 

@@ -1,6 +1,17 @@
 <h2 class="text-2xl font-bold mb-4">Módulo de Usuários e Gestão de Acesso</h2>
 <p class="mb-6 text-gray-600">Administre o cadastro de usuários, defina perfis de acesso e garanta a segurança das informações através do controle de permissões.</p>
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SysEnviCorp - Usuários</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="<?php echo BASE_URL; ?>/css/output.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
     <!-- Card de Resumo de Perfis -->
@@ -29,9 +40,13 @@
     <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
         <h3 class="text-lg font-semibold mb-4 border-b pb-2 flex justify-between items-center">
             Lista de Usuários Cadastrados
-            <button id="openModalBtn" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">
-                + Novo Usuário
-            </button>
+
+            <?php // Verifica se o usuário pode criar novos usuários ?>
+            <?php if (has_permission('users_create')): ?>
+                <button id="openModalBtn" class="text-sm font-medium text-emerald-600 hover:text-emerald-800">
+                    + Novo Usuário
+                </button>
+            <?php endif; ?>
         </h3>
 
         <?php if (!empty($usuarios)): ?>
@@ -43,7 +58,9 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cargo</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Perfil de Acesso</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                            <?php if (has_permission('users_edit') || has_permission('users_delete')): ?>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -61,26 +78,34 @@
                                         <?php echo htmlspecialchars($user['status']); ?>
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <button data-userid="<?php echo $user['id']; ?>" class="edit-user-btn text-indigo-600 hover:text-indigo-900 mr-3" title="Editar">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                                            <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
-                                    <a href="<?php echo BASE_URL; ?>/usuario/toggleStatus/<?php echo $user['id']; ?>" class="<?php echo $user['status'] === 'Ativo' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'; ?>" title="<?php echo $user['status'] === 'Ativo' ? 'Desativar' : 'Ativar'; ?>">
-                                        <?php if ($user['status'] === 'Ativo'): ?>
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
-                                            </svg>
-                                        <?php else: ?>
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
-                                            </svg>
+                                <?php if (has_permission('users_edit') || has_permission('users_delete')): ?>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <?php if (has_permission('users_edit')): ?>
+                                            <button data-userid="<?php echo $user['id']; ?>" class="edit-user-btn text-indigo-600 hover:text-indigo-900 mr-3" title="Editar">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                                                    <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                                                </svg>
+                                            </button>
+                                            <button data-userid="<?php echo $user['id']; ?>" data-username="<?php echo htmlspecialchars($user['nome']); ?>" class="reset-password-btn text-yellow-600 hover:text-yellow-900 mr-3" title="Resetar Senha">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd" />
+                                                </svg>
+                                            </button>
+                                            <a href="<?php echo BASE_URL; ?>/usuario/toggleStatus/<?php echo $user['id']; ?>" class="<?php echo $user['status'] === 'Ativo' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'; ?>" title="<?php echo $user['status'] === 'Ativo' ? 'Desativar' : 'Ativar'; ?>">
+                                                <?php if ($user['status'] === 'Ativo'): ?>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+                                                    </svg>
+                                                <?php else: ?>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
+                                                    </svg>
+                                                <?php endif; ?>
+                                            </a>
                                         <?php endif; ?>
-                                    </a>
-                                </td>
-                                </td>
+                                    </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -216,10 +241,83 @@
                         </select>
                     </div>
 
-                    <div class="items-center px-4 py-3 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-4">
-                        <button id="closeEditModalBtn" type="button" class="mt-2 sm:mt-0 w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">Cancelar</button>
-                        <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">Atualizar Usuário</button>
+                    <div class="items-center px-4 py-3 flex flex-col-reverse sm:flex-row sm:justify-between">
+                        <!-- Botão de Excluir à esquerda -->
+                        <div>
+                            <button id="triggerDeleteUserBtn" type="button" class="w-full sm:w-auto px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300">
+                                Excluir Usuário
+                            </button>
+                        </div>
+                        <!-- Botões de Ação à direita -->
+                        <div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-4">
+                            <button id="closeEditModalBtn" type="button" class="mt-2 sm:mt-0 w-full sm:w-auto px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">Cancelar</button>
+                            <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">Atualizar Usuário</button>
+                        </div>
                     </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Excluir Usuário -->
+<div id="excluirUsuarioModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-2">Excluir Usuário</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500">
+                    Você tem certeza que deseja excluir permanentemente o usuário <strong id="deleteConfirmUserName"></strong>?
+                    <br>
+                    Esta ação também removerá o registro do funcionário associado e <strong>não pode ser desfeita</strong>.
+                </p>
+            </div>
+            <div class="items-center px-4 py-3">
+                <form id="deleteUserForm" action="" method="post">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <button id="cancelDeleteBtn" type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 mr-2">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        Sim, Excluir Permanentemente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Resetar Senha -->
+<div id="resetPasswordModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+                <svg class="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-2">Resetar Senha</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500">
+                    Você tem certeza que deseja redefinir a senha do usuário <strong id="resetUserName"></strong>?
+                    <br>
+                    A nova senha será: <code class="font-bold text-red-600">Mudar@123</code>.
+                </p>
+            </div>
+            <div class="items-center px-4 py-3">
+                <form id="resetPasswordForm" action="" method="post">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                    <button id="cancelResetBtn" type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 mr-2">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600">
+                        Sim, Resetar Senha
+                    </button>
                 </form>
             </div>
         </div>
@@ -254,6 +352,8 @@
         const closeEditBtn = document.getElementById('closeEditModalBtn');
         const editUserButtons = document.querySelectorAll('.edit-user-btn');
         const editForm = document.getElementById('editUserForm');
+        const deleteModal = document.getElementById('excluirUsuarioModal');
+        const resetModal = document.getElementById('resetPasswordModal');
 
         // Dados dos usuários passados pelo PHP
         const usuariosData = <?php echo $usuarios_json; ?>;
@@ -288,5 +388,84 @@
                 editModal.style.display = 'none';
             };
         }
+
+        // --- Lógica para a Modal de Exclusão de Usuário ---
+        const triggerDeleteUserBtn = document.getElementById('triggerDeleteUserBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const deleteForm = document.getElementById('deleteUserForm');
+        const deleteConfirmUserNameSpan = document.getElementById('deleteConfirmUserName');
+
+        if (triggerDeleteUserBtn) {
+            triggerDeleteUserBtn.addEventListener('click', function() {
+                // Pega o ID e nome do formulário de edição que já está preenchido
+                const userId = document.getElementById('edit_user_id').value;
+                const userName = document.getElementById('edit_nome').value;
+
+                if (userId && userName) {
+                    // Esconde o modal de edição
+                    if (editModal) editModal.style.display = 'none';
+
+                    // Configura e mostra o modal de exclusão
+                    if (deleteForm) {
+                        deleteForm.action = `<?php echo BASE_URL; ?>/usuario/excluir/${userId}`;
+                    }
+                    if (deleteConfirmUserNameSpan) {
+                        deleteConfirmUserNameSpan.textContent = userName;
+                    }
+                    if (deleteModal) {
+                        deleteModal.style.display = 'block';
+                    }
+                }
+            });
+        }
+
+        if (cancelDeleteBtn) {
+            cancelDeleteBtn.onclick = () => {
+                if (deleteModal) deleteModal.style.display = 'none';
+                // Opcional: reabrir o modal de edição
+                // if (editModal) editModal.style.display = 'block';
+            };
+        }
+
+        // --- Lógica para a Modal de Reset de Senha ---
+        const cancelResetBtn = document.getElementById('cancelResetBtn');
+        const resetPasswordButtons = document.querySelectorAll('.reset-password-btn');
+        const resetForm = document.getElementById('resetPasswordForm');
+        const resetUserNameSpan = document.getElementById('resetUserName');
+
+        if (resetPasswordButtons) {
+            resetPasswordButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const userId = this.getAttribute('data-userid');
+                    const userName = this.getAttribute('data-username');
+
+                    if (resetForm) {
+                        resetForm.action = `<?php echo BASE_URL; ?>/usuario/resetPassword/${userId}`;
+                    }
+                    if (resetUserNameSpan) {
+                        resetUserNameSpan.textContent = userName;
+                    }
+                    if (resetModal) {
+                        resetModal.style.display = 'block';
+                    }
+                });
+            });
+        }
+
+        if (cancelResetBtn) {
+            cancelResetBtn.onclick = () => {
+                if (resetModal) resetModal.style.display = 'none';
+            };
+        }
+
+        // Fechar modais clicando fora
+        window.onclick = function(event) {
+            if (event.target == modal) modal.style.display = "none";
+            if (event.target == editModal) editModal.style.display = "none";
+            if (event.target == deleteModal) deleteModal.style.display = "none";
+            if (event.target == resetModal) resetModal.style.display = "none";
+        }
     });
 </script>
+</body>
+</html>

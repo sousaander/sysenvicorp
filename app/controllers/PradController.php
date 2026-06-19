@@ -9,6 +9,20 @@ class PradController extends BaseController
 {
     private $model;
 
+    /**
+     * Mapeia ações para as permissões necessárias.
+     * O BaseController usará este mapa para verificar o acesso.
+     * @var array
+     */
+    protected $requiredPermissions = [
+        'index' => 'prad_view',
+        'detalhePrad' => 'prad_view',
+        'novo' => 'prad_manage',
+        'salvar' => 'prad_manage',
+        'editar' => 'prad_manage',
+        'excluir' => 'prad_manage',
+    ];
+
     public function __construct()
     {
         parent::__construct();

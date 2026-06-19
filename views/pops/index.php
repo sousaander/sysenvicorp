@@ -34,7 +34,7 @@
     <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
         <h3 class="text-lg font-semibold mb-4 border-b pb-2 flex justify-between items-center">
             Monitoramento de POPs com Revisão Pendente
-            <a href="/sysenvicorp/pops/novo" class="text-sm font-medium text-teal-600 hover:text-teal-800">
+            <a href="<?php echo BASE_URL; ?>/pops/novo" class="text-sm font-medium text-teal-600 hover:text-teal-800">
                 + Novo POP
             </a>
         </h3>
@@ -52,34 +52,34 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php foreach ($criticalList as $pop): ?>
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo $pop['id']; ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                            <a href="/sysenvicorp/pops/visualizar?id=<?php echo $pop['id']; ?>" class="text-teal-600 hover:text-teal-800 font-medium">
-                                <?php echo $pop['titulo']; ?>
-                            </a>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo $pop['ultimaRevisao']; ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold 
-                            <?php 
-                                if ($pop['status'] === 'Expirado') echo 'text-red-600';
-                                elseif ($pop['status'] === 'Em Revisão') echo 'text-orange-600';
-                                else echo 'text-green-600';
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo $pop['id']; ?></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+                                <a href="<?php echo BASE_URL; ?>/pops/visualizar?id=<?php echo $pop['id']; ?>" class="text-teal-600 hover:text-teal-800 font-medium">
+                                    <?php echo $pop['titulo']; ?>
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo $pop['ultimaRevisao']; ?></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold 
+                            <?php
+                            if ($pop['status'] === 'Expirado') echo 'text-red-600';
+                            elseif ($pop['status'] === 'Em Revisão') echo 'text-orange-600';
+                            else echo 'text-green-600';
                             ?>
                         ">
-                            <?php echo $pop['proximaRevisao']; ?>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                <?php 
-                                    if ($pop['status'] === 'Expirado') echo 'bg-red-100 text-red-800';
-                                    elseif ($pop['status'] === 'Em Revisão') echo 'bg-orange-100 text-orange-800';
-                                    else echo 'bg-green-100 text-green-800';
+                                <?php echo $pop['proximaRevisao']; ?>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                <?php
+                                if ($pop['status'] === 'Expirado') echo 'bg-red-100 text-red-800';
+                                elseif ($pop['status'] === 'Em Revisão') echo 'bg-orange-100 text-orange-800';
+                                else echo 'bg-green-100 text-green-800';
                                 ?>">
-                                <?php echo $pop['status']; ?>
-                            </span>
-                        </td>
-                    </tr>
+                                    <?php echo $pop['status']; ?>
+                                </span>
+                            </td>
+                        </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
@@ -91,10 +91,10 @@
     <!-- Filtros e Busca Rápida -->
     <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-1">
         <h3 class="text-lg font-semibold mb-4">Busca e Ações Rápidas</h3>
-        
+
         <label for="buscaPop" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Título/ID</label>
         <input type="text" id="buscaPop" placeholder="Ex: POP-001 ou Químicos" class="w-full mb-4 border border-gray-300 rounded-md shadow-sm p-2 focus:ring-teal-500 focus:border-teal-500">
-        
+
         <label for="filtroSetorPop" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Setor</label>
         <select id="filtroSetorPop" class="w-full mb-4 border border-gray-300 rounded-md shadow-sm p-2 focus:ring-teal-500 focus:border-teal-500">
             <option>Todos os Setores</option>
@@ -103,11 +103,11 @@
             <option>Segurança</option>
             <option>Administrativo</option>
         </select>
-        
+
         <button onclick="alert('Funcionalidade de Relatório de Conformidade de POPs em desenvolvimento.')" class="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
             Relatório de Conformidade
         </button>
-        
+
         <div class="mt-6 pt-4 border-t">
             <p class="text-sm text-gray-500">A manutenção da qualidade dos POPs garante a segurança e eficiência da SysEnviCorp.</p>
         </div>

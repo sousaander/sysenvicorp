@@ -132,4 +132,24 @@ class SessionManager
         // Regenerar o ID da sessão após o login para prevenir Session Fixation
         session_regenerate_id(true);
     }
+
+    /**
+     * Verifica se o usuário logado possui o perfil de administrador.
+     */
+    public function isAdmin(): bool
+    {
+        return strtolower($this->get('usuario_perfil', '')) === 'admin';
+    }
+
+    /**
+     * Verifica se o usuário possui uma permissão específica ou se é administrador.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+        $permissions = json_decode($this->get('usuario_permissoes', '[]'), true);
+        return is_array($permissions) && in_array($permission, $permissions);
+    }
 }

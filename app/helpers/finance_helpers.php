@@ -27,7 +27,7 @@ if (!function_exists('get_bank_flag_url')) {
             'bb' => 'bancodobrasil.svg',
             'sicoob' => 'sicoob.svg',
             'sicredi' => 'sicredi.svg',
-            'inter' => 'inter.svg',
+            'inter' => 'inter.png',
             'nubank' => 'nubank.svg',
             'cora' => 'cora.png',
         ];

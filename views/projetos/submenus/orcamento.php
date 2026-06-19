@@ -88,17 +88,26 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
                                 <?php echo $item['status']; ?>
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="#"
-                                class="edit-orcamento-btn text-indigo-600 hover:text-indigo-900"
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center gap-4">
+                            <button
+                                class="edit-orcamento-btn text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
                                 data-item='<?php echo json_encode($item, JSON_HEX_APOS | JSON_HEX_QUOT); ?>'
                                 aria-label="Editar item <?php echo htmlspecialchars($item['descricao']); ?>">
+                                <i class='bx bx-edit text-base'></i>
                                 Editar
-                            </a>
+                            </button>
 
                             <?php if ($item['comprovante_path']): ?>
-                                <a href="<?php echo BASE_URL . '/uploads/comprovantes/' . $item['comprovante_path']; ?>" target="_blank" class="ml-4 text-blue-600 hover:text-blue-900">Ver Comprovante</a>
+                                <a href="<?php echo BASE_URL . '/uploads/comprovantes/' . $item['comprovante_path']; ?>" target="_blank" class="text-blue-600 hover:text-blue-900 flex items-center gap-1"><i class='bx bx-file-find text-base'></i>Ver Comprovante</a>
                             <?php endif; ?>
+
+                            <a href="<?php echo BASE_URL . '/projetos/excluirItemOrcamento/' . $item['id'] . '/' . $projeto['id']; ?>"
+                               onclick="return confirm('Tem certeza que deseja excluir este item do orçamento? Esta ação não pode ser desfeita.');"
+                               class="text-red-600 hover:text-red-800 flex items-center gap-1"
+                               aria-label="Excluir item <?php echo htmlspecialchars($item['descricao']); ?>">
+                                <i class='bx bx-trash text-base'></i>
+                                Excluir
+                            </a>
                         </td>
                     </tr>
                 <?php endforeach; ?>

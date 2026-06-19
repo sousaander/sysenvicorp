@@ -53,4 +53,16 @@ class EmpresaModel extends Model
 
         return file_put_contents($this->configFile, json_encode($novaConfig, JSON_PRETTY_PRINT)) !== false;
     }
+
+    /**
+     * Busca o aviso de sistema ativo no momento.
+     * @return array|null Retorna o aviso se encontrado, ou null.
+     */
+    public function getAvisoAtivo(): ?array
+    {
+        $sql = "SELECT * FROM avisos_sistema 
+                WHERE ativo = 1 AND NOW() BETWEEN data_inicio AND data_fim 
+                ORDER BY criado_em DESC LIMIT 1";
+        return $this->db->query($sql)->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
 }

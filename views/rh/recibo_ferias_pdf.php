@@ -3,57 +3,16 @@ $funcionario = $calculo['funcionario'];
 $periodo = $calculo['periodo'];
 $valores = $calculo['valores'];
 
-// Função para escrever um número por extenso
-function valorPorExtenso($valor)
-{
-    // CORREÇÃO: Substituída a função que dependia da extensão 'intl' (NumberFormatter)
-    // por uma implementação em PHP puro para evitar o erro "Class not found".
-    $singular = ["centavo", "real", "mil", "milhão", "bilhão", "trilhão", "quatrilhão"];
-    $plural = ["centavos", "reais", "mil", "milhões", "bilhões", "trilhões", "quatrilhões"];
-    $c = ["", "cem", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
-    $d = ["", "dez", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
-    $d10 = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
-    $u = ["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
-
-    $z = 0;
-    $valor = number_format($valor, 2, ".", ".");
-    $inteiro = explode(".", $valor);
-    $rt = "";
-
-    for ($i = 0; $i < count($inteiro); $i++) {
-        for ($ii = strlen($inteiro[$i]); $ii < 3; $ii++) {
-            $inteiro[$i] = "0" . $inteiro[$i];
-        }
-    }
-
-    $fim = count($inteiro) - ($inteiro[count($inteiro) - 1] > 0 ? 1 : 2);
-    for ($i = 0; $i < count($inteiro); $i++) {
-        $valor = $inteiro[$i];
-        $rc = (($valor > 100) && ($valor < 200)) ? "cento" : $c[$valor[0]];
-        $rd = ($valor[1] < 2) ? "" : $d[$valor[1]];
-        $ru = ($valor > 0) ? (($valor[1] == 1) ? $d10[$valor[2]] : $u[$valor[2]]) : "";
-
-        $r = $rc . (($rc && ($rd || $ru)) ? " e " : "") . $rd . (($rd && $ru) ? " e " : "") . $ru;
-        $t = count($inteiro) - 1 - $i;
-        $r .= ($r) ? " " . ($valor > 1 ? $plural[$t] : $singular[$t]) : "";
-        if ($valor == "000") $z++;
-        elseif ($z > 0) $z--;
-        if (($t == 1) && ($z > 0) && ($inteiro[0] > 0)) $r .= (($z > 1) ? " de " : "") . $plural[$t];
-        if ($r) $rt = $rt . ((($i > 0) && ($i <= $fim) && ($inteiro[0] > 0) && ($z < 1)) ? (($i < $fim) ? ", " : " e ") : " ") . $r;
-    }
-
-    $rt = trim($rt);
-    if (!$rt) return "zero";
-
-    // Adiciona 'reais' e 'centavos'
-    $partes = explode(' e ', $rt);
-    if (count($partes) > 1 && in_array(end($partes), $plural)) {
-        $ultimo = array_pop($partes);
-        $rt = implode(' e ', $partes) . ' ' . $ultimo;
-    }
-
-    return ucfirst($rt);
+// Prepara o logo em Base64
+$logoPath = ROOT_PATH . '/public/assets/images/logo.png';
+$logoSrc = '';
+if (file_exists($logoPath) && extension_loaded('gd')) {
+    $logoSrc = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
 }
+$empresa = $empresa ?? []; // Garante que a variável exista
+require_once ROOT_PATH . '/app/helpers/ReportHelper.php';
+
+use App\Helpers\ReportHelper;
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -120,11 +79,14 @@ function valorPorExtenso($valor)
 
 <body>
     <div class="container">
+        <?php if (!empty($logoSrc)): ?>
+            <div style="text-align: center; margin-bottom: 20px;"><img src="<?php echo $logoSrc; ?>" alt="Logo" style="max-height: 60px;"></div>
+        <?php endif; ?>
         <h1>RECIBO DE PAGAMENTO DE FÉRIAS</h1>
 
-        <p>Eu, <strong><?php echo htmlspecialchars($funcionario['nome']); ?></strong>, funcionário(a) da empresa <strong>EnviCorp Soluções Ambientais LTDA</strong>, declaro ter recebido a importância líquida de <strong>R$ <?php echo number_format($valores['valor_liquido'], 2, ',', '.'); ?> (<?php echo valorPorExtenso($valores['valor_liquido']); ?>)</strong>, referente ao pagamento das minhas férias.</p>
+        <p>Eu, <strong><?php echo htmlspecialchars($funcionario['nome']); ?></strong>, funcionário(a) da empresa <strong><?php echo htmlspecialchars($empresa['razao_social'] ?? 'EnviCorp Soluções Ambientais LTDA'); ?></strong>, declaro ter recebido a importância líquida de <strong><?php echo ReportHelper::formatCurrency($valores['valor_liquido']); ?> (<?php echo valorPorExtenso($valores['valor_liquido']); ?>)</strong>, referente ao pagamento das minhas férias.</p>
 
-        <p>O período de gozo das férias será de <strong><?php echo date('d/m/Y', strtotime($periodo['data_inicio'])); ?></strong> a <strong><?php echo date('d/m/Y', strtotime($periodo['data_fim'])); ?></strong>, totalizando <?php echo htmlspecialchars($periodo['dias']); ?> dias.</p>
+        <p>O período de gozo das férias será de <strong><?php echo ReportHelper::formatDate($periodo['data_inicio']); ?></strong> a <strong><?php echo ReportHelper::formatDate($periodo['data_fim']); ?></strong>, totalizando <?php echo htmlspecialchars($periodo['dias']); ?> dias.</p>
 
         <p>Por ser a expressão da verdade, firmo o presente recibo para que produza seus devidos e legais efeitos.</p>
 

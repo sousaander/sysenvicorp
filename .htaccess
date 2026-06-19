@@ -1,5 +1,23 @@
+# .htaccess para o projeto sysenvicorp
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # HostGator prefere SymLinksIfOwnerMatch. FollowSymLinks pode causar 403.
+    Options +SymLinksIfOwnerMatch -Indexes
+
+    RewriteBase /sysenvicorp/
+
+    # Redireciona a raiz do diretório para a pasta public
     RewriteRule ^$ public/ [L]
-    RewriteRule ^(.*)$ public/$1 [L]
+
+    # Se a requisição não for para um arquivo ou diretório real na raiz...
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    # ...e não começar com "public/", tenta encontrar o recurso dentro de "public/"
+    RewriteRule ^((?!public/).*)$ public/$1 [L]
+
+    # Se ainda assim não for um arquivo real (rotas do sistema), manda para o index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^public/(.*)$ public/index.php [L]
 </IfModule>

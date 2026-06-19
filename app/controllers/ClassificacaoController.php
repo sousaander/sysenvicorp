@@ -80,7 +80,8 @@ class ClassificacaoController extends BaseController
         if ($this->financialModel->salvarClassificacao($dados)) {
             $this->setFlashMessage('success', 'Categoria salva com sucesso!');
         } else {
-            $this->setFlashMessage('error', 'Erro ao salvar a categoria.');
+            $erro = $this->financialModel->getUltimoErro() ?? 'Erro ao salvar a categoria.';
+            $this->setFlashMessage('error', $erro);
         }
 
         header('Location: ' . BASE_URL . '/classificacao');
@@ -92,8 +93,12 @@ class ClassificacaoController extends BaseController
      */
     public function excluir(int $id)
     {
-        $this->financialModel->excluirClassificacao($id);
-        $this->setFlashMessage('success', 'Categoria excluída com sucesso.');
+        if ($this->financialModel->excluirClassificacao($id)) {
+            $this->setFlashMessage('success', 'Categoria excluída com sucesso. Lançamentos associados foram desvinculados.');
+        } else {
+            $erro = $this->financialModel->getUltimoErro() ?? 'Erro ao excluir a categoria.';
+            $this->setFlashMessage('error', $erro);
+        }
         header('Location: ' . BASE_URL . '/classificacao');
         exit();
     }

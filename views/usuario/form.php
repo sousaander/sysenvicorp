@@ -1,6 +1,7 @@
 <h2 class="text-2xl font-bold mb-4">Novo Usuário</h2>
 
 <form action="<?php echo BASE_URL; ?>/usuario/salvar" method="post" class="max-w-md">
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>">
     <div class="mb-4">
         <label for="nome" class="block text-gray-700 text-sm font-bold mb-2">Nome:</label>
         <input type="text" id="nome" name="nome" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">

@@ -81,6 +81,7 @@
         </div>
         <div class="mt-5">
             <form action="<?php echo BASE_URL; ?>/patrimonio/salvarReavaliacao" method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                 <input type="hidden" id="reav-bem-id" name="bem_id">
 
                 <div class="mb-4">

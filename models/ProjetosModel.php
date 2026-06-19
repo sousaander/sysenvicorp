@@ -8,9 +8,95 @@ use App\Core\Model;
 
 class ProjetosModel extends Model
 {
+    private $lastError = null;
+
     public function __construct()
     {
         parent::__construct();
+        $this->ensureColumnsExist();
+    }
+
+    public function getLastError()
+    {
+        return $this->lastError;
+    }
+
+    /**
+     * Garante que as colunas de latitude e longitude existam na tabela projetos.
+     * Isso evita o erro 1054 quando o banco de dados não foi atualizado manualmente.
+     */
+    private function ensureColumnsExist()
+    {
+        $columnsToCheck = [
+            'latitude' => 'DECIMAL(10,8) NULL',
+            'longitude' => 'DECIMAL(11,8) NULL',
+            'numero_projeto' => 'VARCHAR(20) UNIQUE NULL AFTER id'
+        ];
+
+        foreach ($columnsToCheck as $col => $def) {
+            try {
+                $stmt = $this->db->query("SHOW COLUMNS FROM projetos LIKE '$col'");
+                if ($stmt->rowCount() == 0) {
+                    // Adiciona as colunas ao final da tabela
+                    $this->db->exec("ALTER TABLE projetos ADD COLUMN $col $def");
+                }
+            } catch (\PDOException $e) {
+                error_log("Erro ao sincronizar schema da tabela projetos ($col): " . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Retorna o próximo número sequencial de projeto para o ano atual.
+     * Formato: PRJ-YYYY-NNN (ex: PRJ-2026-001)
+     */
+    public function getNextProjectNumber(): string
+    {
+        $year = date('Y');
+        $prefix = "PRJ-{$year}-";
+
+        try {
+            // O prefixo 'PRJ-YYYY-' tem 9 caracteres, o número sequencial começa na posição 10.
+            // Usamos CAST para garantir a ordenação numérica correta.
+            $stmt = $this->db->prepare("
+                SELECT MAX(CAST(SUBSTRING(numero_projeto, 10) AS UNSIGNED)) 
+                FROM projetos 
+                WHERE numero_projeto LIKE :prefix
+            ");
+            $stmt->execute([':prefix' => $prefix . '%']);
+            $lastNumber = (int)$stmt->fetchColumn();
+            
+            return $prefix . str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
+        } catch (\PDOException $e) {
+            error_log("Erro ao gerar próximo número de projeto: " . $e->getMessage());
+            return $prefix . "001";
+        }
+    }
+
+    /**
+     * Verifica se um número de projeto já existe no banco de dados.
+     * @param string $numero
+     * @param int|null $excludeId ID a ser ignorado (útil na edição)
+     * @return bool
+     */
+    public function numeroProjetoExiste(string $numero, ?int $excludeId = null): bool
+    {
+        try {
+            $sql = "SELECT COUNT(*) FROM projetos WHERE numero_projeto = :numero";
+            if ($excludeId) {
+                $sql .= " AND id != :excludeId";
+            }
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':numero', $numero);
+            if ($excludeId) {
+                $stmt->bindValue(':excludeId', $excludeId, \PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            return (int)$stmt->fetchColumn() > 0;
+        } catch (\PDOException $e) {
+            error_log("Erro ao verificar existência do número de projeto: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
@@ -54,7 +140,9 @@ class ProjetosModel extends Model
     {
         try {
             // Monta a query base
-            $sql = "SELECT p.id, p.nome, c.nome as cliente_nome, p.responsavel, p.data_inicial, p.status
+            $sql = "SELECT p.id, p.numero_projeto, p.nome, c.nome as cliente_nome, p.responsavel, p.data_inicial, p.data_fim_prevista, p.status, p.tipo_servico,
+                           (SELECT COUNT(*) FROM projetos_tarefas WHERE projeto_id = p.id) as total_tarefas,
+                           (SELECT COUNT(*) FROM projetos_tarefas WHERE projeto_id = p.id AND status = 'Concluída') as tarefas_concluidas
                     FROM projetos p
                     LEFT JOIN clientes c ON p.cliente_id = c.id";
 
@@ -65,17 +153,40 @@ class ProjetosModel extends Model
             if (!empty($filtros['status']) && !in_array($filtros['status'], ['Todos', 'Todos Ativos'])) {
                 $where[] = "p.status = :status";
                 $params[':status'] = $filtros['status'];
-            } else {
+            } elseif (empty($filtros['status']) || $filtros['status'] === 'Todos Ativos') {
                 // Comportamento padrão ou quando "Todos Ativos" é selecionado:
                 // Mostra todos os projetos, exceto os arquivados.
                 $where[] = "p.status NOT IN ('Concluído', 'Cancelado')";
+            }
+            // Se for 'Todos', não adiciona filtro de status (mostra tudo)
+
+            if (!empty($filtros['responsavel'])) {
+                $where[] = "p.responsavel LIKE :responsavel";
+                $params[':responsavel'] = '%' . $filtros['responsavel'] . '%';
             }
 
             if (!empty($where)) {
                 $sql .= ' WHERE ' . implode(' AND ', $where);
             }
 
-            $sql .= " ORDER BY p.id DESC LIMIT :limit OFFSET :offset";
+            // Lógica de Ordenação
+            $allowedSorts = ['id', 'numero_projeto', 'nome', 'cliente_nome', 'responsavel', 'data_inicial', 'data_fim_prevista', 'status'];
+            $orderBy = in_array($filtros['orderBy'] ?? '', $allowedSorts) ? $filtros['orderBy'] : 'id';
+            $orderDir = strtoupper($filtros['orderDir'] ?? '') === 'ASC' ? 'ASC' : 'DESC';
+
+            $sortMap = [
+                'id' => 'p.id',
+                'numero_projeto' => 'p.numero_projeto',
+                'nome' => 'p.nome',
+                'cliente_nome' => 'c.nome',
+                'responsavel' => 'p.responsavel',
+                'data_inicial' => 'p.data_inicial',
+                'data_fim_prevista' => 'p.data_fim_prevista',
+                'status' => 'p.status'
+            ];
+            $orderBySql = $sortMap[$orderBy] ?? 'p.id';
+
+            $sql .= " ORDER BY {$orderBySql} {$orderDir} LIMIT :limit OFFSET :offset";
 
             $stmt = $this->db->prepare($sql);
             foreach ($params as $k => $v) {
@@ -106,9 +217,14 @@ class ProjetosModel extends Model
         if (!empty($filtros['status']) && !in_array($filtros['status'], ['Todos', 'Todos Ativos'])) {
             $where[] = "p.status = :status";
             $params[':status'] = $filtros['status'];
-        } else {
+        } elseif (empty($filtros['status']) || $filtros['status'] === 'Todos Ativos') {
             // Comportamento padrão ou quando "Todos Ativos" é selecionado.
             $where[] = "p.status NOT IN ('Concluído', 'Cancelado')";
+        }
+
+        if (!empty($filtros['responsavel'])) {
+            $where[] = "p.responsavel LIKE :responsavel";
+            $params[':responsavel'] = '%' . $filtros['responsavel'] . '%';
         }
 
         if (!empty($where)) {
@@ -128,8 +244,7 @@ class ProjetosModel extends Model
     public function getProjetoById(int $id): ?array
     {
         try {
-            // CORREÇÃO: Fazer JOIN com a tabela de clientes para buscar o nome.
-            $sql = "SELECT p.*, c.nome as cliente_nome 
+            $sql = "SELECT p.*, c.nome as cliente_nome, c.sigla as cliente_sigla 
                     FROM projetos p
                     LEFT JOIN clientes c ON p.cliente_id = c.id
                     WHERE p.id = ?";
@@ -151,16 +266,105 @@ class ProjetosModel extends Model
     public function getAllProjetosParaSelect(): array
     {
         try {
-            $sql = "SELECT p.id, p.nome, c.nome as cliente_nome
+            $sql = "SELECT p.id, p.nome, c.nome as cliente_nome, c.sigla as cliente_sigla, p.tipo_servico as tipo_servico, p.responsavel as responsavel
                     FROM projetos p
                     LEFT JOIN clientes c ON p.cliente_id = c.id
                     WHERE p.status NOT IN ('Concluído', 'Cancelado')
                     ORDER BY p.nome ASC";
             $stmt = $this->db->prepare($sql);
             $stmt->execute();
-            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $resultado = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            
+            return $resultado;
         } catch (\PDOException $e) {
             error_log("Erro ao buscar projetos para select: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Busca projetos associados a um cliente específico.
+     * @param int $clienteId
+     * @return array
+     */
+    public function getProjetosByClienteId(int $clienteId): array
+    {
+        try {
+            $sql = "SELECT id, nome, status FROM projetos WHERE cliente_id = :cliente_id ORDER BY id DESC";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':cliente_id', $clienteId, \PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            error_log("Erro ao buscar projetos do cliente: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Busca projetos que possuem coordenadas geográficas preenchidas.
+     * Usado para plotagem no mapa do Dashboard.
+     * @return array
+     */
+    public function getProjetosComLocalizacao(): array
+    {
+        try {
+            $sql = "
+                SELECT 
+                    p.id, p.nome, p.latitude, p.longitude, p.status, p.tipo_servico, 
+                    c.nome as cliente_nome, 'projeto' as item_tipo, p.dataCriacao as created_at
+                FROM projetos p
+                LEFT JOIN clientes c ON p.cliente_id = c.id
+                WHERE p.latitude IS NOT NULL 
+                  AND p.longitude IS NOT NULL 
+                  AND p.latitude != 0
+                  AND p.status != 'Cancelado'
+                
+                UNION ALL
+                
+                SELECT 
+                    op.id, op.nome_proposta as nome, op.latitude, op.longitude, op.status, 
+                    'Comercial' as tipo_servico, 
+                    COALESCE(c.nome, 'Prospect / Cliente não identificado') as cliente_nome, 
+                    'proposta' as item_tipo, op.created_at
+                FROM orcamento_proposta op
+                LEFT JOIN clientes c ON op.cliente_id = c.id
+                WHERE op.latitude IS NOT NULL 
+                  AND op.longitude IS NOT NULL 
+                  AND op.latitude != 0
+                  AND op.status != 'Cancelada'
+                  AND op.projeto_id IS NULL
+            ";
+            
+            $stmt = $this->db->query($sql);
+            $stmt->execute();
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            error_log("Erro ao buscar projetos com localização: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Retorna a contagem de projetos agrupada por status para o Dashboard.
+     */
+    public function getProjetosCountByStatus(): array
+    {
+        try {
+            $sql = "SELECT status, COUNT(*) as total 
+                    FROM projetos 
+                    WHERE status != 'Cancelado'
+                    GROUP BY status";
+            $stmt = $this->db->query($sql);
+            $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            
+            $summary = [];
+            foreach ($results as $row) {
+                $summary[$row['status']] = (int) $row['total'];
+            }
+            return $summary;
+        } catch (\PDOException $e) {
+            error_log("Erro ao buscar contagem de projetos por status: " . $e->getMessage());
             return [];
         }
     }
@@ -194,6 +398,15 @@ class ProjetosModel extends Model
     public function getProjectDetailsSummary(int $id): ?array
     {
         try {
+            // Busca dados básicos do projeto para cálculos
+            $stmt = $this->db->prepare("SELECT orcamento, data_fim_prevista, status FROM projetos WHERE id = ?");
+            $stmt->execute([$id]);
+            $projeto = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$projeto) {
+                return [];
+            }
+
             // Resumo Financeiro (reutilizando a lógica existente)
             $orcamentoSummary = $this->getOrcamentoSummary($id);
 
@@ -213,11 +426,46 @@ class ProjetosModel extends Model
             $stmtMapas->execute([$id]);
             $mapasCount = $stmtMapas->fetchColumn();
 
+            // --- Novos Cálculos para o Dashboard ---
+
+            // 1. Dias Restantes
+            $diasRestantes = 'N/A';
+            if (!empty($projeto['data_fim_prevista'])) {
+                $dataFim = new \DateTime($projeto['data_fim_prevista']);
+                $hoje = new \DateTime();
+                $hoje->setTime(0, 0, 0);
+                $dataFim->setTime(0, 0, 0);
+
+                if ($projeto['status'] === 'Concluído') {
+                    $diasRestantes = 'Concluído';
+                } else {
+                    $intervalo = $hoje->diff($dataFim);
+                    // Se dataFim < hoje, inverte o sinal para mostrar negativo (atrasado)
+                    $dias = (int)$intervalo->format('%r%a');
+                    $diasRestantes = $dias;
+                }
+            }
+
+            // 2. Orçamento Gasto %
+            $orcamentoTotal = (float)($projeto['orcamento'] ?? 0);
+            $gastoReal = (float)($orcamentoSummary['despesa_real'] ?? 0);
+            $orcamentoGastoPercent = 0;
+            if ($orcamentoTotal > 0) {
+                $orcamentoGastoPercent = round(($gastoReal / $orcamentoTotal) * 100, 1);
+            }
+
+            // 3. Faturamento Realizado
+            $faturamentoRealizado = (float)($orcamentoSummary['receita_real'] ?? 0);
+
             return [
                 'orcamento' => $orcamentoSummary,
                 'art_count' => (int) $artCount,
                 'documentos_count' => (int) $docsCount,
                 'mapas_count' => (int) $mapasCount,
+                'dias_restantes' => $diasRestantes,
+                'orcamento_gasto_percent' => $orcamentoGastoPercent,
+                'faturamento_realizado' => 'R$ ' . number_format($faturamentoRealizado, 2, ',', '.'),
+                'progresso_calculado' => 0 // Será sobrescrito pelo Controller com base nas tarefas
             ];
         } catch (\PDOException $e) {
             error_log("Erro ao buscar detalhes do resumo do projeto: " . $e->getMessage());
@@ -280,92 +528,212 @@ class ProjetosModel extends Model
      */
     public function salvarProjeto(array $dados): bool
     {
-        // Busca o estado atual do projeto antes de salvar (para detectar mudanças)
-        $projetoAtual = !empty($dados['id']) ? $this->getProjetoById((int)$dados['id']) : null;
+        $maxRetries = 3;
+        $attempt = 0;
 
-        // Sanitiza e prepara os dados
-        $id = !empty($dados['id']) ? (int) $dados['id'] : null;
-        $nome = trim($dados['nome'] ?? '');
-        $tipo_servico = trim($dados['tipo_servico'] ?? '');
-        $cliente_id = !empty($dados['cliente_id']) ? (int) $dados['cliente_id'] : null;
-        $empreendimento = trim($dados['empreendimento'] ?? '');
-        $data_inicial = !empty($dados['data_inicial']) ? $dados['data_inicial'] : null;
-        $data_fim_prevista = !empty($dados['data_fim_prevista']) ? $dados['data_fim_prevista'] : null;
-        $orcamento = !empty($dados['orcamento']) ? (float) $dados['orcamento'] : null;
-        $orcamento_id = trim($dados['orcamento_id'] ?? '');
-        $area_id = trim($dados['area_id'] ?? '');
-        $tamanho_ha = !empty($dados['tamanho_ha']) ? (float) $dados['tamanho_ha'] : null;
-        $produto_entregue = trim($dados['produto_entregue'] ?? '');
-        $responsavel_elaboracao = trim($dados['responsavel_elaboracao'] ?? '');
-        $responsavel = trim($dados['responsavel'] ?? ''); // Responsável Técnico
-        $responsavel_execucao = trim($dados['responsavel_execucao'] ?? '');
-        $status = $dados['status'] ?? 'Planejado';
-        $observacoes = trim($dados['observacoes'] ?? '');
+        while ($attempt < $maxRetries) {
+            try {
+                // Busca o estado atual do projeto antes de salvar (para detectar mudanças)
+                $projetoAtual = !empty($dados['id']) ? $this->getProjetoById((int)$dados['id']) : null;
 
-        try {
-            if ($id) {
-                // UPDATE: Atualiza um projeto existente
-                $sql = "UPDATE projetos 
-                        SET nome = :nome, tipo_servico = :tipo_servico, cliente_id = :cliente_id, empreendimento = :empreendimento,
-                            data_inicial = :data_inicial, data_fim_prevista = :data_fim_prevista, orcamento = :orcamento, orcamento_id = :orcamento_id,
-                            area_id = :area_id, tamanho_ha = :tamanho_ha, produto_entregue = :produto_entregue,
-                            responsavel_elaboracao = :responsavel_elaboracao, responsavel = :responsavel, responsavel_execucao = :responsavel_execucao,
-                            status = :status, observacoes = :observacoes
-                        WHERE id = :id";
-                $stmt = $this->db->prepare($sql);
-                $stmt->bindParam(':id', $id, \PDO::PARAM_INT);
-            } else {
-                // INSERT: Cria um novo projeto
-                $sql = "INSERT INTO projetos (
-                            nome, tipo_servico, cliente_id, empreendimento, data_inicial, data_fim_prevista,
-                            orcamento, orcamento_id, area_id, tamanho_ha, produto_entregue,
-                            responsavel_elaboracao, responsavel, responsavel_execucao,
-                            status, observacoes, dataCriacao
-                        ) VALUES (
-                            :nome, :tipo_servico, :cliente_id, :empreendimento, :data_inicial, :data_fim_prevista,
-                            :orcamento, :orcamento_id, :area_id, :tamanho_ha, :produto_entregue,
-                            :responsavel_elaboracao, :responsavel, :responsavel_execucao,
-                            :status, :observacoes, NOW()
-                        )";
-                $stmt = $this->db->prepare($sql);
-            }
+                // Sanitiza e prepara os dados
+                $id = !empty($dados['id']) ? (int) $dados['id'] : null;
+                
+                // Se for novo projeto e não veio número, gera um. 
+                // Se houver colisão de concorrência, o catch 1062 incrementará o attempt e gerará um novo número na próxima volta.
+                $numero_projeto = !empty($dados['numero_projeto']) ? trim($dados['numero_projeto']) : ($id ? ($projetoAtual['numero_projeto'] ?? '') : $this->getNextProjectNumber());
+                
+                $nome = trim($dados['nome'] ?? '');
+                $tipo_servico = trim($dados['tipo_servico'] ?? '');
+                $cliente_id = !empty($dados['cliente_id']) ? (int) $dados['cliente_id'] : null;
+                $empreendimento = trim($dados['empreendimento'] ?? '');
+                $data_inicial = !empty($dados['data_inicial']) ? $dados['data_inicial'] : null;
+                $data_fim_prevista = !empty($dados['data_fim_prevista']) ? $dados['data_fim_prevista'] : null;
+                $orcamento = !empty($dados['orcamento']) ? (float) $dados['orcamento'] : null;
+                $orcamento_id = trim($dados['orcamento_id'] ?? '');
+                $area_id = trim($dados['area_id'] ?? '');
+                $tamanho_ha = !empty($dados['tamanho_ha']) ? (float) $dados['tamanho_ha'] : null;
+                $produto_entregue = trim($dados['produto_entregue'] ?? '');
+                $responsavel_elaboracao = trim($dados['responsavel_elaboracao'] ?? '');
+                $responsavel = trim($dados['responsavel'] ?? ''); // Responsável Técnico
+                $responsavel_execucao = trim($dados['responsavel_execucao'] ?? '');
+                $status = $dados['status'] ?? 'Planejado';
+                $observacoes = trim($dados['observacoes'] ?? '');
+                $latitude = !empty($dados['latitude']) ? (float)$dados['latitude'] : null;
+                $longitude = !empty($dados['longitude']) ? (float)$dados['longitude'] : null;
 
-            $stmt->bindParam(':nome', $nome);
-            $stmt->bindParam(':tipo_servico', $tipo_servico);
-            $stmt->bindValue(':cliente_id', $cliente_id, $cliente_id ? \PDO::PARAM_INT : \PDO::PARAM_NULL);
-            $stmt->bindParam(':empreendimento', $empreendimento);
-            $stmt->bindValue(':data_inicial', $data_inicial, $data_inicial ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
-            $stmt->bindValue(':data_fim_prevista', $data_fim_prevista, $data_fim_prevista ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
-            $stmt->bindValue(':orcamento', $orcamento, $orcamento ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
-            $stmt->bindParam(':orcamento_id', $orcamento_id);
-            $stmt->bindParam(':area_id', $area_id);
-            $stmt->bindValue(':tamanho_ha', $tamanho_ha, $tamanho_ha ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
-            $stmt->bindParam(':produto_entregue', $produto_entregue);
-            $stmt->bindParam(':responsavel_elaboracao', $responsavel_elaboracao);
-            $stmt->bindParam(':responsavel', $responsavel);
-            $stmt->bindParam(':responsavel_execucao', $responsavel_execucao);
-            $stmt->bindParam(':status', $status);
-            $stmt->bindParam(':observacoes', $observacoes);
-
-            $success = $stmt->execute();
-
-            if ($success) {
-                $projeto_id = $id ?: $this->db->lastInsertId();
-                if (!$id) {
-                    // Evento de criação do projeto
-                    $this->addTimelineEvent($projeto_id, 'PROJETO_CRIADO', "Projeto '{$nome}' foi criado.");
-                } else if ($projetoAtual && $projetoAtual['status'] !== $status) {
-                    // Evento de mudança de status
-                    $descricao = "Status do projeto alterado de '{$projetoAtual['status']}' para '{$status}'.";
-                    $this->addTimelineEvent($projeto_id, 'STATUS_ALTERADO', $descricao);
+                if ($id) {
+                    $sql = "UPDATE projetos 
+                            SET numero_projeto = :numero_projeto, nome = :nome, tipo_servico = :tipo_servico, cliente_id = :cliente_id, empreendimento = :empreendimento,
+                                data_inicial = :data_inicial, data_fim_prevista = :data_fim_prevista, orcamento = :orcamento, orcamento_id = :orcamento_id,
+                                area_id = :area_id, tamanho_ha = :tamanho_ha, produto_entregue = :produto_entregue,
+                                responsavel_elaboracao = :responsavel_elaboracao, responsavel = :responsavel, responsavel_execucao = :responsavel_execucao,
+                                status = :status, observacoes = :observacoes, latitude = :latitude, longitude = :longitude
+                            WHERE id = :id";
+                    $stmt = $this->db->prepare($sql);
+                    $stmt->bindParam(':id', $id, \PDO::PARAM_INT);
+                } else {
+                    $sql = "INSERT INTO projetos (
+                                numero_projeto, nome, tipo_servico, cliente_id, empreendimento, data_inicial, data_fim_prevista,
+                                orcamento, orcamento_id, area_id, tamanho_ha, produto_entregue,
+                                responsavel_elaboracao, responsavel, responsavel_execucao,
+                                status, observacoes, latitude, longitude, dataCriacao
+                            ) VALUES (
+                                :numero_projeto, :nome, :tipo_servico, :cliente_id, :empreendimento, :data_inicial, :data_fim_prevista,
+                                :orcamento, :orcamento_id, :area_id, :tamanho_ha, :produto_entregue,
+                                :responsavel_elaboracao, :responsavel, :responsavel_execucao,
+                                :status, :observacoes, :latitude, :longitude, NOW()
+                            )";
+                    $stmt = $this->db->prepare($sql);
                 }
-            }
 
-            return $success;
+                $stmt->bindParam(':numero_projeto', $numero_projeto);
+                $stmt->bindParam(':nome', $nome);
+                $stmt->bindParam(':tipo_servico', $tipo_servico);
+                $stmt->bindValue(':cliente_id', $cliente_id, $cliente_id ? \PDO::PARAM_INT : \PDO::PARAM_NULL);
+                $stmt->bindParam(':empreendimento', $empreendimento);
+                $stmt->bindValue(':data_inicial', $data_inicial, $data_inicial ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
+                $stmt->bindValue(':data_fim_prevista', $data_fim_prevista, $data_fim_prevista ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
+                $stmt->bindValue(':orcamento', $orcamento, $orcamento ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
+                $stmt->bindParam(':orcamento_id', $orcamento_id);
+                $stmt->bindParam(':area_id', $area_id);
+                $stmt->bindValue(':tamanho_ha', $tamanho_ha, $tamanho_ha ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
+                $stmt->bindParam(':produto_entregue', $produto_entregue);
+                $stmt->bindParam(':responsavel_elaboracao', $responsavel_elaboracao);
+                $stmt->bindParam(':responsavel', $responsavel);
+                $stmt->bindParam(':responsavel_execucao', $responsavel_execucao);
+                $stmt->bindParam(':status', $status);
+                $stmt->bindParam(':observacoes', $observacoes);
+                $stmt->bindValue(':latitude', $latitude);
+                $stmt->bindValue(':longitude', $longitude);
+
+                $success = $stmt->execute();
+
+                if ($success) {
+                    $projeto_id = $id ?: $this->db->lastInsertId();
+                    if (!$id) {
+                        $this->addTimelineEvent($projeto_id, 'PROJETO_CRIADO', "Projeto '{$nome}' foi criado.");
+                    } else if ($projetoAtual && $projetoAtual['status'] !== $status) {
+                        $descricao = "Status do projeto alterado de '{$projetoAtual['status']}' para '{$status}'.";
+                        $this->addTimelineEvent($projeto_id, 'STATUS_ALTERADO', $descricao);
+
+                        // Sincronização Sênior: Se o projeto foi cancelado via formulário, cancela a proposta vinculada
+                        if ($status === 'Cancelado' || $status === 'Cancelado') {
+                            $this->db->prepare("UPDATE orcamento_proposta SET status = 'Cancelada' WHERE projeto_id = ? AND status = 'Aprovada'")
+                                     ->execute([$projeto_id]);
+
+                            // Suspende financeiro: Transações pendentes vinculadas ao projeto são canceladas
+                            $this->db->prepare("UPDATE transacoes SET status = 'Cancelado' WHERE observacoes LIKE ? AND status IN ('Pendente', 'Atrasado')")
+                                     ->execute([$projeto_id]);
+                        }
+                    }
+                    return (int)$projeto_id;
+                }
+
+                return false;
+
+            } catch (\PDOException $e) {
+                // Se o erro for 1062 (Duplicate entry) e não tivermos ID (ou seja, é um novo registro)
+                // e o erro for especificamente no numero_projeto, tentamos novamente.
+                if ($e->errorInfo[1] == 1062 && empty($dados['id'])) {
+                    $attempt++;
+                    if ($attempt >= $maxRetries) throw $e;
+                    usleep(100000); // Pequena pausa de 100ms antes de tentar novamente
+                    continue;
+                }
+                throw $e;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Exclui ou arquiva um projeto.
+     * Se o projeto tiver dependências (tarefas, orçamento), ele é arquivado (status = 'Cancelado').
+     * Caso contrário, é excluído permanentemente.
+     * @param int $id O ID do projeto.
+     * @return string|false Retorna 'deleted', 'archived' ou false em caso de erro.
+     */
+    public function excluirProjeto(int $id)
+    {
+        try {
+            // Verifica se existem tarefas vinculadas
+            $stmtTarefas = $this->db->prepare("SELECT COUNT(*) FROM projetos_tarefas WHERE projeto_id = ?");
+            $stmtTarefas->execute([$id]);
+            $hasTarefas = $stmtTarefas->fetchColumn() > 0;
+
+            // Verifica se existem itens no orçamento vinculados
+            $stmtOrcamento = $this->db->prepare("SELECT COUNT(*) FROM projetos_orcamento WHERE projeto_id = ?");
+            $stmtOrcamento->execute([$id]);
+            $hasOrcamento = $stmtOrcamento->fetchColumn() > 0;
+
+            // Verifica se existem contratos vinculados
+            $stmtContratos = $this->db->prepare("SELECT COUNT(*) FROM contratos WHERE projeto_id = ?");
+            $stmtContratos->execute([$id]);
+            $hasContratos = $stmtContratos->fetchColumn() > 0;
+
+            // Verifica se existem propostas vinculadas
+            $stmtPropostas = $this->db->prepare("SELECT COUNT(*) FROM orcamento_proposta WHERE projeto_id = ?");
+            $stmtPropostas->execute([$id]);
+            $hasPropostas = $stmtPropostas->fetchColumn() > 0;
+
+            if ($hasTarefas || $hasOrcamento || $hasContratos || $hasPropostas) {
+                // Arquiva o projeto mudando seu status para 'Cancelado'
+                $stmt = $this->db->prepare("UPDATE projetos SET status = 'Cancelado' WHERE id = ?");
+                if ($stmt->execute([$id])) {
+                    // Sincronização Sênior: Se o projeto foi arquivado por exclusão, cancela a proposta vinculada
+                    $this->db->prepare("UPDATE orcamento_proposta SET status = 'Cancelada' WHERE projeto_id = ? AND status = 'Aprovada'")
+                             ->execute([$id]);
+
+                    // Suspende financeiro: Transações pendentes vinculadas ao projeto são canceladas
+                    $this->db->prepare("UPDATE transacoes SET status = 'Cancelado' WHERE observacoes LIKE ? AND status IN ('Pendente', 'Atrasado')")
+                             ->execute(["%Projeto ID: $id%"]);
+
+                    $this->addTimelineEvent($id, 'PROJETO_ARQUIVADO', "Projeto arquivado (status alterado para Cancelado) devido a dependências existentes.");
+                    return 'archived';
+                }
+                $this->lastError = "Falha ao arquivar o projeto.";
+                return false;
+            } else {
+                // Exclui o projeto permanentemente
+                // O banco de dados está configurado com ON DELETE CASCADE para as tabelas filhas
+                // (art, cdt, mapas, arquivos, timeline, etc.), então basta excluir o pai.
+                $stmt = $this->db->prepare("DELETE FROM projetos WHERE id = ?");
+                return $stmt->execute([$id]) ? 'deleted' : false;
+            }
         } catch (\PDOException $e) {
-            // Lança a exceção para que o Controller possa capturá-la
-            // e exibir uma mensagem de erro mais detalhada.
-            throw $e;
+            error_log("Erro ao excluir projeto: " . $e->getMessage());
+            $this->lastError = "Erro interno ao processar a exclusão do projeto: " . $e->getMessage();
+            return false;
+        }
+    }
+
+    /**
+     * Restaura um projeto cancelado, alterando seu status para 'Em Execução'.
+     * @param int $id O ID do projeto.
+     * @return bool
+     */
+    public function restaurarProjeto(int $id): bool
+    {
+        try {
+            $stmt = $this->db->prepare("UPDATE projetos SET status = 'Em Execução' WHERE id = ?");
+            if ($stmt->execute([$id])) {
+                // Sincronização Sênior: Se o projeto foi restaurado, volta a proposta para 'Aprovada'
+                $this->db->prepare("UPDATE orcamento_proposta SET status = 'Aprovada' WHERE projeto_id = ? AND status = 'Cancelada'")
+                         ->execute([$id]);
+
+                // Reativa financeiro: Transações canceladas anteriormente pelo projeto voltam a ser pendentes
+                $this->db->prepare("UPDATE transacoes SET status = 'Pendente' WHERE observacoes LIKE ? AND status = 'Cancelado'")
+                         ->execute(["%Projeto ID: $id%"]);
+
+                $this->addTimelineEvent($id, 'PROJETO_RESTAURADO', "Projeto restaurado (status alterado para Em Execução).");
+                return true;
+            }
+            return false;
+        } catch (\PDOException $e) {
+            error_log("Erro ao restaurar projeto: " . $e->getMessage());
+            return false;
         }
     }
 
@@ -478,6 +846,62 @@ class ProjetosModel extends Model
     }
 
     /**
+     * Registra ou atualiza uma despesa realizada no orçamento do projeto vinculada a uma transação.
+     * 
+     * @param int $projetoId
+     * @param int $transacaoId
+     * @param string $descricao
+     * @param float $valorReal
+     * @param string $dataReal
+     * @param string $categoria
+     * @return bool
+     */
+    public function registrarDespesaDeTransacao(int $projetoId, int $transacaoId, string $descricao, float $valorReal, string $dataReal, string $categoria): bool
+    {
+        try {
+            $tagVinculo = "[Transação ID: $transacaoId]";
+            
+            // Verifica se já existe pelo vínculo na observação
+            $stmt = $this->db->prepare("SELECT id FROM projetos_orcamento WHERE projeto_id = ? AND observacoes LIKE ?");
+            $stmt->execute([$projetoId, "%$tagVinculo%"]);
+            $existing = $stmt->fetch(\PDO::FETCH_ASSOC);
+            
+            if ($existing) {
+                // Atualiza registro existente
+                $sql = "UPDATE projetos_orcamento SET valor_real = :valor, data_real = :data, status = 'Realizado', descricao = :desc, categoria = :cat WHERE id = :id";
+                $stmtUpd = $this->db->prepare($sql);
+                return $stmtUpd->execute([':valor' => $valorReal, ':data' => $dataReal, ':desc' => $descricao, ':cat' => $categoria, ':id' => $existing['id']]);
+            } else {
+                // Insere novo (Valor previsto = 0 pois é uma despesa não planejada explicitamente neste momento)
+                $sql = "INSERT INTO projetos_orcamento (projeto_id, descricao, tipo, categoria, valor_previsto, data_prevista, valor_real, data_real, status, observacoes) VALUES (:pid, :desc, 'Despesa', :cat, 0, :data, :valor, :data, 'Realizado', :obs)";
+                $stmtIns = $this->db->prepare($sql);
+                return $stmtIns->execute([':pid' => $projetoId, ':desc' => $descricao, ':cat' => $categoria, ':data' => $dataReal, ':valor' => $valorReal, ':obs' => "Gerado automaticamente via Financeiro. $tagVinculo"]);
+            }
+        } catch (\PDOException $e) {
+            error_log("Erro ao registrar despesa de transação no projeto: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Remove a despesa do orçamento do projeto vinculada a uma transação específica.
+     * 
+     * @param int $transacaoId
+     * @return bool
+     */
+    public function removerDespesaDeTransacao(int $transacaoId): bool
+    {
+        try {
+            $tagVinculo = "[Transação ID: $transacaoId]";
+            $stmt = $this->db->prepare("DELETE FROM projetos_orcamento WHERE observacoes LIKE ?");
+            return $stmt->execute(["%$tagVinculo%"]);
+        } catch (\PDOException $e) {
+            error_log("Erro ao remover despesa de transação no projeto: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Exclui um item do orçamento e seu comprovante.
      * @param int $id
      * @return bool
@@ -499,6 +923,32 @@ class ProjetosModel extends Model
         }
 
         return $success;
+    }
+
+    /**
+     * Busca projetos onde o valor realizado de despesas excede o orçamento total do projeto.
+     * @return array
+     */
+    public function getProjetosComOrcamentoEstourado(): array
+    {
+        try {
+            $sql = "
+                SELECT 
+                    p.id, 
+                    p.nome, 
+                    p.orcamento, 
+                    COALESCE(SUM(po.valor_real), 0) as total_gasto
+                FROM projetos p
+                LEFT JOIN projetos_orcamento po ON p.id = po.projeto_id AND po.tipo = 'Despesa' AND po.status = 'Realizado'
+                WHERE p.status NOT IN ('Concluído', 'Cancelado')
+                GROUP BY p.id
+                HAVING total_gasto > p.orcamento AND p.orcamento > 0
+            ";
+            return $this->db->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            error_log("Erro ao buscar projetos com orçamento estourado: " . $e->getMessage());
+            return [];
+        }
     }
 
     // --- MÉTODOS PARA ART/RRT DO PROJETO ---

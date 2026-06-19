@@ -2,6 +2,17 @@
 $funcionario = $calculo['funcionario'];
 $periodo = $calculo['periodo'];
 $valores = $calculo['valores'];
+
+// Prepara o logo em Base64
+$logoPath = ROOT_PATH . '/public/assets/images/logo.png';
+$logoSrc = '';
+if (file_exists($logoPath) && extension_loaded('gd')) {
+    $logoSrc = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+}
+$empresa = $empresa ?? []; // Garante que a variável exista
+require_once ROOT_PATH . '/app/helpers/ReportHelper.php';
+
+use App\Helpers\ReportHelper;
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -74,12 +85,18 @@ $valores = $calculo['valores'];
 
 <body>
     <div class="container">
-        <h1>Relatório de Cálculo de Férias</h1>
+        <?php if (!empty($logoSrc)): ?>
+            <div style="text-align: center; margin-bottom: 20px;"><img src="<?php echo $logoSrc; ?>" alt="Logo" style="max-height: 60px;"></div>
+        <?php endif; ?>
+        <h1><?php echo htmlspecialchars($empresa['razao_social'] ?? 'Empresa'); ?></h1>
+        <p style="text-align: center; font-size: 12px; margin-top: -20px; margin-bottom: 20px;">
+            Relatório de Cálculo de Férias
+        </p>
 
         <div class="section">
             <h2>Dados do Funcionário e Período</h2>
             <p><strong>Funcionário:</strong> <?php echo htmlspecialchars($funcionario['nome']); ?></p>
-            <p><strong>Período de Gozo:</strong> de <?php echo date('d/m/Y', strtotime($periodo['data_inicio'])); ?> a <?php echo date('d/m/Y', strtotime($periodo['data_fim'])); ?> (<?php echo $periodo['dias']; ?> dias)</p>
+            <p><strong>Período de Gozo:</strong> de <?php echo ReportHelper::formatDate($periodo['data_inicio']); ?> a <?php echo ReportHelper::formatDate($periodo['data_fim']); ?> (<?php echo $periodo['dias']; ?> dias)</p>
         </div>
 
         <div class="section">
@@ -87,35 +104,35 @@ $valores = $calculo['valores'];
             <table>
                 <tr>
                     <td>Salário Base</td>
-                    <td class="text-right">R$ <?php echo number_format($valores['salario_base'], 2, ',', '.'); ?></td>
+                    <td class="text-right"><?php echo ReportHelper::formatCurrency($valores['salario_base']); ?></td>
                 </tr>
                 <tr>
                     <td>(+) Valor das Férias</td>
-                    <td class="text-right">R$ <?php echo number_format($valores['valor_ferias'], 2, ',', '.'); ?></td>
+                    <td class="text-right"><?php echo ReportHelper::formatCurrency($valores['valor_ferias']); ?></td>
                 </tr>
                 <tr>
                     <td>(+) 1/3 Constitucional</td>
-                    <td class="text-right">R$ <?php echo number_format($valores['terco_constitucional'], 2, ',', '.'); ?></td>
+                    <td class="text-right"><?php echo ReportHelper::formatCurrency($valores['terco_constitucional']); ?></td>
                 </tr>
                 <tr class="total-row">
                     <td>Total Bruto</td>
-                    <td class="text-right">R$ <?php echo number_format($valores['total_bruto'], 2, ',', '.'); ?></td>
+                    <td class="text-right"><?php echo ReportHelper::formatCurrency($valores['total_bruto']); ?></td>
                 </tr>
                 <tr>
                     <td>(-) Desconto INSS</td>
-                    <td class="text-right">R$ <?php echo number_format($valores['inss'], 2, ',', '.'); ?></td>
+                    <td class="text-right"><?php echo ReportHelper::formatCurrency($valores['inss']); ?></td>
                 </tr>
                 <tr>
                     <td>(-) Desconto IRRF</td>
-                    <td class="text-right">R$ <?php echo number_format($valores['irrf'], 2, ',', '.'); ?></td>
+                    <td class="text-right"><?php echo ReportHelper::formatCurrency($valores['irrf']); ?></td>
                 </tr>
                 <tr class="total-row">
                     <td>Total de Descontos</td>
-                    <td class="text-right">R$ <?php echo number_format($valores['total_descontos'], 2, ',', '.'); ?></td>
+                    <td class="text-right"><?php echo ReportHelper::formatCurrency($valores['total_descontos']); ?></td>
                 </tr>
                 <tr class="total-row total-liquido">
                     <td>Líquido a Receber</td>
-                    <td class="text-right">R$ <?php echo number_format($valores['valor_liquido'], 2, ',', '.'); ?></td>
+                    <td class="text-right"><?php echo ReportHelper::formatCurrency($valores['valor_liquido']); ?></td>
                 </tr>
             </table>
         </div>

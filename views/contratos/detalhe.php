@@ -1,150 +1,322 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+:root {
+    --c-bg:           #F4F6FA;
+    --c-surface:      #FFFFFF;
+    --c-border:       #E4E9F0;
+    --c-text:         #18243A;
+    --c-text-2:       #4A5878;
+    --c-text-3:       #8A97AE;
+    --c-blue:         #1B4F8C;
+    --c-blue-mid:     #2E6EC5;
+    --c-blue-light:   #EBF2FB;
+    --c-green:        #17673E;
+    --c-green-light:  #E6F5EE;
+    --c-red:          #921C1C;
+    --c-red-light:    #FDF0F0;
+    --c-gold:         #916A00;
+    --c-gold-light:   #FFF7E0;
+    --radius-lg:      14px;
+    --font-display:   'Lora', Georgia, serif;
+    --font-body:      'DM Sans', system-ui, sans-serif;
+    --shadow:         0 1px 4px rgba(0,0,0,.07);
+}
+
+/* Ajustes para Modo Escuro (Dark Mode) */
+.dark-theme .detail-wrap {
+    --c-bg:           var(--db-bg, #0d1117);
+    --c-surface:      var(--db-surface, #161b22);
+    --c-border:       var(--db-border, #30363d);
+    --c-text:         var(--db-text, #e6edf3);
+    --c-text-2:       var(--db-text2, #8b949e);
+    --c-text-3:       var(--db-text3, #94A3B8);
+    --c-blue-light:   #1E293B;
+    --c-green-light:  rgba(22, 163, 74, 0.15);
+    --c-red-light:    rgba(220, 38, 38, 0.15);
+    --c-gold-light:   rgba(234, 179, 8, 0.15);
+}
+
+.dark-theme .bg-gray-50 { background-color: var(--c-bg) !important; }
+.dark-theme .bg-gray-100 { background-color: var(--c-bg) !important; }
+
+.detail-wrap { font-family: var(--font-body); color: var(--c-text); }
+.detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+.detail-title { font-family: var(--font-display); font-size: 24px; font-weight: 600; }
+.detail-subtitle { font-size: 14px; color: var(--c-text-3); }
+
+.info-card { background: var(--c-surface); border: 1px solid var(--c-border); border-radius: var(--radius-lg); box-shadow: var(--shadow); height: 100%; }
+.info-card-header { padding: 16px 22px; border-bottom: 1px solid var(--c-border); display: flex; align-items: center; gap: 10px; }
+.info-card-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--c-text); }
+.info-card-body { padding: 20px 22px; }
+
+.data-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
+.data-row:last-child { margin-bottom: 0; }
+.data-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--c-text-3); }
+.data-value { font-size: 14px; color: var(--c-text); font-weight: 500; }
+.data-value.bold { font-weight: 600; color: var(--c-blue); }
+
+.status-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.status-vigente { background: var(--c-green-light); color: var(--c-green); }
+.status-pendente { background: var(--c-gold-light); color: var(--c-gold); }
+.status-finalizado { background: var(--c-blue-light); color: var(--c-blue); }
+
+.vigencia-box { display: flex; align-items: center; gap: 20px; background: var(--c-bg); padding: 16px; border-radius: 10px; border: 1px solid var(--c-border); }
+.vigencia-item { flex: 1; }
+.vigencia-sep { color: var(--c-border-md); font-size: 20px; }
+
+.timeline-item { position: relative; padding-left: 24px; padding-bottom: 20px; border-left: 2px solid var(--c-border); }
+.timeline-item::before { content: ''; position: absolute; left: -7px; top: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--c-blue-mid); border: 2px solid #fff; }
+.timeline-item:last-child { border-left-color: transparent; padding-bottom: 0; }
+
+.btn-action { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; text-decoration: none; border: 1px solid transparent; }
+.btn-primary { background: var(--c-blue); color: #fff; }
+.btn-primary:hover { background: #153D70; }
+.btn-outline { background: #fff; border-color: var(--c-border); color: var(--c-text-2); }
+.btn-outline:hover { background: var(--c-bg); }
+.btn-pdf { background: #E11D48; color: #fff; }
+.btn-pdf:hover { background: #BE123C; }
+</style>
+
+<div class="detail-wrap">
+
+<!-- ════════ CABEÇALHO ════════ -->
 <div class="flex justify-between items-center mb-6">
     <div>
-        <h2 class="text-2xl font-bold text-gray-800">Detalhes do Contrato</h2>
-        <p class="text-gray-600">Visão completa do contrato, incluindo vigência, valores e histórico.</p>
+        <h2 class="detail-title">Instrumento: <?= htmlspecialchars($contrato['titulo'] ?? 'Contrato') ?></h2>
+        <p class="detail-subtitle">Gestão de vigência, compliance e histórico de aditivos</p>
     </div>
     <div class="flex gap-2">
-        <button data-id="<?php echo $contrato['id']; ?>" class="open-edit-modal-btn bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 font-medium flex items-center gap-2" title="Editar Contrato">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
-            </svg>
-            <span>Editar</span>
-        </button>
-        <a href="<?php echo BASE_URL; ?>/contratos/vigencia" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 font-medium">
+        <?php if ($contrato['status'] !== 'Finalizado') : ?>
+            <button data-id="<?= $contrato['id'] ?>" class="btn-action btn-primary open-edit-modal-btn">
+                <i class="fas fa-pen-to-square"></i> Editar
+            </button>
+        <?php endif; ?>
+        <a href="<?= BASE_URL ?>/contratos/gerarPdfFinal/<?= $contrato['id'] ?>" target="_blank" class="btn-action btn-pdf">
+            <i class="fas fa-file-pdf"></i>
+            Gerar PDF (ABNT)
+        </a>
+        <a href="<?= BASE_URL ?>/contratos" class="btn-action btn-outline">
             &larr; Voltar
         </a>
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Coluna de Informações Principais -->
-    <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md">
-        <h3 class="text-xl font-semibold mb-4 border-b pb-2">Informações Gerais</h3>
-        <div class="space-y-4 text-sm">
-            <div>
-                <p class="font-medium text-gray-500">Tipo de Contrato</p>
-                <p class="text-gray-800 font-semibold"><?php echo htmlspecialchars($contrato['tipo']); ?></p>
+<!-- ════════ LAYOUT ════════ -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+    
+    <!-- COLUNA LATERAL: STATUS E FINANCEIRO -->
+    <div class="space-y-6">
+        
+        <!-- Card Principal -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="fas fa-file-contract text-blue-600"></i>
+                <span class="info-card-title">Dados Jurídicos</span>
             </div>
-            <div>
-                <p class="font-medium text-gray-500">Parte Contratada</p>
-                <p class="text-gray-800"><?php echo htmlspecialchars($contrato['parteContratada'] ?? 'Não informado'); ?></p>
-            </div>
-            <div>
-                <p class="font-medium text-gray-500">Valor do Contrato</p>
-                <p class="text-gray-800 font-bold text-lg text-green-700">R$ <?php echo number_format($contrato['valor'], 2, ',', '.'); ?></p>
-            </div>
-            <div>
-                <p class="font-medium text-gray-500">Status</p>
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    <?php
-                    if ($contrato['status'] === 'Em Vigência') echo 'bg-green-100 text-green-800';
-                    elseif ($contrato['status'] === 'Pendência Assinatura') echo 'bg-yellow-100 text-yellow-800';
-                    elseif ($contrato['status'] === 'Finalizado') echo 'bg-blue-100 text-blue-800';
-                    elseif ($contrato['status'] === 'Cancelado') echo 'bg-red-100 text-red-800';
-                    else echo 'bg-gray-100 text-gray-800';
-                    ?>">
-                    <?php echo htmlspecialchars($contrato['status']); ?>
-                </span>
-            </div>
-            <?php if (!empty($contrato['documento_path'])) : ?>
-                <div>
-                    <p class="font-medium text-gray-500">Documento Anexo</p>
-                    <a href="<?php echo BASE_URL; ?>/contratos/download/<?php echo htmlspecialchars($contrato['documento_path']); ?>" target="_blank" class="text-sky-600 hover:underline flex items-center gap-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
-                        </svg>
-                        Baixar Documento
-                    </a>
+            <div class="info-card-body">
+                <div class="data-row">
+                    <span class="data-label">Status do Contrato</span>
+                    <div>
+                        <?php
+                        $statusClass = match($contrato['status']) {
+                            'Em Vigência' => 'status-vigente',
+                            'Pendência Assinatura', 'Pendente Assinatura' => 'status-pendente',
+                            'Finalizado' => 'status-finalizado',
+                            default => 'status-pendente'
+                        };
+                        ?>
+                        <span class="status-badge <?= $statusClass ?>">
+                            <i class="fas fa-circle mr-2" style="font-size:7px"></i>
+                            <?= htmlspecialchars($contrato['status']) ?>
+                        </span>
+                    </div>
                 </div>
-            <?php endif; ?>
+                <div class="data-row">
+                    <span class="data-label">Tipo de Contrato</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['tipo']) ?></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Número / Código</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['numero_contrato'] ?? 'N/A') ?></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">ID/CTR-CLIENTE</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['numero_contrato_cliente'] ?? 'N/A') ?></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Base de Referência</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['base_referencia'] ?? 'N/A') ?></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Foro de Eleição</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['foro_eleicao'] ?? 'Não definido') ?></span>
+                </div>
+            </div>
         </div>
+
+        <!-- Card Financeiro -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="fas fa-sack-dollar text-green-600"></i>
+                <span class="info-card-title">Resumo Financeiro</span>
+            </div>
+            <div class="info-card-body">
+                <div class="data-row">
+                    <span class="data-label">Valor Total</span>
+                    <span class="data-value bold text-xl">R$ <?= number_format($contrato['valor'], 2, ',', '.') ?></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Condição de Pagamento</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['condicao_pagamento'] ?? 'N/A') ?></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Forma de Recebimento</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['forma_pagamento'] ?? 'N/A') ?></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compliance -->
+        <?php if(!empty($contrato['clausula_lgpd']) || !empty($contrato['risco_contratual'])): ?>
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="fas fa-shield-halved text-gold-600"></i>
+                <span class="info-card-title">Compliance & Risco</span>
+            </div>
+            <div class="info-card-body">
+                <div class="data-row">
+                    <span class="data-label">Grau de Risco</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['risco_contratual'] ?? 'Baixo') ?></span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Conformidade LGPD</span>
+                    <span class="data-value"><?= htmlspecialchars($contrato['clausula_lgpd'] ?? 'Sim') ?></span>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 
-    <!-- Coluna de Vigência e Objeto -->
-    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md space-y-6">
-        <div>
-            <h3 class="text-xl font-semibold mb-2">Vigência</h3>
-            <div class="flex items-center space-x-8 border p-4 rounded-lg bg-gray-50">
-                <div>
-                    <p class="text-sm font-medium text-gray-500">Data de Início</p>
-                    <p class="text-lg font-semibold text-gray-800"><?php echo date('d/m/Y', strtotime($contrato['data_inicio'])); ?></p>
-                </div>
-                <div class="text-gray-300">&rarr;</div>
-                <div>
-                    <p class="text-sm font-medium text-gray-500">Data de Término</p>
-                    <p class="text-lg font-semibold text-red-600"><?php echo $contrato['vencimento'] ? date('d/m/Y', strtotime($contrato['vencimento'])) : 'Indeterminado'; ?></p>
+    <!-- COLUNA PRINCIPAL: VIGÊNCIA E ADITIVOS -->
+    <div class="lg:col-span-2 space-y-6">
+        
+        <!-- Vigência -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="far fa-calendar-check text-blue-600"></i>
+                <span class="info-card-title">Prazos de Vigência</span>
+            </div>
+            <div class="info-card-body">
+                <div class="vigencia-box">
+                    <div class="vigencia-item">
+                        <span class="data-label">Início</span>
+                        <div class="text-lg font-semibold"><?= date('d/m/Y', strtotime($contrato['data_inicio'])) ?></div>
+                    </div>
+                    <div class="vigencia-sep">&rarr;</div>
+                    <div class="vigencia-item">
+                        <span class="data-label">Vencimento</span>
+                        <div class="text-lg font-semibold text-red-600">
+                            <?= $contrato['vencimento'] ? date('d/m/Y', strtotime($contrato['vencimento'])) : 'Indeterminado' ?>
+                        </div>
+                    </div>
+                    <div class="vigencia-item text-right">
+                        <?php
+                        if ($contrato['vencimento']) {
+                            $hoje = new DateTime();
+                            $venc = new DateTime($contrato['vencimento']);
+                            $diff = $hoje->diff($venc);
+                            $dias = (int)$diff->format('%r%a');
+                            if ($dias < 0) echo '<span class="text-red-600 font-bold">Vencido</span>';
+                            else echo '<span class="text-blue-600 font-bold">Faltam '.$dias.' dias</span>';
+                        }
+                        ?>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div>
-            <h3 class="text-xl font-semibold mb-2">Objeto do Contrato</h3>
-            <div class="border p-4 rounded-lg bg-gray-50 text-gray-700">
-                <p><?php echo nl2br(htmlspecialchars($contrato['objeto'])); ?></p>
+        <!-- Objeto -->
+        <div class="info-card">
+            <div class="info-card-header">
+                <i class="fas fa-align-left text-blue-600"></i>
+                <span class="info-card-title">Objeto do Contrato</span>
+            </div>
+            <div class="info-card-body">
+                <div class="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg border border-dashed">
+                    <?= nl2br(htmlspecialchars($contrato['objeto'])) ?>
+                </div>
             </div>
         </div>
 
-        <!-- Histórico de Aditivos -->
-        <div>
-            <h3 class="text-xl font-semibold mb-2">Histórico de Alterações e Aditivos</h3>
-            <div class="border rounded-lg bg-gray-50">
-                <div class="p-4">
-                    <?php if (empty($aditivos)) : ?>
-                        <p class="text-gray-500 text-center">Nenhum aditivo registrado para este contrato.</p>
-                    <?php else : ?>
-                        <ul class="space-y-4">
-                            <?php foreach ($aditivos as $aditivo) : ?>
-                                <li class="p-3 border-b last:border-b-0">
-                                    <div class="flex justify-between items-center">
-                                        <div>
-                                            <p class="font-semibold text-gray-800"><?php echo htmlspecialchars($aditivo['tipo_aditivo']); ?> - <span class="font-normal text-gray-600"><?php echo date('d/m/Y', strtotime($aditivo['data_aditivo'])); ?></span></p>
-                                            <p class="text-sm text-gray-600 mt-1"><?php echo nl2br(htmlspecialchars($aditivo['descricao'])); ?></p>
-                                            <div class="flex gap-4 mt-2 text-xs">
-                                                <?php if ($aditivo['valor_alteracao']) : ?>
-                                                    <p><strong>Valor:</strong> R$ <?php echo number_format($aditivo['valor_alteracao'], 2, ',', '.'); ?></p>
-                                                <?php endif; ?>
-                                                <?php if ($aditivo['novo_vencimento']) : ?>
-                                                    <p><strong>Novo Venc.:</strong> <?php echo date('d/m/Y', strtotime($aditivo['novo_vencimento'])); ?></p>
-                                                <?php endif; ?>
-                                            </div>
+        <!-- Histórico de Aditivos (Acompanhamento de Mudanças) -->
+        <div class="info-card">
+            <div class="info-card-header justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-history text-blue-600"></i>
+                    <span class="info-card-title">Mudanças e Aditivos</span>
+                </div>
+                <button id="open-aditivo-modal-btn" class="text-xs font-bold text-blue-600 hover:underline bg-transparent border-none cursor-pointer">
+                    <i class="fas fa-plus mr-1"></i> Novo Aditivo
+                </button>
+            </div>
+            <div class="info-card-body">
+                <?php if (empty($aditivos)) : ?>
+                    <div class="text-center py-6">
+                        <i class="fas fa-info-circle text-gray-300 text-3xl mb-2"></i>
+                        <p class="text-gray-500 text-sm">Nenhuma alteração registrada para este contrato.</p>
+                    </div>
+                <?php else : ?>
+                    <div class="timeline">
+                        <?php foreach ($aditivos as $aditivo) : ?>
+                            <div class="timeline-item">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="font-semibold text-gray-800">
+                                            <?= htmlspecialchars($aditivo['tipo_aditivo']) ?>
+                                            <span class="text-xs text-gray-400 ml-2">
+                                                <i class="far fa-clock mr-1"></i><?= date('d/m/Y', strtotime($aditivo['data_aditivo'])) ?>
+                                            </span>
                                         </div>
-                                        <div class="flex items-center gap-3 flex-shrink-0 ml-4">
-                                            <?php if (!empty($aditivo['documento_path'])) : ?>
-                                                <a href="<?php echo BASE_URL; ?>/contratos/download/<?php echo htmlspecialchars($aditivo['documento_path']); ?>" target="_blank" class="text-sky-600 hover:text-sky-800" title="Baixar Documento do Aditivo">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                                    </svg>
-                                                </a>
+                                        <div class="text-sm text-gray-600 mt-1"><?= nl2br(htmlspecialchars($aditivo['descricao'])) ?></div>
+                                        
+                                        <div class="flex gap-4 mt-2">
+                                            <?php if ($aditivo['valor_alteracao']) : ?>
+                                                <span class="text-[11px] bg-green-50 text-green-700 px-2 py-1 rounded border border-green-100">
+                                                    Impacto: <strong>R$ <?= number_format($aditivo['valor_alteracao'], 2, ',', '.') ?></strong>
+                                                </span>
                                             <?php endif; ?>
-                                            <button data-aditivo-id="<?php echo $aditivo['id']; ?>" class="edit-aditivo-btn text-indigo-600 hover:text-indigo-900" title="Editar Aditivo">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                                                    <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
-                                                </svg>
-                                            </button>
-                                            <a href="<?php echo BASE_URL; ?>/contratos/excluirAditivo/<?php echo $aditivo['id']; ?>" class="text-red-600 hover:text-red-900" onclick="return confirm('Atenção! Excluir este aditivo irá reverter as alterações de valor e/ou vencimento no contrato principal. Deseja continuar?');" title="Excluir Aditivo">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                                </svg>
-                                            </a>
+                                            <?php if ($aditivo['novo_vencimento']) : ?>
+                                                <span class="text-[11px] bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100">
+                                                    Prorrogado até: <strong><?= date('d/m/Y', strtotime($aditivo['novo_vencimento'])) ?></strong>
+                                                </span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    <?php endif; ?>
-                </div>
-                <div class="p-4 bg-gray-100 border-t text-center">
-                    <button id="open-aditivo-modal-btn" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition">
-                        + Adicionar Aditivo
-                    </button>
-                </div>
+                                    <div class="flex gap-2">
+                                        <?php if (!empty($aditivo['documento_path'])) : ?>
+                                            <a href="<?= BASE_URL ?>/contratos/download/<?= htmlspecialchars($aditivo['documento_path']) ?>" target="_blank" class="text-blue-500 hover:text-blue-700" title="Ver Comprovante">
+                                                <i class="fas fa-paperclip"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                        <button data-aditivo-id="<?= $aditivo['id'] ?>" class="edit-aditivo-btn text-gray-400 hover:text-blue-600 border-none bg-transparent cursor-pointer">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
-
     </div>
-</div>
+
+</div> <!-- /grid -->
+</div> <!-- /detail-wrap -->
+
 
 <!-- Modal para Adicionar Aditivo -->
 <div id="aditivo-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
@@ -224,14 +396,21 @@
 
 <script>
     // Script para controlar o modal de edição nesta página
+    console.log('Script de edição de contrato carregado');
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM carregado, inicializando modal de edição');
         const modal = document.getElementById('form-contrato-modal');
-        if (!modal) return;
+        if (!modal) {
+            console.error('Modal form-contrato-modal não encontrado');
+            return;
+        }
 
         const modalTitle = document.getElementById('modal-title');
         const modalContent = document.getElementById('modal-content');
         const editBtn = document.querySelector('.open-edit-modal-btn');
         const closeBtn = document.getElementById('close-modal-btn');
+
+        console.log('Elementos encontrados:', { modal, modalTitle, modalContent, editBtn, closeBtn });
 
         const openModal = () => modal.classList.remove('hidden');
         const closeModal = () => {
@@ -240,25 +419,57 @@
         };
 
         const openAjaxModal = async (url, title) => {
+            console.log('Abrindo modal AJAX:', url, title);
             modalTitle.innerText = title;
             modalContent.innerHTML = '<p class="text-center">Carregando...</p>';
             openModal();
 
             try {
-                const response = await fetch(url);
+                console.log('Fazendo fetch para:', url);
+                const response = await fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                console.log('Resposta recebida:', response.status, response.statusText);
                 if (!response.ok) throw new Error('Falha ao carregar o formulário.');
                 const formHtml = await response.text();
+                console.log('HTML recebido, tamanho:', formHtml.length);
                 modalContent.innerHTML = formHtml;
+
+                // Re-executa scripts específicos do conteúdo carregado no modal
+                const scripts = modalContent.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    if (script.src) {
+                        newScript.src = script.src;
+                    } else {
+                        newScript.textContent = script.textContent;
+                    }
+                    document.body.appendChild(newScript).parentNode.removeChild(newScript);
+                });
+
+                // Remove o script original do modal para evitar duplicação no DOM
+                Array.from(modalContent.querySelectorAll('script')).forEach(oldScript => {
+                    if (oldScript.parentNode) {
+                        oldScript.parentNode.removeChild(oldScript);
+                    }
+                });
             } catch (error) {
+                console.log('Erro no fetch:', error);
                 modalContent.innerHTML = `<p class="text-center text-red-500">${error.message}</p>`;
             }
         };
 
         if (editBtn) {
+            console.log('Botão editar encontrado:', editBtn);
+            console.log('ID do contrato:', editBtn.dataset.id);
             editBtn.addEventListener('click', () => {
+                console.log('Botão editar clicado');
                 const url = `<?php echo BASE_URL; ?>/contratos/getFormForEdit/${editBtn.dataset.id}`;
+                console.log('URL da requisição:', url);
                 openAjaxModal(url, 'Editar Contrato');
             });
+        } else {
+            console.log('Botão editar não encontrado');
         }
 
         if (closeBtn) {

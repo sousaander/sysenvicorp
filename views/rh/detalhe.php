@@ -13,6 +13,9 @@
 
                 <p class="text-sm font-medium text-gray-700">Email Corporativo:</p>
                 <p class="text-lg font-semibold text-gray-900 mb-4"><?php echo htmlspecialchars($funcionario['email'] ?? 'Não informado'); ?></p>
+
+                <p class="text-sm font-medium text-gray-700">Tipagem Sanguínea:</p>
+                <p class="text-lg font-semibold text-gray-900 mb-4"><?php echo htmlspecialchars($funcionario['tipo_sanguineo'] ?? 'Não informado'); ?></p>
             </div>
             <div>
                 <p class="text-sm font-medium text-gray-700">Cargo:</p>
@@ -25,16 +28,16 @@
                 <p class="text-lg font-semibold text-gray-900 mb-4"><?php echo !empty($funcionario['data_admissao']) ? htmlspecialchars(date('d/m/Y', strtotime($funcionario['data_admissao']))) : 'N/A'; ?></p>
             </div>
         </div>
-        <div class="mt-6 flex justify-end">
-            <a href="<?php echo BASE_URL; ?>/rh" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md mr-3 hover:bg-gray-300">Voltar para RH</a>
-            <a href="<?php echo BASE_URL; ?>/rh/fichaCadastral/<?php echo htmlspecialchars($funcionario['id']); ?>" target="_blank" class="bg-teal-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-teal-700 ml-3">Gerar Ficha (PDF)</a>
+        <div class="mt-6 flex justify-end gap-4">
+            <a href="<?php echo BASE_URL; ?>/rh" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">Voltar para RH</a>
+            <a href="<?php echo BASE_URL; ?>/rh/fichaCadastral/<?php echo htmlspecialchars($funcionario['id']); ?>" target="_blank" class="bg-teal-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-teal-700">Gerar Ficha (PDF)</a>
             <a href="<?php echo BASE_URL; ?>/rh/editar/<?php echo htmlspecialchars($funcionario['id']); ?>" class="bg-indigo-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-indigo-700">Editar Funcionário</a>
-            <a href="<?php echo BASE_URL; ?>/rh/excluir/<?php echo htmlspecialchars($funcionario['id']); ?>" onclick="return confirm('Tem certeza que deseja excluir este funcionário? Esta ação não pode ser desfeita.');" class="bg-red-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-red-700 ml-3">Excluir Funcionário</a>
+            <a href="<?php echo BASE_URL; ?>/rh/excluir/<?php echo htmlspecialchars($funcionario['id']); ?>" onclick="return confirm('Tem certeza que deseja excluir este funcionário? Esta ação não pode ser desfeita.');" class="bg-red-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-red-700">Excluir Funcionário</a>
         </div>
     <?php else: ?>
         <p class="text-red-500">Funcionário não encontrado.</p>
         <div class="mt-6 flex justify-end">
-            <a href="<?php echo BASE_URL; ?>/rh" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md mr-3 hover:bg-gray-300">Voltar para RH</a>
+            <a href="<?php echo BASE_URL; ?>/rh" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300">Voltar para RH</a>
         </div>
     <?php endif; ?>
 </div>

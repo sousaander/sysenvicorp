@@ -1,3 +1,11 @@
+<?php
+// Prepara o logo em Base64
+$logoPath = ROOT_PATH . '/public/assets/images/logo.png';
+$logoSrc = '';
+if (file_exists($logoPath) && extension_loaded('gd')) {
+    $logoSrc = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+}
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -41,6 +49,9 @@
 
 <body>
     <div class="container">
+        <?php if (!empty($logoSrc)): ?>
+            <div style="text-align: center; margin-bottom: 20px;"><img src="<?php echo $logoSrc; ?>" alt="Logo" style="max-height: 60px;"></div>
+        <?php endif; ?>
         <h1>AVISO DE FÉRIAS</h1>
 
         <p><strong>Empregador:</strong> <?php echo htmlspecialchars($dados['empresa']['razao_social']); ?><br>

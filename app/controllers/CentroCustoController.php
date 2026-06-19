@@ -78,7 +78,8 @@ class CentroCustoController extends BaseController
         if ($this->financialModel->salvarCentroCusto($dados)) {
             $this->setFlashMessage('success', 'Centro de Custo salvo com sucesso!');
         } else {
-            $this->setFlashMessage('error', 'Erro ao salvar o Centro de Custo. O nome pode já existir.');
+            $erro = $this->financialModel->getUltimoErro() ?? 'Erro ao salvar o Centro de Custo. O nome pode já existir.';
+            $this->setFlashMessage('error', $erro);
         }
 
         header('Location: ' . BASE_URL . '/centrocusto');

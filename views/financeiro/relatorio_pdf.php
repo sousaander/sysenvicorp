@@ -106,12 +106,16 @@
 
         .footer {
             position: fixed;
-            bottom: 10mm;
-            left: 20mm;
-            right: 20mm;
+            bottom: 0; /* Garante que o rodapé esteja fixo na parte inferior da página */
+            left: 0;   /* Alinha à esquerda da página */
+            right: 0;  /* Alinha à direita da página */
+            width: 100%; /* Garante que ocupe toda a largura disponível */
             text-align: right;
             font-size: 8pt;
             color: #777;
+            border-top: 1px solid #eee; /* Adiciona uma linha superior para separação visual */
+            padding: 5px 20mm; /* Adiciona padding interno e mantém o espaçamento lateral */
+            z-index: 999; /* Garante que o rodapé fique acima de outros elementos */
         }
     </style>
 </head>
@@ -121,6 +125,12 @@
     <p><strong>Data de Geração:</strong> <?php echo htmlspecialchars($dataGeracao); ?></p>
     <?php if ($filtros['tipo_relatorio'] === 'banco' && $bancoSelecionado): ?>
         <p><strong>Conta Bancária:</strong> <?php echo htmlspecialchars($bancoSelecionado); ?></p>
+    <?php endif; ?>
+    <?php if (!empty($categoriaSelecionada)): ?>
+        <p><strong>Categoria:</strong> <?php echo htmlspecialchars($categoriaSelecionada); ?></p>
+    <?php endif; ?>
+    <?php if (!empty($centroCustoSelecionado)): ?>
+        <p><strong>Centro de Custo:</strong> <?php echo htmlspecialchars($centroCustoSelecionado); ?></p>
     <?php endif; ?>
     <p><strong>Período:</strong>
         <?php
@@ -142,7 +152,9 @@
                 <tr>
                     <th>Conta</th>
                     <th class="text-left">Descrição</th>
-                    <th>Pago Em</th>
+                    <th>Data Ref.</th>
+                    <th>Categoria</th>
+                    <th>C. Custo</th>
                     <th>Tipo</th>
                     <th class="text-right">Valor</th>
                 </tr>
@@ -157,28 +169,35 @@
                     // Lógica simplificada usando o helper
                     $transferType = get_transfer_type($transacao);
 
-                    if ($transferType === 'out') {
-                        $valorSign = '-';
-                        $tipoLabel = 'Transferência (Saída)';
-                        $totalDespesas += $transacao['valor'];
-                    } elseif ($transferType === 'in') {
-                        $valorSign = '+';
-                        $tipoLabel = 'Transferência (Entrada)';
-                        $totalReceitas += $transacao['valor'];
-                    } elseif ($transacao['tipo'] === 'P') {
-                        $valorSign = '-';
-                        $tipoLabel = 'Despesa';
-                        $totalDespesas += $transacao['valor'];
-                    } elseif ($transacao['tipo'] === 'R') {
-                        $tipoLabel = 'Receita';
-                        $valorSign = '+';
-                        $totalReceitas += $transacao['valor'];
+                    if ($transacao['status'] !== 'Cancelado') {
+                        if ($transferType === 'out') {
+                            $valorSign = '-';
+                            $tipoLabel = 'Transferência (Saída)';
+                            $totalDespesas += $transacao['valor'];
+                        } elseif ($transferType === 'in') {
+                            $valorSign = '+';
+                            $tipoLabel = 'Transferência (Entrada)';
+                            $totalReceitas += $transacao['valor'];
+                        } elseif ($transacao['tipo'] === 'P') {
+                            $valorSign = '-';
+                            $tipoLabel = 'Despesa';
+                            $totalDespesas += $transacao['valor'];
+                        } elseif ($transacao['tipo'] === 'R') {
+                            $tipoLabel = 'Receita';
+                            $valorSign = '+';
+                            $totalReceitas += $transacao['valor'];
+                        }
+                    } else {
+                        $valorSign = ($transacao['tipo'] === 'P') ? '-' : '+';
                     }
+                    $dataExibir = ($transacao['status'] === 'Pago' && !empty($transacao['data_pagamento'])) ? $transacao['data_pagamento'] : $transacao['data'];
                 ?>
                     <tr>
                         <td><?php echo htmlspecialchars($transacao['nome_banco'] ?? 'N/A'); ?></td>
                         <td class="text-left"><?php echo htmlspecialchars($transacao['descricao']); ?></td>
-                        <td><?php echo date('d/m/Y', strtotime($transacao['data'])); ?></td>
+                        <td><?php echo date('d/m/Y', strtotime($dataExibir)); ?></td>
+                        <td><?php echo htmlspecialchars($transacao['nome_classificacao'] ?? '-'); ?></td>
+                        <td><?php echo htmlspecialchars($transacao['nome_centro_custo'] ?? '-'); ?></td>
                         <td class="<?php echo $valorSign === '-' ? 'color-red' : 'color-green'; ?>"><?php echo htmlspecialchars($tipoLabel); ?></td>
                         <td class="text-right <?php echo $valorSign === '-' ? 'color-red' : 'color-green'; ?>"><?php echo $valorSign . 'R$ ' . number_format($transacao['valor'], 2, ',', '.'); ?></td>
                     </tr>
@@ -191,15 +210,15 @@
         ?>
         <table class="summary-table">
             <tr>
-                <td colspan="4" class="text-right">Total Receitas:</td>
+                <td colspan="6" class="text-right">Total Receitas:</td>
                 <td class="text-right color-green">R$ <?php echo number_format($totalReceitas, 2, ',', '.'); ?></td>
             </tr>
             <tr>
-                <td colspan="4" class="text-right">Total Despesas:</td>
+                <td colspan="6" class="text-right">Total Despesas:</td>
                 <td class="text-right color-red">R$ <?php echo number_format($totalDespesas, 2, ',', '.'); ?></td>
             </tr>
             <tr>
-                <td colspan="4" class="text-right"><strong>Saldo do Período:</strong></td>
+                <td colspan="6" class="text-right"><strong>Saldo do Período:</strong></td>
                 <td class="text-right <?php echo $saldoFinal >= 0 ? 'color-green' : 'color-red'; ?>"><strong>R$ <?php echo number_format($saldoFinal, 2, ',', '.'); ?></strong></td>
             </tr>
         </table>

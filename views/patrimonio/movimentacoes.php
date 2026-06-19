@@ -68,6 +68,7 @@
         </div>
         <div class="mt-5">
             <form action="<?php echo BASE_URL; ?>/patrimonio/salvarMovimentacao" method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Bem / Ativo -->
                     <div class="md:col-span-2">

@@ -2,14 +2,14 @@
 // Definições de estilo para os links do submenu
 $linkBaseStyle = "px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200";
 $linkActiveStyle = "bg-violet-600 text-white shadow-md";
-$linkInactiveStyle = "text-gray-600 hover:bg-gray-200";
+$linkInactiveStyle = "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700";
 ?>
 
-<div class="bg-white p-6 rounded-lg shadow-md mb-6">
+<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6">
     <div class="flex justify-between items-start">
         <div>
-            <h2 class="text-2xl font-bold text-gray-800"><?php echo htmlspecialchars($projeto['nome']); ?></h2>
-            <p class="text-gray-600">Cliente: <?php echo htmlspecialchars($projeto['cliente_nome'] ?? 'Não definido'); ?></p>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white"><?php echo htmlspecialchars($projeto['nome']); ?></h2>
+            <p class="text-gray-600 dark:text-gray-400">Cliente: <?php echo htmlspecialchars($projeto['cliente_nome'] ?? 'Não definido'); ?></p>
         </div>
         <?php
         // Determina a URL de retorno com base no status do projeto
@@ -17,19 +17,23 @@ $linkInactiveStyle = "text-gray-600 hover:bg-gray-200";
             ? BASE_URL . '/projetos/arquivados'
             : BASE_URL . '/projetos';
         ?>
-        <a href="<?php echo $urlVoltar; ?>" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 font-medium">
+        <a href="<?php echo $urlVoltar; ?>" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 font-medium">
             &larr; Voltar para a Lista
         </a>
     </div>
 </div>
 
-<div class="bg-white rounded-lg shadow-md">
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
     <!-- Barra de Navegação dos Submenus -->
-    <div class="border-b border-gray-200">
+    <div class="border-b border-gray-200 dark:border-gray-700">
         <nav class="flex space-x-2 p-4" aria-label="Tabs">
             <a href="<?php echo BASE_URL; ?>/projetos/detalhe/<?php echo $projeto['id']; ?>/resumo"
                 class="<?php echo $submenu === 'resumo' ? $linkActiveStyle : $linkInactiveStyle; ?> <?php echo $linkBaseStyle; ?>">
                 Resumo do Projeto
+            </a>
+            <a href="<?php echo BASE_URL; ?>/projetos/detalhe/<?php echo $projeto['id']; ?>/tarefas"
+                class="<?php echo $submenu === 'tarefas' ? $linkActiveStyle : $linkInactiveStyle; ?> <?php echo $linkBaseStyle; ?>">
+                Etapas
             </a>
             <a href="<?php echo BASE_URL; ?>/projetos/detalhe/<?php echo $projeto['id']; ?>/dados_gerais"
                 class="<?php echo $submenu === 'dados_gerais' ? $linkActiveStyle : $linkInactiveStyle; ?> <?php echo $linkBaseStyle; ?>">
@@ -63,7 +67,7 @@ $linkInactiveStyle = "text-gray-600 hover:bg-gray-200";
     </div>
 
     <!-- Conteúdo do Submenu Carregado Dinamicamente -->
-    <div class="p-6">
+    <div class="p-4 md:p-6">
         <?php
         // SOLUÇÃO DEFINITIVA: Disponibiliza as variáveis necessárias de forma explícita para a sub-view.
         // A variável $projeto já está disponível neste escopo.

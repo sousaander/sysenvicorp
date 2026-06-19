@@ -1,9 +1,9 @@
 <div class="flex justify-between items-center mb-6">
     <div>
         <h2 class="text-2xl font-bold"><?php echo htmlspecialchars($pageTitle); ?></h2>
-        <p class="text-gray-600">Revisões para: "<?php echo htmlspecialchars($proposta['titulo']); ?>"</p>
+        <p class="text-gray-600">Revisões para: "<?php echo htmlspecialchars($proposta['nome_proposta']); ?>"</p>
     </div>
-    <a href="<?php echo BASE_URL; ?>/orcamento/verProposta/<?php echo $proposta['id']; ?>" class="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg shadow-md hover:bg-gray-300 transition">
+    <a href="<?php echo BASE_URL; ?>/orcamento/ver/<?php echo $proposta['id']; ?>" class="px-2 py-1 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg shadow-md hover:bg-gray-300 transition">
         &larr; Voltar para Proposta
     </a>
 </div>

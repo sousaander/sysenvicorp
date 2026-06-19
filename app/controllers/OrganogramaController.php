@@ -9,6 +9,20 @@ class OrganogramaController extends BaseController
 {
     private $organogramaModel;
 
+    /**
+     * Mapeia ações para as permissões necessárias.
+     * @var array
+     */
+    protected $requiredPermissions = [
+        'index' => 'organograma_view',
+        'adicionarCargo' => 'organograma_structure_manage',
+        'atualizarCargo' => 'organograma_structure_manage',
+        'excluirCargo' => 'organograma_structure_manage',
+        'adicionarAtividade' => 'organograma_kpis_manage',
+        'atualizarAtividade' => 'organograma_kpis_manage',
+        'excluirAtividade' => 'organograma_kpis_manage',
+    ];
+
     public function __construct()
     {
         parent::__construct(); // Garante que o SessionManager seja inicializado.

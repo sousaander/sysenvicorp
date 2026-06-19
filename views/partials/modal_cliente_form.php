@@ -61,25 +61,25 @@
             // Lógica para alternar campos PF/PJ
             const tipoClienteRadios = form.querySelectorAll('input[name="tipo_cliente"]');
             const nomeLabel = form.querySelector('label[for="nome"]');
-            const nomeFantasiaDiv = form.querySelector('#nome_fantasia').parentElement;
+            const nomeFantasiaDiv = form.querySelector('#nome_fantasia')?.parentElement;
             const cnpjCpfLabel = form.querySelector('label[for="cnpj_cpf"]');
-            const rgDiv = form.querySelector('#rg').parentElement;
-            const dataNascimentoDiv = form.querySelector('#data_nascimento').parentElement;
+            const rgDiv = form.querySelector('#rg')?.parentElement;
+            const dataNascimentoDiv = form.querySelector('#data_nascimento')?.parentElement;
 
             function togglePfPjFields() {
-                const tipo = form.querySelector('input[name="tipo_cliente"]:checked').value;
+                const tipo = form.querySelector('input[name="tipo_cliente"]:checked')?.value;
                 if (tipo === 'Fisica') {
-                    nomeLabel.innerHTML = 'Nome Completo <span class="text-red-500">*</span>';
-                    cnpjCpfLabel.innerHTML = 'CPF <span class="text-red-500">*</span>';
-                    nomeFantasiaDiv.classList.add('hidden');
-                    rgDiv.classList.remove('hidden');
-                    dataNascimentoDiv.classList.remove('hidden');
+                    if (nomeLabel) nomeLabel.innerHTML = 'Nome Completo <span class="text-red-500">*</span>';
+                    if (cnpjCpfLabel) cnpjCpfLabel.innerHTML = 'CPF <span class="text-red-500">*</span>';
+                    nomeFantasiaDiv?.classList.add('hidden');
+                    rgDiv?.classList.remove('hidden');
+                    dataNascimentoDiv?.classList.remove('hidden');
                 } else { // Juridica
-                    nomeLabel.innerHTML = 'Razão Social <span class="text-red-500">*</span>';
-                    cnpjCpfLabel.innerHTML = 'CNPJ <span class="text-red-500">*</span>';
-                    nomeFantasiaDiv.classList.remove('hidden');
-                    rgDiv.classList.add('hidden');
-                    dataNascimentoDiv.classList.add('hidden');
+                    if (nomeLabel) nomeLabel.innerHTML = 'Razão Social <span class="text-red-500">*</span>';
+                    if (cnpjCpfLabel) cnpjCpfLabel.innerHTML = 'CNPJ <span class="text-red-500">*</span>';
+                    nomeFantasiaDiv?.classList.remove('hidden');
+                    rgDiv?.classList.add('hidden');
+                    dataNascimentoDiv?.classList.add('hidden');
                 }
             }
 
@@ -229,6 +229,7 @@
             // Botão "Salvar" da Nova Categoria (se clicado)
             if (event.target && event.target.id === 'salvar-nova-categoria-btn') {
                 event.preventDefault();
+                const btn = event.target;
 
                 const novaCategoriaInput = document.getElementById('nova-categoria-nome');
                 const nomeNovaCategoria = novaCategoriaInput.value.trim();
@@ -237,6 +238,11 @@
                     alert('Por favor, digite o nome da nova categoria.');
                     return;
                 }
+
+                // Prevenção de múltiplos cliques
+                btn.disabled = true;
+                const originalText = btn.textContent;
+                btn.textContent = 'Salvando...';
 
                 const formData = new FormData();
                 formData.append('nome', nomeNovaCategoria);
@@ -255,9 +261,22 @@
                         const categoriaSelect = document.getElementById('categoria_segmento');
                         const novaCategoriaDiv = document.getElementById('nova-categoria-div');
 
-                        // O 'value' da nova opção deve ser o ID, não o nome.
-                        const newOption = new Option(result.data.nome, result.data.id, true, true);
-                        categoriaSelect.insertBefore(newOption, categoriaSelect.options[categoriaSelect.options.length - 1]);
+                        // Verifica se a categoria já existe no select antes de adicionar (evita duplicidade visual)
+                        let exists = false;
+                        for (let i = 0; i < categoriaSelect.options.length; i++) {
+                            if (categoriaSelect.options[i].value == result.data.id) {
+                                exists = true;
+                                categoriaSelect.selectedIndex = i;
+                                // Dispara o evento change para carregar segmentos da categoria existente
+                                categoriaSelect.dispatchEvent(new Event('change'));
+                                break;
+                            }
+                        }
+
+                        if (!exists) {
+                            const newOption = new Option(result.data.nome, result.data.id, true, true);
+                            categoriaSelect.insertBefore(newOption, categoriaSelect.options[categoriaSelect.options.length - 1]);
+                        }
 
                         novaCategoriaDiv.classList.add('hidden');
                         novaCategoriaInput.value = '';
@@ -266,6 +285,9 @@
                     }
                 } catch (error) {
                     alert('Ocorreu um erro de comunicação ao salvar a categoria.');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
                 }
             }
 
@@ -278,6 +300,7 @@
             // Botão "Salvar" do Novo Segmento
             if (event.target && event.target.id === 'salvar-novo-segmento-btn') {
                 event.preventDefault();
+                const btn = event.target;
                 const nomeNovoSegmento = document.getElementById('novo-segmento-nome').value.trim();
                 const categoriaId = document.getElementById('categoria_segmento').value;
 
@@ -285,6 +308,10 @@
                     alert('Nome do segmento e categoria são necessários.');
                     return;
                 }
+
+                btn.disabled = true;
+                const originalText = btn.textContent;
+                btn.textContent = 'Salvando...';
 
                 const formData = new FormData();
                 formData.append('nome', nomeNovoSegmento);
@@ -304,9 +331,20 @@
                         const segmentoSelect = document.getElementById('segmento');
                         const novoSegmentoDiv = document.getElementById('novo-segmento-div');
 
-                        // Adiciona a nova opção, seleciona e esconde o campo de input
-                        const newOption = new Option(result.data.nome, result.data.nome, true, true);
-                        segmentoSelect.insertBefore(newOption, segmentoSelect.options[segmentoSelect.options.length - 1]);
+                        // Verifica se o segmento já existe no select
+                        let exists = false;
+                        for (let i = 0; i < segmentoSelect.options.length; i++) {
+                            if (segmentoSelect.options[i].value == result.data.nome) {
+                                exists = true;
+                                segmentoSelect.selectedIndex = i;
+                                break;
+                            }
+                        }
+
+                        if (!exists) {
+                            const newOption = new Option(result.data.nome, result.data.nome, true, true);
+                            segmentoSelect.insertBefore(newOption, segmentoSelect.options[segmentoSelect.options.length - 1]);
+                        }
 
                         novoSegmentoDiv.classList.add('hidden');
                         document.getElementById('novo-segmento-nome').value = '';
@@ -315,6 +353,9 @@
                     }
                 } catch (error) {
                     alert('Ocorreu um erro de comunicação ao salvar o segmento.');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
                 }
             }
 

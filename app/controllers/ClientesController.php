@@ -4,15 +4,47 @@ namespace App\Controllers;
 
 use App\Core\Connection;
 use App\Models\ClientesModel;
+use App\Models\ProjetosModel;
+use App\Models\ContratosModel;
+use App\Models\FinancialModel;
 
 class ClientesController extends BaseController
 {
     private $model;
+    private $projetosModel;
+    private $contratosModel;
+    private $financialModel;
+
+    /**
+     * Mapeia ações para as permissões necessárias.
+     * O BaseController usará este mapa para verificar o acesso.
+     * @var array
+     */
+    protected $requiredPermissions = [
+        'index' => 'clientes_view',
+        'detalhe' => 'clientes_view',
+        'salvar' => 'clientes_manage',
+        'novo' => 'clientes_manage',
+        'excluir' => 'clientes_delete',
+        'restaurar' => 'clientes_manage',
+        'limparHistorico' => 'clientes_interacoes_manage',
+        'registrarInteracao' => 'clientes_interacoes_manage',
+        'getFormForEdit' => 'clientes_edit',
+        'getFormForNew' => 'clientes_create',
+        'addCategoria' => 'config_clientes_manage',
+        'getSegmentosAjax' => 'clientes_view',
+        'addSegmentoAjax' => 'config_clientes_manage',
+        'consultarCnpj' => 'clientes_view',
+        'buscarCnpjAjax' => 'clientes_view',
+    ];
 
     public function __construct()
     {
         parent::__construct();
         $this->model = new ClientesModel();
+        $this->projetosModel = new ProjetosModel();
+        $this->contratosModel = new ContratosModel();
+        $this->financialModel = new FinancialModel();
     }
 
     public function index()
@@ -26,6 +58,7 @@ class ClientesController extends BaseController
         // Coleta filtros da URL
         $filtros = [
             'busca' => filter_input(INPUT_GET, 'busca', FILTER_SANITIZE_SPECIAL_CHARS),
+            'status' => filter_input(INPUT_GET, 'status', FILTER_SANITIZE_SPECIAL_CHARS),
         ];
 
         // Lógica de Paginação
@@ -39,10 +72,14 @@ class ClientesController extends BaseController
         $totalClientes = $this->model->getClientesCount($filtros);
         $totalPaginas = ceil($totalClientes / $itensPorPagina);
 
+        // Gera um token CSRF para os formulários da página
+        $csrf_token = bin2hex(random_bytes(32));
+        $this->session->set('csrf_token', $csrf_token);
+
         // Adiciona dados necessários para o formulário de criação no modal
         // (mesmo que inicialmente vazio)
         $data = array_merge([
-            'pageTitle' => 'Clientes - CRM e Propostas',
+            'pageTitle' => 'Gestão de Clientes',
             'clientes' => $clientes,
             'todosClientes' => $todosClientes,
             'paginaAtual' => $paginaAtual,
@@ -50,6 +87,7 @@ class ClientesController extends BaseController
             'filtros' => $filtros,
             'cliente' => null, // Garante que a variável exista para o form.php
             'categorias' => $categorias, // Passa as categorias para a view
+            'csrf_token' => $csrf_token,
         ], $summary, $funilVendas);
 
         $this->renderView('clientes/index', $data);
@@ -72,13 +110,38 @@ class ClientesController extends BaseController
 
         $interacoes = $this->model->getInteracoesByClienteId($id);
         $todosClientes = $this->model->getAllClientes(); // Para o modal de interação
+        
+        // Busca dados relacionados de outros módulos
+        $projetos = $this->projetosModel->getProjetosByClienteId($id);
+        $contratos = $this->contratosModel->getContratosByClienteId($id, $cliente['cnpj_cpf'] ?? null);
+        
+        // Busca histórico financeiro (Receitas)
+        $paginaAtualFin = filter_input(INPUT_GET, 'page_fin', FILTER_VALIDATE_INT) ?: 1;
+        $itensPorPagina = 10;
+        $offset = ($paginaAtualFin - 1) * $itensPorPagina;
+        $historicoFinanceiro = $this->financialModel->getTransacoesPorPessoaId($id, 'R', $itensPorPagina, $offset) ?: [];
+        $totalFin = $this->financialModel->getCountTransacoesPorPessoaId($id, 'R') ?: 0;
+        
+        // Verifica se o cliente merece o selo de "Bom Pagador"
+        $pontualidade = $this->financialModel->getStatusPontualidadeCliente($id);
+
+        // Gera um token CSRF para os formulários da página
+        $csrf_token = bin2hex(random_bytes(32));
+        $this->session->set('csrf_token', $csrf_token);
 
         $data = [
             'pageTitle' => 'Detalhes do Cliente',
             'cliente' => $cliente,
             'interacoes' => $interacoes,
             'todosClientes' => $todosClientes, // Passa para o modal
+            'projetos' => $projetos,
+            'contratos' => $contratos,
+            'historicoFinanceiro' => $historicoFinanceiro,
+            'isBomPagador' => $pontualidade['is_bom_pagador'],
+            'paginaAtualFin' => $paginaAtualFin,
+            'totalPaginasFin' => ceil($totalFin / $itensPorPagina),
             'isDetalhePage' => true, // Flag para a view de detalhes
+            'csrf_token' => $csrf_token,
         ];
         $this->renderView('clientes/detalhe', $data);
     }
@@ -88,10 +151,19 @@ class ClientesController extends BaseController
      */
     public function novo()
     {
-        // Em vez de renderizar uma nova página, redireciona para o index
-        // com um parâmetro para abrir o modal de novo cliente.
-        header('Location: ' . BASE_URL . '/clientes?action=novo');
-        exit();
+        $csrf_token = $this->generateCsrfToken();
+        $categorias = $this->model->getCategorias();
+
+        $data = [
+            'pageTitle' => 'Novo Cliente / Lead',
+            'cliente' => null,
+            'categorias' => $categorias,
+            'segmentos' => [],
+            'csrf_token' => $csrf_token,
+            'isEdit' => false
+        ];
+
+        $this->renderView('clientes/form', $data);
     }
 
     /**
@@ -100,26 +172,29 @@ class ClientesController extends BaseController
      */
     public function getFormForEdit(int $id)
     {
+        $id = (int)$id;
         $cliente = $this->model->getClienteById($id);
 
         if (!$cliente) {
-            http_response_code(404);
-            echo "Cliente não encontrado.";
+            $this->setFlashMessage('error', 'Cliente não encontrado.');
+            header('Location: ' . BASE_URL . '/clientes');
             exit();
         }
 
-        // Busca listas para os selects do formulário
+        $csrf_token = $this->generateCsrfToken();
         $categorias = $this->model->getCategorias();
         $segmentos = $cliente['categoria_id'] ? $this->model->getSegmentosByCategoriaId($cliente['categoria_id']) : [];
 
         $data = [
+            'pageTitle' => 'Editar Cliente',
             'cliente' => $cliente,
             'categorias' => $categorias,
-            'segmentos' => $segmentos, // Passa os segmentos iniciais
+            'segmentos' => $segmentos,
+            'csrf_token' => $csrf_token,
+            'isEdit' => true
         ];
 
-        // Renderiza apenas o formulário, sem o template principal
-        $this->renderPartial('clientes/form', $data);
+        $this->renderView('clientes/form', $data);
     }
 
     /**
@@ -127,6 +202,8 @@ class ClientesController extends BaseController
      */
     public function getFormForNew()
     {
+        $csrf_token = $this->generateCsrfToken();
+
         // Busca listas para os selects do formulário
         $categorias = $this->model->getCategorias();
 
@@ -134,6 +211,7 @@ class ClientesController extends BaseController
             'cliente' => null, // Garante que o formulário esteja no modo de criação
             'categorias' => $categorias,
             'segmentos' => [], // Começa com segmentos vazios
+            'csrf_token' => $csrf_token,
         ];
 
         $this->renderPartial('clientes/form', $data);
@@ -145,32 +223,63 @@ class ClientesController extends BaseController
     public function salvar()
     {
         // Verifica se é uma requisição AJAX
-        $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
-
+        $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')
+            || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             header('Location: ' . BASE_URL . '/clientes');
             exit();
         }
 
+        // Validação de CSRF usando o pool de tokens do BaseController
+        $postToken = $_POST['csrf_token'] ?? '';
+        if (!$this->validateCsrfToken($postToken)) {
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                http_response_code(403);
+                echo json_encode(['success' => false, 'message' => 'Token CSRF inválido ou expirado. Por favor, recarregue a página.']);
+                exit();
+            }
+            $this->setFlashMessage('error', 'Token CSRF inválido.');
+            header('Location: ' . BASE_URL . '/clientes');
+            exit();
+        }
+
+        // Processa o endereço principal para a coluna flat 'endereco' (usada em buscas)
+        $end = $_POST['enderecos']['principal'] ?? [];
+        $enderecoFlat = null;
+        if (!empty($end['logradouro'])) {
+            $enderecoFlat = $end['logradouro'];
+            if (!empty($end['numero'])) $enderecoFlat .= ", " . $end['numero'];
+            if (!empty($end['cidade'])) $enderecoFlat .= " - " . $end['cidade'];
+            if (!empty($end['estado'])) $enderecoFlat .= "/" . $end['estado'];
+        }
+
         // Coleta e organiza os dados do formulário
         $dados = [
             'id' => filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT) ?: null,
-            'tipo_cliente' => filter_input(INPUT_POST, 'tipo_cliente', FILTER_SANITIZE_SPECIAL_CHARS),
-            'nome' => filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS),
-            'nome_fantasia' => filter_input(INPUT_POST, 'nome_fantasia', FILTER_SANITIZE_SPECIAL_CHARS),
-            'cnpj_cpf' => filter_input(INPUT_POST, 'cnpj_cpf', FILTER_SANITIZE_SPECIAL_CHARS),
-            'rg' => filter_input(INPUT_POST, 'rg', FILTER_SANITIZE_SPECIAL_CHARS),
-            'inscricao_estadual' => filter_input(INPUT_POST, 'inscricao_estadual', FILTER_SANITIZE_SPECIAL_CHARS),
-            'ie_isento' => filter_input(INPUT_POST, 'ie_isento', FILTER_VALIDATE_INT),
-            'inscricao_municipal' => filter_input(INPUT_POST, 'inscricao_municipal', FILTER_SANITIZE_SPECIAL_CHARS),
-            'data_nascimento' => filter_input(INPUT_POST, 'data_nascimento'),
-            'categoria_id' => filter_input(INPUT_POST, 'categoria_id', FILTER_VALIDATE_INT), // ID da categoria
-            'segmento' => filter_input(INPUT_POST, 'segmento', FILTER_SANITIZE_SPECIAL_CHARS), // Novo campo segmento
-            'classificacao' => filter_input(INPUT_POST, 'classificacao', FILTER_SANITIZE_SPECIAL_CHARS),
-            'origem_cliente' => filter_input(INPUT_POST, 'origem_cliente', FILTER_SANITIZE_SPECIAL_CHARS),
-            'observacoes_iniciais' => filter_input(INPUT_POST, 'observacoes_iniciais', FILTER_SANITIZE_SPECIAL_CHARS),
-            'status' => filter_input(INPUT_POST, 'status', FILTER_SANITIZE_SPECIAL_CHARS),
+            'tipo_cliente' => $_POST['tipo_cliente'] ?? null,
+            'nome' => $_POST['nome'] ?? null,
+            'email' => $_POST['contatos']['principal']['email'] ?? null,
+            'telefone' => $_POST['contatos']['principal']['telefone'] ?? null,
+            'contato_principal' => $_POST['contatos']['responsavel']['nome'] ?? null,
+            'endereco' => $enderecoFlat,
+            'nome_fantasia' => $_POST['nome_fantasia'] ?? null,
+            'sigla' => !empty($_POST['sigla']) ? strtoupper(trim($_POST['sigla'])) : null,
+            'cnpj_cpf' => $_POST['cnpj_cpf'] ?? null,
+            'rg' => $_POST['rg'] ?? null,
+            'inscricao_estadual' => $_POST['inscricao_estadual'] ?? null,
+            'ie_isento' => isset($_POST['ie_isento']) ? 1 : 0,
+            'inscricao_municipal' => $_POST['inscricao_municipal'] ?? null,
+            'data_nascimento' => !empty($_POST['data_nascimento']) ? $_POST['data_nascimento'] : null,
+            'categoria_id' => !empty($_POST['categoria_id']) ? (int)$_POST['categoria_id'] : null,
+            'segmento' => $_POST['segmento'] ?? null,
+            'classificacao' => $_POST['classificacao'] ?? null,
+            'origem_cliente' => $_POST['origem_cliente'] ?? null,
+            'observacoes_iniciais' => $_POST['observacoes_iniciais'] ?? null,
+            'motivo_inativacao' => $_POST['motivo_inativacao'] ?? null,
+            'data_inativacao' => !empty($_POST['data_inativacao']) ? $_POST['data_inativacao'] : null,
+            'status' => $_POST['status'] ?? null,
             // Agrupa os dados em arrays para os campos JSON
             'enderecos' => $_POST['enderecos'] ?? [],
             'contatos' => $_POST['contatos'] ?? [],
@@ -179,26 +288,71 @@ class ClientesController extends BaseController
             // A parte de upload de arquivos precisaria de uma lógica separada com $_FILES
         ];
 
+        // Validação de Campos Obrigatórios
+        if (empty(trim($dados['nome'] ?? ''))) {
+            $msg = 'O campo Nome é obrigatório.';
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => $msg]);
+                exit();
+            }
+            $this->setFlashMessage('error', $msg);
+            header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? BASE_URL . '/clientes'));
+            exit();
+        }
+
+        // Adiciona a validação de CPF/CNPJ
+        $tipoClienteValidacao = $dados['tipo_cliente'] ?? '';
+        if (!empty($dados['cnpj_cpf']) && !$this->validarCpfCnpj((string)($dados['cnpj_cpf'] ?? ''), (string)$tipoClienteValidacao)) {
+            // Determina o tipo de documento para a mensagem de erro
+            $tipoDocumento = ($tipoClienteValidacao === 'Fisica' || strlen(preg_replace('/[^0-9]/', '', $dados['cnpj_cpf'])) === 11) ? 'CPF' : 'CNPJ';
+            $message = "O {$tipoDocumento} informado é inválido.";
+
+            if ($isAjax) {
+                header('Content-Type: application/json');
+                http_response_code(400); // Bad Request
+                echo json_encode(['success' => false, 'message' => $message]);
+                exit();
+            } else {
+                $this->setFlashMessage('error', $message);
+                // Redireciona de volta para a página anterior para não perder o contexto do formulário
+                header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? BASE_URL . '/clientes'));
+                exit();
+            }
+        }
+
+
         try {
-            if ($this->model->salvarCliente($dados)) {
+            $savedId = $this->model->salvarCliente($dados);
+            if ($savedId !== false && $savedId !== null) {
+                error_log("Cliente salvo com sucesso - ID: " . $savedId);
+
+                // Log de Auditoria
+                $action = !empty($dados['id']) ? 'UPDATE' : 'CREATE';
+                $description = !empty($dados['id']) ? "Atualizou cliente ID {$savedId}: {$dados['nome']}" : "Cadastrou novo cliente: {$dados['nome']}";
+                $this->logAction($action, $description, 'Clientes', $savedId);
+
                 if ($isAjax) {
                     header('Content-Type: application/json');
-                    echo json_encode(['success' => true, 'message' => 'Cliente salvo com sucesso!']);
+                    echo json_encode(['success' => true, 'message' => 'Cliente salvo com sucesso!', 'data' => ['id' => $savedId, 'nome' => $dados['nome']]]);
                     exit();
                 } else {
                     $this->setFlashMessage('success', 'Cliente salvo com sucesso!');
                 }
             } else {
+                error_log("salvarCliente retornou false para ID: " . ($dados['id'] ?? 'novo'));
+                $msgErro = method_exists($this->model, 'getLastError') ? $this->model->getLastError() : 'Ocorreu um erro desconhecido ao salvar o cliente.';
                 if ($isAjax) {
                     header('Content-Type: application/json');
                     http_response_code(500);
-                    echo json_encode(['success' => false, 'message' => 'Ocorreu um erro desconhecido ao salvar o cliente.']);
+                    echo json_encode(['success' => false, 'message' => $msgErro]);
                     exit();
                 } else {
-                    $this->setFlashMessage('error', 'Ocorreu um erro desconhecido ao salvar o cliente.');
+                    $this->setFlashMessage('error', $msgErro);
                 }
             }
         } catch (\PDOException $e) {
+            error_log("Exceção PDOException ao salvar cliente: " . $e->getMessage());
             if ($isAjax) {
                 header('Content-Type: application/json');
                 http_response_code(500);
@@ -209,7 +363,7 @@ class ClientesController extends BaseController
         }
 
         // Redirecionamento padrão para requisições não-AJAX
-        $redirectUrl = isset($dados['id']) ? BASE_URL . '/clientes/detalhe/' . $dados['id'] : BASE_URL . '/clientes';
+        $redirectUrl = ($savedId !== false && $savedId !== null) ? BASE_URL . '/clientes/detalhe/' . $savedId : BASE_URL . '/clientes';
         header('Location: ' . $redirectUrl);
         exit();
     }
@@ -309,19 +463,62 @@ class ClientesController extends BaseController
      */
     public function excluir(int $id)
     {
-        if ($id <= 0) {
-            $this->setFlashMessage('error', 'ID de cliente inválido.');
+        // 1. Valida o método da requisição
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->setFlashMessage('error', 'Operação inválida.');
             header('Location: ' . BASE_URL . '/clientes');
             exit();
         }
 
-        if ($this->model->excluirCliente($id)) {
-            $this->setFlashMessage('success', 'Cliente excluído com sucesso!');
+        // 2. Validação do token CSRF
+        if (!isset($_POST['csrf_token']) || !hash_equals($this->session->get('csrf_token'), $_POST['csrf_token'])) {
+            $this->setFlashMessage('error', 'Erro de validação de segurança (CSRF). Por favor, tente novamente.');
+            header('Location: ' . BASE_URL . '/clientes');
+            exit();
+        }
+
+        // Se o ID não veio pela rota (argumento zerado), tenta pegar do POST
+        if ($id <= 0) {
+            $id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT) ?: 0;
+        }
+
+        if ($id <= 0) {
+            $this->setFlashMessage('error', 'ID de cliente inválido.');
         } else {
-            $this->setFlashMessage('error', 'Erro ao excluir o cliente.');
+            // Ao ARQUIVAR, não precisamos bloquear se houver projetos ou contratos,
+            // pois o registro será mantido (apenas inativado).
+
+            // 3. Tenta ARQUIVAR o cliente
+            if ($this->model->arquivarCliente($id)) {
+                $this->setFlashMessage('success', 'Cliente arquivado com sucesso!');
+                $this->logAction('DELETE', "Arquivou cliente ID {$id}", 'Clientes', $id);
+            } else {
+                $this->setFlashMessage('error', 'Erro ao arquivar o cliente.');
+            }
         }
 
         header('Location: ' . BASE_URL . '/clientes');
+        exit();
+    }
+
+    /**
+     * Restaura um cliente inativo.
+     */
+    public function restaurar(int $id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->setFlashMessage('error', 'Operação inválida.');
+            header('Location: ' . BASE_URL . '/clientes');
+            exit();
+        }
+
+        if ($this->model->restaurarCliente($id)) {
+            $this->setFlashMessage('success', 'Cliente restaurado com sucesso!');
+        } else {
+            $this->setFlashMessage('error', 'Erro ao restaurar o cliente.');
+        }
+
+        header('Location: ' . BASE_URL . '/clientes/detalhe/' . $id);
         exit();
     }
 
@@ -337,6 +534,11 @@ class ClientesController extends BaseController
 
         $dados = $_POST;
 
+        // Adiciona o ID do usuário logado aos dados
+        if ($this->session->get('user_id')) {
+            $dados['usuario_id'] = $this->session->get('user_id');
+        }
+
         // TODO: Adicionar validação dos dados aqui.
 
         if ($this->model->registrarInteracao($dados)) {
@@ -345,7 +547,12 @@ class ClientesController extends BaseController
             $this->setFlashMessage('error', 'Erro ao registrar a interação.');
         }
 
-        header('Location: ' . BASE_URL . '/clientes');
+        // Redireciona de volta para a página de detalhes se possível
+        if (!empty($dados['cliente_id'])) {
+            header('Location: ' . BASE_URL . '/clientes/detalhe/' . $dados['cliente_id']);
+        } else {
+            header('Location: ' . BASE_URL . '/clientes');
+        }
         exit();
     }
 
@@ -376,12 +583,114 @@ class ClientesController extends BaseController
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10); // Timeout de 10 segundos
         $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        // Repassa a resposta da API para o nosso frontend
-        http_response_code($httpCode);
-        echo $response;
+        // Verifica o código de status da resposta da API externa
+        if ($httpCode === 200) {
+            // Sucesso: repassa a resposta JSON para o nosso frontend
+            http_response_code(200);
+            echo $response;
+        } elseif ($httpCode === 429) {
+            // Erro de "Too Many Requests"
+            http_response_code(429);
+            echo json_encode(['success' => false, 'message' => 'Muitas solicitações foram feitas. Por favor, aguarde um minuto e tente novamente.']);
+        } else {
+            // Outros erros da API externa (ex: 404 CNPJ não encontrado, 500 erro de servidor)
+            // Tenta decodificar a mensagem de erro da API, se houver
+            $errorData = json_decode($response, true);
+            $errorMessage = $errorData['message'] ?? 'Não foi possível consultar o CNPJ. Verifique o número ou tente mais tarde.';
+
+            http_response_code($httpCode); // Repassa o código de erro original
+            echo json_encode(['success' => false, 'message' => $errorMessage]);
+        }
+
+        exit(); // Garante que nada mais seja executado
+    }
+
+    /**
+     * Limpa o histórico de interações de um cliente.
+     * @param int $id O ID do cliente.
+     */
+    public function limparHistorico(int $id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->setFlashMessage('error', 'Operação inválida.');
+            header('Location: ' . BASE_URL . '/clientes/detalhe/' . $id);
+            exit();
+        }
+
+        // Validação do token CSRF
+        if (!isset($_POST['csrf_token']) || !hash_equals($this->session->get('csrf_token'), $_POST['csrf_token'])) {
+            $this->setFlashMessage('error', 'Erro de validação de segurança (CSRF). Por favor, tente novamente.');
+            header('Location: ' . BASE_URL . '/clientes/detalhe/' . $id);
+            exit();
+        }
+
+        if ($this->model->limparHistoricoInteracoes($id)) {
+            $this->setFlashMessage('success', 'Histórico de interações limpo com sucesso!');
+        } else {
+            $this->setFlashMessage('error', 'Erro ao limpar o histórico de interações.');
+        }
+
+        header('Location: ' . BASE_URL . '/clientes/detalhe/' . $id);
         exit();
+    }
+
+    /**
+     * Valida um número de CPF ou CNPJ.
+     * @param string $cpfCnpj O número a ser validado.
+     * @param string $tipo 'Fisica' para CPF, 'Juridica' para CNPJ.
+     * @return bool Retorna true se for válido, false caso contrário.
+     */
+    private function validarCpfCnpj(?string $cpfCnpj, ?string $tipo): bool
+    {
+        if (empty($cpfCnpj)) {
+            return false;
+        }
+
+        // Limpa o valor, deixando apenas números
+        $valor = preg_replace('/[^0-9]/', '', $cpfCnpj);
+
+        // Se o tipo não for informado, tenta deduzir pelo tamanho
+        if (empty($tipo)) {
+            $tipo = strlen($valor) === 11 ? 'Fisica' : (strlen($valor) === 14 ? 'Juridica' : '');
+        }
+
+        // Normaliza o tipo para garantir a comparação correta (ex: 'fisica' -> 'Fisica')
+        $tipo = ucfirst(strtolower($tipo));
+
+        if ($tipo === 'Fisica') { // CPF
+            if (strlen($valor) != 11 || preg_match('/(\d)\1{10}/', $valor)) {
+                return false;
+            }
+            for ($t = 9; $t < 11; $t++) {
+                for ($d = 0, $c = 0; $c < $t; $c++) {
+                    $d += $valor[$c] * (($t + 1) - $c);
+                }
+                $d = ((10 * $d) % 11) % 10;
+                if ($valor[$c] != $d) {
+                    return false;
+                }
+            }
+            return true;
+        } elseif ($tipo === 'Juridica') { // CNPJ
+            if (strlen($valor) != 14 || preg_match('/(\d)\1{13}/', $valor)) {
+                return false;
+            }
+            for ($t = 12; $t < 14; $t++) {
+                for ($d = 0, $p = $t - 7, $c = 0; $c < $t; $c++) {
+                    $d += $valor[$c] * $p;
+                    $p = ($p == 2) ? 9 : $p - 1;
+                }
+                $d = ((10 * $d) % 11) % 10;
+                if ($valor[$c] != $d) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        return false; // Tipo inválido
     }
 }

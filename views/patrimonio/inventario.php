@@ -45,6 +45,7 @@
 <!-- Formulário de Inventário Físico -->
 <div class="bg-white p-6 rounded-lg shadow-md">
     <form action="<?php echo BASE_URL; ?>/patrimonio/conciliarInventario" method="POST">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
         <h3 class="text-lg font-semibold mb-4 border-b pb-2">Lista de Checagem de Ativos</h3>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">

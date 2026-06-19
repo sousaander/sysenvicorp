@@ -1,641 +1,1637 @@
-<h2 class="text-2xl font-bold mb-4">Módulo Financeiro</h2>
-<p class="mb-6 text-gray-600">Gerencie contas a pagar e a receber, acompanhe o fluxo de caixa e gere relatórios financeiros detalhados.</p>
+<?php
+/* ============================================================
+   MÓDULO FINANCEIRO — Dashboard Principal
+   Arquivo: views/financeiro/index.php
+   Compatível com: Tailwind CSS + customizações
+   ============================================================ */
+
+/**
+ * Chart.js - Garantimos a inclusão local caso não esteja no layout pai.
+ * O uso do BASE_URL dinâmico previne problemas de caminhos relativos em subdiretórios de produção.
+ */
+?>
+<!-- Carregamento do Chart.js com fallback para CDN caso o arquivo local falhe (404) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="<?= BASE_URL; ?>/assets/js/chart.umd.min.js" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';"></script>
 
 <?php
-// Exibe mensagens flash (de sucesso ou erro) vindas da sessão
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
-if (isset($_SESSION['flash_message'])):
-    $message = $_SESSION['flash_message'];
-    unset($_SESSION['flash_message']);
-    $type_classes = $message['type'] === 'success'
-        ? 'bg-green-100 border-green-400 text-green-700'
-        : 'bg-red-100 border-red-400 text-red-700';
+if (session_status() == PHP_SESSION_NONE) session_start();
 ?>
-    <div class="border px-4 py-3 rounded relative mb-4 <?= $type_classes ?>" role="alert">
-        <span class="block sm:inline"><?= htmlspecialchars($message['message']) ?></span>
-    </div>
+
+<!-- ── ESTILOS CUSTOMIZADOS ──────────────────────────────── -->
+<style>
+  /* Variáveis de cor do tema financeiro */
+  :root {
+    --fin-red:       var(--db-red, #dc2626);
+    --fin-red-light: rgba(220, 38, 38, 0.15);
+    --fin-red-mid:   #fca5a5;
+    --fin-green:     var(--db-green, #16a34a);
+    --fin-green-light: rgba(22, 163, 74, 0.15);
+    --fin-blue:      var(--db-blue, #1d4ed8);
+    --fin-blue-light: rgba(29, 78, 216, 0.15);
+    --fin-amber:     var(--db-orange, #b45309);
+    --fin-amber-light: rgba(180, 83, 9, 0.15);
+    --fin-sky:       var(--db-accent, #0369a1);
+    --fin-sky-light: rgba(3, 105, 161, 0.15);
+    --fin-border:    var(--db-border, #e5e7eb);
+    --fin-surface:   var(--db-surface, #ffffff);
+    --fin-surface2:  var(--db-surface2, #f9fafb);
+    --fin-text:      var(--db-text, #111827);
+    --fin-muted:     var(--db-text2, #6b7280);
+    --fin-shadow:    0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+    --fin-shadow-md: 0 4px 12px rgba(0,0,0,.08);
+  }
+
+  /* Força a atualização das variáveis quando o tema escuro está ativo */
+  .dark-theme {
+    --fin-red:       var(--db-red, #ef4444);
+    --fin-green:     var(--db-green, #10b981);
+    --fin-blue:      var(--db-blue, #3b82f6);
+    --fin-amber:     var(--db-orange, #f59e0b);
+    --fin-sky:       var(--db-accent, #0ea5e9);
+    --fin-surface:   var(--db-surface, #1f2937);
+    --fin-surface2:  var(--db-surface2, #374151);
+    --fin-border:    var(--db-border, #374151);
+    --fin-text:      var(--db-text, #f3f4f6);
+    --fin-muted:     var(--db-text2, #94a3b8);
+  }
+
+  .dark-theme #finance-module-container input,
+  .dark-theme #finance-module-container select {
+    background-color: var(--fin-surface);
+    color: var(--fin-text);
+    border-color: var(--fin-border);
+  }
+
+  /* ── Container de Conteúdo Centralizado ── */
+  .fin-content-area { width: 100%; max-width: 1200px; margin: 0 auto; }
+
+  /* Cards base */
+  .fin-card {
+    background: var(--fin-surface);
+    border: 1px solid var(--fin-border);
+    border-radius: 12px;
+    box-shadow: var(--fin-shadow);
+  }
+  .fin-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--fin-border);
+  }
+  .fin-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fin-text);
+    letter-spacing: -.01em;
+  }
+
+  /* KPI Cards */
+  .kpi-card {
+    background: var(--fin-surface);
+    border: 1px solid var(--fin-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: var(--fin-shadow);
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow .2s, transform .2s;
+  }
+  .kpi-card:hover { box-shadow: var(--fin-shadow-md); transform: translateY(-1px); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+  .kpi-card.red::before   { background: var(--fin-red); }
+  .kpi-card.green::before { background: var(--fin-green); }
+  .kpi-card.blue::before  { background: var(--fin-blue); }
+  .kpi-card.amber::before { background: var(--fin-amber); }
+
+  .kpi-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .kpi-label { font-size: 11px; font-weight: 600; color: var(--fin-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .kpi-value { font-size: 24px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; margin-top: 4px; }
+  .kpi-bar   { height: 4px; border-radius: 2px; background: var(--fin-surface2); margin-top: 12px; overflow: hidden; }
+  .kpi-bar-fill { height: 100%; border-radius: 2px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+  /* Badges */
+  .fin-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .fin-badge.red    { background: var(--fin-red-light);   color: var(--fin-red); }
+  .fin-badge.green  { background: var(--fin-green-light); color: var(--fin-green); }
+  .fin-badge.blue   { background: var(--fin-blue-light);  color: var(--fin-blue); }
+  .fin-badge.sky    { background: var(--fin-sky-light);   color: var(--fin-sky); }
+  .fin-badge.amber  { background: var(--fin-amber-light); color: var(--fin-amber); }
+  .fin-badge.gray   { background: #f3f4f6; color: #374151; }
+
+  /* Alert */
+  .fin-alert {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: rgba(220, 38, 38, 0.1);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-left: 4px solid var(--fin-red);
+    border-radius: 0 10px 10px 0;
+    padding: 12px 16px;
+    margin-bottom: 1.5rem;
+    font-size: 13px;
+    color: var(--fin-text);
+  }
+  .fin-alert-icon { color: var(--fin-red); flex-shrink: 0; margin-top: 1px; }
+
+  /* Listas de contas */
+  .conta-item {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--fin-border);
+    font-size: 13px;
+  }
+  .conta-item:last-child { border-bottom: none; }
+  .conta-desc { color: var(--fin-text); padding-right: 8px; flex: 1; min-width: 0; }
+  .conta-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .conta-date { font-size: 10px; color: var(--fin-muted); }
+
+  /* Saldo banco item */
+  .banco-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 8px;
+    border-radius: 10px;
+    transition: all .2s ease;
+  }
+  .banco-item:hover { background: var(--fin-surface); }
+  .banco-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    border: 1px solid var(--fin-border);
+    background: var(--fin-surface);
+    flex-shrink: 0;
+  }
+
+  /* Tabs toggle */
+  .fin-tabs {
+    display: flex;
+    background: var(--fin-surface);
+    border: 1px solid var(--fin-border);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .fin-tab {
+    flex: 1; font-size: 12px; font-weight: 500;
+    padding: 5px 10px; border-radius: 6px;
+    border: none; cursor: pointer;
+    color: var(--fin-muted); background: transparent;
+    transition: all .15s;
+  }
+  .fin-tab.active { background: var(--fin-surface); color: var(--fin-blue); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+
+  /* Tabela de movimentações */
+  .fin-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--fin-surface); color: var(--fin-text); }
+  .fin-table th {
+    padding: 10px 14px;
+    font-size: 11px; font-weight: 600; color: var(--fin-muted);
+    text-transform: uppercase; letter-spacing: .06em;
+    background: var(--fin-surface);
+    border-bottom: 1px solid var(--fin-border);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .fin-table th.center { text-align: center; }
+  .fin-table th.right  { text-align: right; }
+  .fin-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--fin-border);
+    color: var(--fin-text);
+    vertical-align: middle;
+  }
+  .fin-table td.center { text-align: center; }
+  .fin-table td.right  { text-align: right; }
+  .fin-table tbody tr:hover td { background: rgba(0,0,0,0.02); }
+  .dark-theme .fin-table tbody tr:hover td { background: rgba(255,255,255,0.05); }
+  .fin-table tbody tr:last-child td { border-bottom: none; }
+
+  /* Action links na tabela */
+  .tbl-action { font-size: 12px; font-weight: 500; text-decoration: none; transition: opacity .15s; }
+  .tbl-action:hover { opacity: .7; }
+
+  /* Modal */
+  .fin-modal-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+  }
+  .fin-modal {
+    background: var(--fin-surface);
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    width: 100%; max-width: 500px;
+    overflow: hidden;
+    animation: modalIn .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  .fin-modal.wide { max-width: 680px; }
+  @keyframes modalIn { from { opacity:0; transform:scale(.95) translateY(10px); } to { opacity:1; transform:none; } }
+  .fin-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--fin-border);
+  }
+  .fin-modal-title { font-size: 16px; font-weight: 600; color: var(--fin-text); }
+  .fin-modal-body  { padding: 1.5rem; max-height: 70vh; overflow-y: auto; }
+  .fin-modal-footer {
+    padding: 1rem 1.5rem;
+    background: var(--fin-surface);
+    border-top: 1px solid var(--fin-border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+
+  /* Buttons */
+  .fin-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500;
+    padding: 7px 14px; border-radius: 8px;
+    border: 1px solid var(--fin-border);
+    cursor: pointer; text-decoration: none;
+    transition: all .15s; white-space: nowrap;
+  }
+  .fin-btn:hover { opacity: .88; transform: translateY(-1px); }
+  .fin-btn:active { transform: none; }
+  .fin-btn.primary { background: var(--fin-blue);  color: #fff; border-color: var(--fin-blue); }
+  .fin-btn.success { background: var(--fin-green); color: #fff; border-color: var(--fin-green); }
+  .fin-btn.danger  { background: var(--fin-red);   color: #fff; border-color: var(--fin-red); }
+  .fin-btn.sky     { background: var(--fin-sky);   color: #fff; border-color: var(--fin-sky); }
+  .fin-btn.ghost   { background: var(--fin-surface); color: var(--fin-text); }
+  .fin-btn.ghost-red { background: var(--fin-red-light); color: var(--fin-red); border-color: var(--fin-red-mid); }
+
+  /* Form fields no modal */
+  .fin-label { display: block; font-size: 12px; font-weight: 600; color: var(--fin-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .fin-input, .fin-select {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid var(--fin-border);
+    border-radius: 8px; font-size: 13px;
+    color: var(--fin-text); background: var(--fin-surface);
+    transition: border-color .15s, box-shadow .15s;
+    outline: none;
+  }
+  .fin-input:focus, .fin-select:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+  }
+
+  /* ── Ajustes de Estilo Adicionais (Modo Escuro) ── */
+  .projection-box { background: var(--fin-green-light); border: 1px solid var(--fin-green); border-radius: 10px; padding: 14px 16px; margin-top: 12px; color: var(--fin-text); }
+  .projection-box.negative { background: var(--fin-red-light); border-color: var(--fin-red); }
+  
+  .dark-theme .bg-red-50 { background-color: var(--fin-red-light) !important; color: var(--fin-red) !important; border-color: rgba(220, 38, 38, 0.3) !important; }
+  .dark-theme .bg-blue-600 { background-color: var(--fin-blue) !important; }
+  .dark-theme .divide-gray-50 { border-color: var(--fin-border) !important; }
+
+  /* Scrollbar customizada */
+  .fin-scroll::-webkit-scrollbar { width: 4px; }
+  .fin-scroll::-webkit-scrollbar-track { background: transparent; }
+  .fin-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+
+  /* Containers de Gráficos Responsivos */
+  .chart-wrapper-main { position: relative; width: 100%; height: 240px; }
+  .chart-wrapper-dist { position: relative; width: 100%; height: 160px; }
+
+  /* Flash messages */
+  .fin-flash { padding: 12px 16px; border-radius: 10px; margin-bottom: 1rem; font-size: 13px; border: 1px solid; }
+  .fin-flash.success { background: var(--fin-green-light); border-color: #86efac; color: #15803d; }
+  .fin-flash.error   { background: var(--fin-red-light);   border-color: var(--fin-red-mid); color: var(--fin-red); }
+
+  /* Responsividade */
+  @media (max-width: 1024px) {
+    .grid-fin-main  { grid-template-columns: 1fr !important; }
+    .grid-fin-chart { grid-template-columns: 1fr !important; }
+    .grid-kpi       { grid-template-columns: 1fr 1fr !important; }
+    .chart-wrapper-main { height: 220px; }
+    .chart-wrapper-dist { height: 180px; }
+  }
+
+  /* Redesign Sênior: Otimização de Espaço nos KPIs */
+  .grid-kpi { gap: 8px !important; }
+  .kpi-card { padding: 10px 12px !important; border-radius: 10px !important; }
+  .kpi-label { font-size: 10px !important; letter-spacing: 0.04em !important; }
+  .kpi-value { font-size: 15px !important; font-weight: 500 !important; font-family: 'IBM Plex Mono', 'DM Mono', monospace !important; margin-top: 2px !important; }
+  .kpi-icon { width: 28px !important; height: 28px !important; border-radius: 8px !important; }
+  .kpi-icon svg { width: 14px !important; height: 14px !important; }
+  .kpi-bar { height: 3px !important; margin-top: 8px !important; }
+  .fin-badge { font-size: 9px !important; padding: 1px 5px !important; }
+
+  /* Extensão do Redesign para Análise de Clientes */
+  .ana-stat-card { padding: 10px 12px !important; border-radius: 10px !important; gap: 10px !important; display: flex !important; align-items: center !important; }
+  .ana-stat-label { font-size: 10px !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; color: var(--fin-muted) !important; line-height: 1.2 !important; margin-bottom: 2px !important; }
+  .ana-stat-value { font-size: 15px !important; font-weight: 500 !important; font-family: 'IBM Plex Mono', monospace !important; color: var(--fin-text) !important; line-height: 1 !important; }
+  .ana-stat-icon { width: 28px !important; height: 28px !important; border-radius: 7px !important; flex-shrink: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+  .ana-stat-icon i { font-size: 14px !important; }
+  .ana-table-value { font-family: 'IBM Plex Mono', 'DM Mono', monospace !important; font-size: 11px !important; letter-spacing: -0.02em !important; }
+  .ana-status-dot { width: 6px !important; height: 6px !important; border-radius: 50% !important; display: inline-block !important; margin-right: 6px !important; vertical-align: middle !important; margin-top: -2px !important; }
+  .ana-status-dot.green { background-color: var(--fin-green) !important; box-shadow: 0 0 4px var(--fin-green-light) !important; }
+  .ana-status-dot.red { background-color: var(--fin-red) !important; box-shadow: 0 0 4px var(--fin-red-light) !important; }
+
+  @media (max-width: 640px) {
+    .grid-kpi       { grid-template-columns: 1fr !important; }
+    .topbar-actions { display: none; }
+    .fin-modal      { border-radius: 14px 14px 0 0; align-self: flex-end; }
+    .grid-summary-12m { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
+    .chart-wrapper-main { height: 200px; }
+    .chart-wrapper-dist { height: 200px; }
+  }
+</style>
+
+<div id="finance-module-container" class="w-full">
+<div class="fin-content-area">
+
+<!-- ── FLASH MESSAGES ──────────────────────────────────────── -->
+<?php if (session_status() == PHP_SESSION_NONE): session_start(); endif; ?>
+<?php if (isset($_SESSION['flash_message'])): ?>
+  <?php $msg = $_SESSION['flash_message']; unset($_SESSION['flash_message']); ?>
+  <div class="fin-flash <?= $msg['type'] === 'success' ? 'success' : 'error' ?>">
+    <?= htmlspecialchars($msg['message']) ?>
+  </div>
 <?php endif; ?>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-    <!-- Card 1: Total Contas a Pagar -->
-    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-red-500 flex items-start space-x-4">
-        <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center bg-red-100 rounded-lg">
-            <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-            </svg>
-        </div>
-        <div>
-            <h3 class="font-semibold text-gray-500">Contas a Pagar (Mês Atual)</h3>
-            <p class="text-3xl font-bold text-red-600">R$ <?= number_format($contasPagarTotal ?? 0, 2, ',', '.'); ?></p>
-            <p class="text-sm text-gray-400 mt-2">
-                <?php if (!empty($proximoVencimento)): ?>
-                    Próximo vencimento: <?= htmlspecialchars(date('d/m/Y', strtotime($proximoVencimento))); ?>
-                <?php else: ?>
-                    Nenhum próximo vencimento
-                <?php endif; ?>
-            </p>
-        </div>
-    </div>
-    <!-- Card 2: Total Contas a Receber -->
-    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-green-500 flex items-start space-x-4">
-        <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center bg-green-100 rounded-lg">
-            <svg class="h-6 w-6 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-        </div>
-        <div>
-            <h3 class="font-semibold text-gray-500">Contas a Receber (Mês Atual)</h3>
-            <p class="text-3xl font-bold text-green-600">R$ <?= number_format($contasReceberTotal ?? 0, 2, ',', '.'); ?></p>
-            <?php if (isset($resumoAtrasadas) && $resumoAtrasadas['count'] > 0) : ?>
-                <div class="mt-2 p-2 bg-red-100 border border-red-200 rounded-md">
-                    <a href="<?= BASE_URL; ?>/financeiro/receber?status=Atrasado" class="block hover:bg-red-200 rounded-md p-1 transition-colors duration-200">
-                        <p class="text-sm font-semibold text-red-800">
-                            <i class="fas fa-exclamation-triangle mr-1"></i>
-                            Atenção: <?= $resumoAtrasadas['count']; ?> conta(s) em atraso!
-                        </p>
-                        <p class="text-xs text-red-700">
-                            Totalizando R$ <?= number_format($resumoAtrasadas['valor'], 2, ',', '.'); ?>. Clique para ver.
-                        </p>
-                    </a>
-                </div>
-            <?php else: ?>
-                <p class="text-sm text-gray-400 mt-2">
-                    <span class="text-emerald-600 font-medium">Em dia</span> (Nenhuma atrasada)
-                </p>
+<!-- ── ALERTA ORÇAMENTO ESTOURADO ────────────────────────── -->
+<?php if (!empty($projetosEstourados)): ?>
+<div class="fin-alert">
+  <svg class="fin-alert-icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+  </svg>
+  <div>
+    <strong class="text-red-800 font-semibold">Atenção: projetos com orçamento excedido</strong>
+    <ul class="mt-1 space-y-0.5 list-none">
+      <?php foreach ($projetosEstourados as $proj): ?>
+        <li class="text-red-700">
+          <strong><?= htmlspecialchars($proj['nome']) ?></strong>
+          — Orçado: R$ <?= number_format($proj['orcamento'], 2, ',', '.') ?>
+          | Gasto: R$ <?= number_format($proj['total_gasto'], 2, ',', '.') ?>
+          <span class="font-bold">(+R$ <?= number_format($proj['total_gasto'] - $proj['orcamento'], 2, ',', '.') ?>)</span>
+          <a href="<?= BASE_URL ?>/projetos/detalhe/<?= $proj['id'] ?>/orcamento"
+             class="ml-1 underline text-red-900 hover:text-red-700 text-xs">ver projeto →</a>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
+</div>
+<?php endif; ?>
+
+<!-- ── TOPBAR ──────────────────────────────────────────────── -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  <div>
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Módulo financeiro</h2>
+    <div class="flex items-center gap-3 mt-0.5">
+        <p class="text-sm text-gray-500 font-medium">
+            <?php 
+                $meses_pt_ext = [1 => 'Janeiro', 2 => 'Fevereiro', 3 => 'Março', 4 => 'Abril', 5 => 'Maio', 6 => 'Junho', 7 => 'Julho', 8 => 'Agosto', 9 => 'Setembro', 10 => 'Outubro', 11 => 'Novembro', 12 => 'Dezembro'];
+                $tsRef = strtotime($filtros['mes_referencia'] . '-01');
+                echo $meses_pt_ext[(int)date('n', $tsRef)] . ' ' . date('Y', $tsRef);
+            ?>
+        </p>
+        <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-0.5 shadow-sm">
+            <?php
+                $navParams = array_filter($_GET);
+                unset($navParams['mes_referencia']);
+                $prevMonth = date('Y-m', strtotime($filtros['mes_referencia'] . ' -1 month'));
+                $nextMonth = date('Y-m', strtotime($filtros['mes_referencia'] . ' +1 month'));
+                $currentMonth = date('Y-m');
+            ?>
+            <a href="<?= BASE_URL . '/financeiro/index?' . http_build_query(array_merge($navParams, ['mes_referencia' => $prevMonth])) ?>" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-400 hover:text-blue-600 transition-colors" title="Mês anterior">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            <?php if ($filtros['mes_referencia'] !== $currentMonth): ?>
+                <a href="<?= BASE_URL . '/financeiro/index?' . http_build_query(array_merge($navParams, ['mes_referencia' => $currentMonth])) ?>" class="px-2 text-[10px] font-bold uppercase text-blue-600 hover:text-blue-800 dark:text-blue-400 flex items-center" title="Voltar para hoje">Hoje</a>
             <?php endif; ?>
+            <a href="<?= BASE_URL . '/financeiro/index?' . http_build_query(array_merge($navParams, ['mes_referencia' => $nextMonth])) ?>" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-400 hover:text-blue-600 transition-colors" title="Próximo mês">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>
+            </a>
         </div>
     </div>
-    <!-- Card 3: Saldo Atual -->
-    <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-blue-500 flex items-start space-x-4">
-        <div class="flex-shrink-0 h-12 w-12 flex items-center justify-center bg-blue-100 rounded-lg">
-            <svg class="h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-            </svg>
+  </div>
+  <div class="topbar-actions flex items-center gap-2 flex-wrap">
+    <a href="<?= BASE_URL ?>/financeiro/novo?tipo=R" class="fin-btn success">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/></svg>
+      Receita
+    </a>
+    <a href="<?= BASE_URL ?>/financeiro/novo?tipo=P" class="fin-btn danger">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
+      Despesa
+    </a>
+    <button id="openTransferenciaModalBtn" class="fin-btn sky">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      Transferência
+    </button>
+    <button id="openRelatorioModalBtn" class="fin-btn primary">
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm2 10a1 1 0 10-2 0v3a1 1 0 102 0v-3zm2-3a1 1 0 011 1v5a1 1 0 11-2 0v-5a1 1 0 011-1zm4-1a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd"/></svg>
+      Relatório
+    </button>
+  </div>
+</div>
+
+<!-- ── KPI CARDS ───────────────────────────────────────────── -->
+<?php
+$hoje = date('Y-m-d');
+$venceHoje = !empty($proximoVencimento) && $proximoVencimento == $hoje;
+$kpiPagarCor = $venceHoje ? 'amber' : 'red';
+?>
+<div class="grid-kpi" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.5rem">
+
+  <!-- A Pagar -->
+  <div class="kpi-card <?= $kpiPagarCor ?>">
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="kpi-label">A pagar (mês)</div>
+        <div class="kpi-value" style="color:var(--fin-<?= $kpiPagarCor ?>)">
+          R$ <?= number_format($contasPagarTotal ?? 0, 2, ',', '.') ?>
+        </div>
+      </div>
+      <div class="kpi-icon" style="background:var(--fin-<?= $kpiPagarCor ?>-light)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fin-<?= $kpiPagarCor ?>)" stroke-width="2.5"><path d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+      </div>
+    </div>
+    <?php if (!empty($resumoAtrasadasPagar) && $resumoAtrasadasPagar['count'] > 0): ?>
+      <div class="mt-2">
+        <a href="<?= BASE_URL ?>/financeiro/pagar?status=Atrasado" class="fin-badge red" style="text-decoration:none">
+          ⚠ <?= $resumoAtrasadasPagar['count'] ?> em atraso
+        </a>
+      </div>
+    <?php endif; ?>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:65%;background:var(--fin-<?= $kpiPagarCor ?>)"></div></div>
+  </div>
+
+  <!-- A Receber -->
+  <div class="kpi-card green">
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="kpi-label">A receber (mês)</div>
+        <div class="kpi-value" style="color:var(--fin-green)">
+          R$ <?= number_format($contasReceberTotal ?? 0, 2, ',', '.') ?>
+        </div>
+      </div>
+      <div class="kpi-icon" style="background:var(--fin-green-light)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fin-green)" stroke-width="2.5"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+      </div>
+    </div>
+    <?php if (!empty($resumoAtrasadas) && $resumoAtrasadas['count'] > 0): ?>
+      <div class="mt-2">
+        <a href="<?= BASE_URL ?>/financeiro/receber?status=Atrasado" class="fin-badge red" style="text-decoration:none">
+          ⚠ <?= $resumoAtrasadas['count'] ?> em atraso
+        </a>
+      </div>
+    <?php endif; ?>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:80%;background:var(--fin-green)"></div></div>
+  </div>
+
+  <!-- Saldo Total -->
+  <div class="kpi-card blue">
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="kpi-label">Saldo em caixa</div>
+        <div class="kpi-value saldo-valor" style="color:var(--fin-blue)" 
+             data-exact="<?= number_format($saldoAtual ?? 0, 2, '.', '') ?>" data-valor="R$ <?= number_format($saldoAtual ?? 0, 2, ',', '.') ?>">
+          R$ <?= number_format($saldoAtual ?? 0, 2, ',', '.') ?>
+        </div>
+      </div>
+      <button id="toggleSaldosBtn" class="kpi-icon" style="background:var(--fin-blue-light);border:none;cursor:pointer" title="Ocultar/Exibir saldos">
+        <svg id="eyeOpenIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fin-blue)" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg id="eyeClosedIcon" class="hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fin-blue)" stroke-width="2.5"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/></svg>
+      </button>
+    </div>
+    <div class="mt-2">
+      <span class="fin-badge blue"><?= count($saldosBancos ?? []) ?> contas</span>
+    </div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:55%;background:var(--fin-blue)"></div></div>
+  </div>
+
+  <!-- Projeção -->
+  <div class="kpi-card <?= ($projecaoFinanceira ?? 0) >= 0 ? 'green' : 'red' ?>">
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="kpi-label">Projeção (12 meses)</div>
+        <div class="kpi-value saldo-valor" style="color:var(--fin-<?= ($projecaoFinanceira ?? 0) >= 0 ? 'green' : 'red' ?>)" 
+             data-exact="<?= number_format($projecaoFinanceira ?? 0, 2, '.', '') ?>"
+             data-valor="R$ <?= number_format($projecaoFinanceira ?? 0, 2, ',', '.') ?>">
+          R$ <?= number_format($projecaoFinanceira ?? 0, 2, ',', '.') ?>
+        </div>
+      </div>
+      <div class="kpi-icon" style="background:var(--fin-<?= ($projecaoFinanceira ?? 0) >= 0 ? 'green' : 'red' ?>-light)">
+        <?php if (($projecaoFinanceira ?? 0) >= ($saldoAtual ?? 0)): ?>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fin-green)" stroke-width="2.5"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+        <?php else: ?>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--fin-red)" stroke-width="2.5"><path d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+        <?php endif; ?>
+      </div>
+    </div>
+    <div class="mt-2">
+      <span class="fin-badge <?= ($projecaoFinanceira ?? 0) >= 0 ? 'green' : 'red' ?>">
+        Previsto (líquido)
+      </span>
+    </div>
+    <div class="kpi-bar"><div class="kpi-bar-fill" style="width:70%;background:var(--fin-<?= ($projecaoFinanceira ?? 0) >= 0 ? 'green' : 'red' ?>)"></div></div>
+  </div>
+</div>
+
+<!-- ── NOVO CARD: ANÁLISE DE CLIENTES COM PAGAMENTOS ──────── -->
+<?php $this->renderPartial('financeiro/analise_clientes_pagamentos', ['analiseClientesPagamentos' => $analiseClientesPagamentos]); ?>
+
+<!-- ── BLOCO PRINCIPAL: Contas + Saldos ───────────────────── -->
+<div class="grid-fin-main mb-6" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:1rem">
+
+    <!-- A Pagar -->
+    <div class="fin-card">
+      <div class="fin-card-header">
+        <div>
+          <div class="fin-card-title">Contas a pagar</div>
+          <div class="text-xs text-gray-400 mt-0.5">Próximos vencimentos do mês</div>
+        </div>
+        <a href="<?= BASE_URL ?>/financeiro/pagar" class="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
+          Ver todas →
+        </a>
+      </div>
+      <div class="px-4 pb-3 pt-2">
+        <?php if (!empty($resumoAtrasadasPagar) && $resumoAtrasadasPagar['count'] > 0): ?>
+          <a href="<?= BASE_URL ?>/financeiro/pagar?status=Atrasado"
+           class="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg mb-3 text-xs text-red-700 dark:text-red-400 font-semibold hover:opacity-80 transition-colors" style="text-decoration:none">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <?= $resumoAtrasadasPagar['count'] ?> conta(s) em atraso — clique para ver
+          </a>
+        <?php endif; ?>
+        <ul id="lista-pagar" class="divide-y divide-gray-50 dark:divide-gray-700">
+          <?php if (!empty($listaContasPagar)): ?>
+            <?php foreach ($listaContasPagar as $conta): ?>
+              <li class="conta-item">
+                <span class="conta-desc" title="<?= htmlspecialchars($conta['descricao'] ?? '') ?>">
+                  <?= htmlspecialchars($conta['descricao'] ?? '') ?>
+                </span>
+                <span class="conta-meta">
+                  <span class="conta-date"><?= date('d/m', strtotime($conta['vencimento'])) ?></span>
+                  <span class="font-bold text-red-600 text-sm">R$ <?= number_format($conta['valor'], 2, ',', '.') ?></span>
+                </span>
+              </li>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <li class="py-4 text-center text-xs text-gray-400 italic">Nenhuma conta pendente.</li>
+          <?php endif; ?>
+        </ul>
+        <!-- Paginação A Pagar -->
+        <div id="paginacao-pagar" class="hidden flex justify-center items-center mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+          <button class="btn-prev p-1 hover:text-gray-800 disabled:opacity-30">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <span class="page-info mx-3 font-medium"></span>
+          <button class="btn-next p-1 hover:text-gray-800 disabled:opacity-30">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- A Receber -->
+    <div class="fin-card">
+      <div class="fin-card-header">
+        <div>
+          <div class="fin-card-title">Contas a receber</div>
+          <div class="text-xs text-gray-400 mt-0.5">Próximos recebimentos do mês</div>
+        </div>
+        <a href="<?= BASE_URL ?>/financeiro/receber" class="text-xs font-medium text-blue-600 hover:text-blue-800">
+          Ver todas →
+        </a>
+      </div>
+      <div class="px-4 pb-3 pt-2">
+        <?php if (!empty($resumoAtrasadas) && $resumoAtrasadas['count'] > 0): ?>
+          <a href="<?= BASE_URL ?>/financeiro/receber?status=Atrasado"
+           class="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg mb-3 text-xs text-red-700 dark:text-red-400 font-semibold hover:opacity-80 transition-colors" style="text-decoration:none">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <?= $resumoAtrasadas['count'] ?> conta(s) em atraso — clique para ver
+          </a>
+        <?php endif; ?>
+        <ul id="lista-receber" class="divide-y divide-gray-50 dark:divide-gray-700">
+          <?php if (!empty($listaContasReceber)): ?>
+            <?php foreach ($listaContasReceber as $conta): ?>
+              <li class="conta-item">
+                <span class="conta-desc" title="<?= htmlspecialchars($conta['descricao'] ?? '') ?>">
+                  <?= htmlspecialchars($conta['descricao'] ?? '') ?>
+                </span>
+                <span class="conta-meta">
+                  <span class="conta-date"><?= date('d/m', strtotime($conta['vencimento'])) ?></span>
+                  <span class="font-bold text-green-600 text-sm">R$ <?= number_format($conta['valor'], 2, ',', '.') ?></span>
+                </span>
+              </li>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <li class="py-4 text-center text-xs text-gray-400 italic">Nenhum recebimento pendente.</li>
+          <?php endif; ?>
+        </ul>
+        <!-- Paginação A Receber -->
+        <div id="paginacao-receber" class="hidden flex justify-center items-center mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+          <button class="btn-prev p-1 hover:text-gray-800 disabled:opacity-30">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <span class="page-info mx-3 font-medium"></span>
+          <button class="btn-next p-1 hover:text-gray-800 disabled:opacity-30">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+  </div>
+
+  <!-- Coluna Direita: Saldos + Visão Geral -->
+  <div class="fin-card" style="display:flex;flex-direction:column">
+    <div class="fin-card-header" style="border-radius: 12px 12px 0 0;">
+      <div class="fin-card-title">Saldos em contas</div>
+      <button id="toggleSaldosBtnAlt" class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-bold flex items-center gap-1 focus:outline-none">
+        <svg id="eyeOpenIconAlt" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg id="eyeClosedIconAlt" class="hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/></svg>
+        <span id="saldoBtnLabel">Ocultar</span>
+      </button>
+    </div>
+
+    <div class="p-4 flex-1 flex flex-col" style="min-height: 280px; background: var(--fin-surface);">
+      <!-- Lista de bancos -->
+      <div class="space-y-1 fin-scroll pr-1" style="max-height:240px;overflow-y:auto" id="saldo-list">
+        <?php if (!empty($saldosBancos)): ?>
+          <?php foreach ($saldosBancos as $banco): ?>
+            <?php
+              $logoUrl = BASE_URL . '/img/bank_flags/default.svg';
+              if (!empty($banco['logo']) && file_exists(ROOT_PATH . '/public/uploads/bancos/' . $banco['logo'])) {
+                  $logoUrl = BASE_URL . '/uploads/bancos/' . htmlspecialchars($banco['logo']);
+              } else {
+                  $logoUrl = get_bank_flag_url($banco['nome']);
+              }
+              $initials = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', $banco['nome']), 0, 2))));
+            ?>
+            <div class="banco-item">
+              <div class="flex items-center gap-2">
+                <div class="banco-avatar">
+                  <img src="<?= $logoUrl ?>" alt="<?= htmlspecialchars($banco['nome'] ?? '') ?>" 
+                       class="w-full h-full object-contain rounded-full"
+                       onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                  <span style="display:none;font-size:10px;font-weight:700;color:var(--fin-text)"><?= $initials ?></span>
+                </div>
+                <div>
+                  <div class="text-sm font-bold text-gray-800 dark:text-gray-100 leading-tight"><?= htmlspecialchars($banco['nome'] ?? '') ?></div>
+                  <div class="text-xs text-gray-400"><?= htmlspecialchars($banco['tipo'] ?? '') ?></div>
+                </div>
+              </div>
+              <div class="saldo-valor text-sm font-bold <?= $banco['saldo_atual'] >= 0 ? 'text-gray-800 dark:text-gray-100' : 'text-red-600 dark:text-red-400' ?>" 
+                   data-exact="<?= number_format($banco['saldo_atual'], 2, '.', '') ?>"
+                   data-valor="R$ <?= number_format($banco['saldo_atual'], 2, ',', '.') ?>">
+                R$ <?= number_format($banco['saldo_atual'], 2, ',', '.') ?>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <p class="text-sm text-gray-400 italic text-center py-6">Nenhuma conta cadastrada.</p>
+        <?php endif; ?>
+      </div>
+
+      <!-- Saldo Total -->
+      <div class="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 -mx-4 -mb-4 p-4 rounded-b-xl">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Saldo consolidado</span>
+          <span class="text-lg font-bold text-blue-700 dark:text-blue-400 saldo-valor" 
+                data-exact="<?= number_format($saldoAtual ?? 0, 2, '.', '') ?>"
+                data-valor="R$ <?= number_format($saldoAtual ?? 0, 2, ',', '.') ?>">
+            R$ <?= number_format($saldoAtual ?? 0, 2, ',', '.') ?>
+          </span>
+        </div>
+        <p class="text-xs text-gray-400 text-right mt-1">
+          Atualizado: <?= !empty($ultimaAtualizacaoSaldo) ? date('d/m/Y H:i', strtotime($ultimaAtualizacaoSaldo)) : 'N/A' ?>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── GRÁFICOS ────────────────────────────────────────────── -->
+<div class="grid-fin-chart mb-6" style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
+
+  <!-- Receitas vs Despesas -->
+  <div class="fin-card">
+    <div class="fin-card-header">
+      <div>
+        <div class="fin-card-title"><?= htmlspecialchars($chartTitle ?? 'Receitas vs. despesas') ?></div>
+        <div class="text-xs text-gray-400 mt-0.5">Comparativo mensal</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3 text-xs text-gray-500 mr-3">
+          <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#16a34a"></span> Receitas</span>
+          <span class="flex items-center gap-1"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#dc2626"></span> Despesas</span>
+        </div>
+        <select id="periodoFiltro" class="fin-select" style="width:auto;padding:5px 10px;font-size:12px">
+          <option value="6"       <?= ($periodoSelecionado == '6')        ? 'selected' : '' ?>>Últimos 6 meses</option>
+          <option value="12"      <?= ($periodoSelecionado == '12')       ? 'selected' : '' ?>>Últimos 12 meses</option>
+          <option value="future_6"<?= ($periodoSelecionado == 'future_6') ? 'selected' : '' ?>>Próximos 6 meses</option>
+          <option value="future_12"<?= ($periodoSelecionado == 'future_12')? 'selected' : ''?>>Próximos 12 meses</option>
+        </select>
+        <button id="aplicarFiltroBtn" class="fin-btn primary" style="padding:5px 12px;font-size:12px">Aplicar</button>
+      </div>
+    </div>
+    <div class="p-4">
+      <div class="chart-wrapper-main">
+        <canvas id="receitasDespesasChart" role="img" aria-label="Gráfico de barras de receitas e despesas mensais">Dados mensais de receitas e despesas.</canvas>
+      </div>
+      <!-- ── Visão Consolidada 12 Meses — REDESIGN ─────── -->
+      <?php
+        /* ── Cálculos de apoio para o card ── */
+        $pctPago12m     = ($totalDespesasAno > 0) ? ($totalDespesasPagasAno / $totalDespesasAno) * 100 : 0;
+        $pctPago12m     = min(100, $pctPago12m);
+        $custoBarColor  = $pctPago12m >= 80 ? '#dc2626' : ($pctPago12m >= 50 ? '#f59e0b' : '#10b981');
+        $lucroPositivo  = ($lucratividadeAno ?? 0) >= 0;
+        $projPositivo   = ($projecaoFinanceira ?? 0) >= 0;
+        $projCrescendo  = ($projecaoFinanceira ?? 0) > ($saldoAtual ?? 0);
+        /* margem de lucratividade em % sobre o total recebido */
+        $margemPct      = ($previsaoRecebimento > 0) ? (($lucratividadeAno ?? 0) / $previsaoRecebimento) * 100 : 0;
+        $totalReceber   = $previsaoRecebimento ?? 0;
+        $totalCusto     = $totalDespesasAno ?? 0;
+        /* barra de cobertura: quanto do custo total é coberto pelo a-receber */
+        $cobertura      = ($totalCusto > 0) ? min(100, ($totalReceber / $totalCusto) * 100) : 100;
+      ?>
+      <div class="vis-12m-card mt-6">
+
+        <!-- Cabeçalho do card -->
+        <div class="vis-12m-header">
+          <div class="vis-12m-header-left">
+            <div class="vis-12m-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+              </svg>
+            </div>
+            <div>
+              <div class="vis-12m-title">Visão consolidada</div>
+              <div class="vis-12m-subtitle">Acumulado dos últimos 12 meses</div>
+            </div>
+          </div>
+          <a href="<?= BASE_URL ?>/financeiro/balanco" class="vis-12m-link" style="text-decoration:none">
+            Balanço completo
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+
+        <!-- Grade de métricas -->
+        <div class="vis-12m-grid">
+
+          <!-- 1. Saldo Atual -->
+          <div class="vis-metric-cell vis-cell-blue">
+            <div class="vis-metric-top">
+              <div class="vis-metric-dot" style="background:#1d4ed8"></div>
+              <span class="vis-metric-label">Saldo Atual</span>
+              <div class="vis-metric-icon vis-icon-blue">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+              </div>
+            </div>
+            <div class="vis-metric-value saldo-valor" style="color:#1d4ed8"
+                 data-exact="<?= number_format($saldoAtual ?? 0, 2, '.', '') ?>"
+                 data-valor="R$ <?= number_format($saldoAtual ?? 0, 2, ',', '.') ?>">
+              R$ <?= number_format($saldoAtual ?? 0, 2, ',', '.') ?>
+            </div>
+            <div class="vis-metric-sub">Saldo bancário atual</div>
+          </div>
+
+          <!-- 2. A Receber -->
+          <div class="vis-metric-cell vis-cell-green">
+            <div class="vis-metric-top">
+              <div class="vis-metric-dot" style="background:#16a34a"></div>
+              <span class="vis-metric-label">A Receber (12m)</span>
+              <div class="vis-metric-icon vis-icon-green">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+              </div>
+            </div>
+            <div class="vis-metric-value saldo-valor" style="color:#16a34a"
+                 data-exact="<?= number_format($previsaoRecebimento ?? 0, 2, '.', '') ?>"
+                 data-valor="+ R$ <?= number_format($previsaoRecebimento ?? 0, 2, ',', '.') ?>">
+              + R$ <?= number_format($previsaoRecebimento ?? 0, 2, ',', '.') ?>
+            </div>
+            <!-- barra de cobertura: quanto do custo será coberto pelo recebível -->
+            <div class="vis-metric-sub">Cobre <?= number_format($cobertura, 0) ?>% dos custos</div>
+            <div class="vis-mini-bar-track">
+              <div class="vis-mini-bar-fill" style="width:<?= $cobertura ?>%;background:#16a34a"></div>
+            </div>
+          </div>
+
+          <!-- 3. Custo Total -->
+          <div class="vis-metric-cell vis-cell-red">
+            <div class="vis-metric-top">
+              <div class="vis-metric-dot" style="background:#dc2626"></div>
+              <span class="vis-metric-label">Custo Total (ano)</span>
+              <div class="vis-metric-icon vis-icon-red">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
+              </div>
+            </div>
+            <div class="vis-metric-value saldo-valor" style="color:#dc2626"
+                 data-exact="<?= number_format($totalDespesasAno ?? 0, 2, '.', '') ?>"
+                 data-valor="- R$ <?= number_format($totalDespesasAno ?? 0, 2, ',', '.') ?>">
+              - R$ <?= number_format($totalDespesasAno ?? 0, 2, ',', '.') ?>
+            </div>
+            <div class="vis-metric-sub-row">
+              <span style="color:var(--fin-muted)">Pago:</span>
+              <span style="font-weight:600;color:<?= $custoBarColor ?>">
+                R$ <?= number_format($totalDespesasPagasAno ?? 0, 2, ',', '.') ?>
+                (<?= number_format($pctPago12m, 0) ?>%)
+              </span>
+            </div>
+            <div class="vis-mini-bar-track" title="<?= number_format($pctPago12m, 1) ?>% do custo total já foi pago">
+              <div class="vis-mini-bar-fill vis-mini-bar-animated" style="width:<?= $pctPago12m ?>%;background:<?= $custoBarColor ?>"></div>
+            </div>
+          </div>
+
+          <!-- 4. Lucratividade -->
+          <?php $lucroColor = $lucroPositivo ? '#059669' : '#dc2626'; ?>
+          <div class="vis-metric-cell <?= $lucroPositivo ? 'vis-cell-emerald' : 'vis-cell-red' ?>">
+            <div class="vis-metric-top">
+              <div class="vis-metric-dot" style="background:<?= $lucroColor ?>"></div>
+              <span class="vis-metric-label">Lucratividade</span>
+              <div class="vis-metric-icon" style="background:<?= $lucroPositivo ? 'rgba(5,150,105,.12)' : 'rgba(220,38,38,.12)' ?>">
+                <?php if ($lucroPositivo): ?>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><path d="M22 7l-8.5 8.5-5-5L1 17"/><path d="M16 7h6v6"/></svg>
+                <?php else: ?>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M22 17l-8.5-8.5-5 5L1 7"/><path d="M16 17h6v-6"/></svg>
+                <?php endif; ?>
+              </div>
+            </div>
+            <div class="vis-metric-value saldo-valor" style="color:<?= $lucroColor ?>"
+                 data-exact="<?= number_format($lucratividadeAno ?? 0, 2, '.', '') ?>"
+                 data-valor="<?= $lucroPositivo ? '+' : '-' ?> R$ <?= number_format(abs($lucratividadeAno ?? 0), 2, ',', '.') ?>">
+              <?= $lucroPositivo ? '+' : '-' ?> R$ <?= number_format(abs($lucratividadeAno ?? 0), 2, ',', '.') ?>
+            </div>
+            <div class="vis-metric-sub">
+              Margem: <strong style="color:<?= $lucroColor ?>"><?= number_format(abs($margemPct), 1) ?>%</strong>
+              <?= $lucroPositivo ? '✓' : '↓' ?>
+            </div>
+          </div>
+
+          <!-- 5. Projeção Final -->
+          <?php $projColor = $projPositivo ? '#059669' : '#dc2626'; ?>
+          <div class="vis-metric-cell vis-cell-proj <?= $projPositivo ? 'vis-cell-proj-pos' : 'vis-cell-proj-neg' ?>">
+            <div class="vis-metric-top">
+              <div class="vis-metric-dot" style="background:<?= $projColor ?>"></div>
+              <span class="vis-metric-label">Projeção Final</span>
+              <div class="vis-metric-icon" style="background:<?= $projPositivo ? 'rgba(5,150,105,.12)' : 'rgba(220,38,38,.12)' ?>">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="<?= $projColor ?>" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+                </svg>
+              </div>
+            </div>
+            <div class="vis-metric-value saldo-valor vis-proj-value" style="color:<?= $projColor ?>"
+                 data-exact="<?= number_format($projecaoFinanceira ?? 0, 2, '.', '') ?>"
+                 data-valor="R$ <?= number_format($projecaoFinanceira ?? 0, 2, ',', '.') ?>">
+              R$ <?= number_format($projecaoFinanceira ?? 0, 2, ',', '.') ?>
+            </div>
+            <div class="vis-metric-sub vis-proj-badge <?= $projCrescendo ? 'vis-proj-up' : 'vis-proj-down' ?>">
+              <?php if ($projCrescendo): ?>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+                Tendência de crescimento
+              <?php else: ?>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
+                Tendência de queda
+              <?php endif; ?>
+            </div>
+          </div>
+
+        </div><!-- /vis-12m-grid -->
+
+        <!-- Rodapé: fórmula visual -->
+        <div class="vis-12m-formula">
+          <span class="vis-formula-chip vis-fc-blue">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="#1d4ed8" stroke="none"><rect x="2" y="7" width="20" height="14" rx="2"/></svg>
+            Saldo
+          </span>
+          <span class="vis-formula-op">+</span>
+          <span class="vis-formula-chip vis-fc-green">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+            A Receber
+          </span>
+          <span class="vis-formula-op">−</span>
+          <span class="vis-formula-chip vis-fc-red">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="3"><path d="M12 19V5M5 12l7 7 7-7"/></svg>
+            A Pagar
+          </span>
+          <span class="vis-formula-op">=</span>
+          <span class="vis-formula-chip <?= $projPositivo ? 'vis-fc-emerald' : 'vis-fc-red-dark' ?>">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="<?= $projColor ?>" stroke-width="3"><circle cx="12" cy="12" r="9"/></svg>
+            Projeção: R$ <?= number_format($projecaoFinanceira ?? 0, 2, ',', '.') ?>
+          </span>
+        </div>
+
+      </div><!-- /vis-12m-card -->
+
+      <style>
+        /* ══ Visão Consolidada 12m — Estilos ══════════════════════ */
+        .vis-12m-card {
+          background: var(--fin-surface2);
+          border: 1px solid var(--fin-border);
+          border-radius: 14px;
+          overflow: hidden;
+        }
+        .vis-12m-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 16px;
+          background: var(--fin-surface);
+          border-bottom: 1px solid var(--fin-border);
+        }
+        .vis-12m-header-left { display: flex; align-items: center; gap: 10px; }
+        .vis-12m-icon {
+          width: 30px; height: 30px; border-radius: 8px;
+          background: rgba(29,78,216,.1);
+          color: var(--fin-blue);
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .vis-12m-title   { font-size: 13px; font-weight: 700; color: var(--fin-text); letter-spacing: -.01em; }
+        .vis-12m-subtitle{ font-size: 10px; color: var(--fin-muted); margin-top: 1px; }
+        .vis-12m-link {
+          font-size: 11px; font-weight: 700;
+          color: var(--fin-blue);
+          display: flex; align-items: center; gap: 4px;
+          padding: 4px 10px; border-radius: 6px;
+          background: rgba(29,78,216,.08);
+          transition: background .15s, color .15s;
+        }
+        .vis-12m-link:hover { background: rgba(29,78,216,.16); }
+
+        /* Grid de 5 métricas */
+        .vis-12m-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 0;
+          border-top: none;
+        }
+        @media (max-width: 900px) {
+          .vis-12m-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 600px) {
+          .vis-12m-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .vis-metric-cell {
+          padding: 14px 14px 12px;
+          border-right: 1px solid var(--fin-border);
+          border-bottom: 1px solid var(--fin-border);
+          display: flex; flex-direction: column; gap: 4px;
+          position: relative;
+          transition: background .15s;
+        }
+        .vis-metric-cell:last-child { border-right: none; }
+        .vis-metric-cell:hover { background: var(--fin-surface) !important; }
+
+        /* Acento de cor no topo de cada célula */
+        .vis-cell-blue   { border-top: 3px solid #1d4ed8; }
+        .vis-cell-green  { border-top: 3px solid #16a34a; }
+        .vis-cell-red    { border-top: 3px solid #dc2626; }
+        .vis-cell-emerald{ border-top: 3px solid #059669; }
+        .vis-cell-proj-pos { border-top: 3px solid #059669; background: rgba(5,150,105,.03); }
+        .vis-cell-proj-neg { border-top: 3px solid #dc2626; background: rgba(220,38,38,.03); }
+
+        /* Topo da métrica */
+        .vis-metric-top {
+          display: flex; align-items: center; gap: 5px;
+          margin-bottom: 4px;
+        }
+        .vis-metric-dot {
+          width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+        }
+        .vis-metric-label {
+          font-size: 9px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: .07em; color: var(--fin-muted);
+          flex: 1;
+        }
+        .vis-metric-icon {
+          width: 22px; height: 22px; border-radius: 6px;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .vis-icon-blue  { background: rgba(29,78,216,.10); }
+        .vis-icon-green { background: rgba(22,163,74,.10); }
+        .vis-icon-red   { background: rgba(220,38,38,.10); }
+
+        /* Valor principal */
+        .vis-metric-value {
+          font-size: 13px; font-weight: 800;
+          letter-spacing: -.025em; line-height: 1.1;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        @media (max-width: 1100px) { .vis-metric-value { font-size: 11px; } }
+
+        /* Sub-textos */
+        .vis-metric-sub {
+          font-size: 9px; color: var(--fin-muted);
+          margin-top: 2px;
+        }
+        .vis-metric-sub-row {
+          display: flex; gap: 4px; align-items: center;
+          font-size: 9px; margin-top: 2px;
+        }
+
+        /* Mini barra de progresso */
+        .vis-mini-bar-track {
+          height: 3px; border-radius: 2px;
+          background: var(--fin-border);
+          margin-top: 5px; overflow: hidden;
+        }
+        .vis-mini-bar-fill {
+          height: 100%; border-radius: 2px;
+          transition: width .8s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* Badge de tendência na projeção */
+        .vis-proj-badge {
+          display: inline-flex; align-items: center; gap: 3px;
+          font-size: 9px; font-weight: 700;
+          padding: 2px 6px; border-radius: 999px; margin-top: 4px;
+          width: fit-content;
+        }
+        .vis-proj-up   { background: rgba(5,150,105,.12); color: #059669; }
+        .vis-proj-down { background: rgba(220,38,38,.12);  color: #dc2626; }
+
+        /* Rodapé fórmula */
+        .vis-12m-formula {
+          display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+          padding: 10px 16px;
+          background: var(--fin-surface);
+          border-top: 1px solid var(--fin-border);
+          font-size: 10px;
+        }
+        .vis-formula-chip {
+          display: inline-flex; align-items: center; gap: 4px;
+          padding: 3px 8px; border-radius: 6px; font-weight: 600;
+        }
+        .vis-formula-op { color: var(--fin-muted); font-weight: 700; font-size: 12px; }
+        .vis-fc-blue    { background: rgba(29,78,216,.10); color: #1d4ed8; }
+        .vis-fc-green   { background: rgba(22,163,74,.10); color: #16a34a; }
+        .vis-fc-red     { background: rgba(220,38,38,.10); color: #dc2626; }
+        .vis-fc-emerald { background: rgba(5,150,105,.10); color: #059669; }
+        .vis-fc-red-dark{ background: rgba(220,38,38,.12); color: #dc2626; }
+      </style>
+    </div>
+  </div>
+
+  <!-- Distribuição de Despesas -->
+  <div class="fin-card">
+    <div class="fin-card-header">
+      <div>
+        <div class="fin-card-title">Distribuição de despesas</div>
+        <div class="text-xs text-gray-400 mt-0.5">Fluxo por categoria</div>
+      </div>
+    </div>
+    <div class="p-4">
+      <div class="fin-tabs mb-3">
+        <button class="fin-tab active" id="btnToggleCategory">Por categoria</button>
+        <button class="fin-tab" id="btnToggleCostCenter">Centro de custo</button>
+      </div>
+      <div class="chart-wrapper-dist">
+        <canvas id="distributionChart" role="img" aria-label="Gráfico de rosca com distribuição de despesas">Distribuição de despesas por categoria.</canvas>
+      </div>
+      <div class="overflow-x-auto mt-3">
+        <table class="w-full" style="font-size:11px;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th class="text-left text-gray-400 pb-1 font-semibold uppercase" style="letter-spacing:.05em">Categoria</th>
+              <th class="text-right text-gray-400 pb-1 font-semibold uppercase" style="letter-spacing:.05em">Valor</th>
+              <th class="text-right text-gray-400 pb-1 font-semibold uppercase" style="letter-spacing:.05em">%</th>
+            </tr>
+          </thead>
+          <tbody id="distributionTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TABELA DE MOVIMENTAÇÕES ────────────────────────────── -->
+<div class="fin-card mb-6">
+  <div class="fin-card-header" style="flex-wrap:wrap;gap:8px">
+    <div class="fin-card-title">Movimentações recentes</div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <a href="<?= BASE_URL ?>/financeiro/movimentacoes" class="fin-badge blue" style="text-decoration:none;cursor:pointer">
+        Ver todas as movimentações →
+      </a>
+      <a href="<?= BASE_URL ?>/financeiro/relatorioCombustivel" class="fin-badge amber" style="text-decoration:none">
+        Rel. combustível →
+      </a>
+    </div>
+  </div>
+
+  <?php if (!empty($fluxoCaixa)): ?>
+    <div class="overflow-x-auto">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Conta</th>
+            <th>Descrição</th>
+            <th class="center">Vencimento</th>
+            <th class="center">Pago em</th>
+            <th class="center">Tipo</th>
+            <th class="right">Valor (R$)</th>
+            <th class="center">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($fluxoCaixa as $transacao): ?>
+            <?php
+              $transferType = get_transfer_type($transacao);
+              $valorSign  = '';
+              $tipoLabel  = get_tipo_transacao_texto($transacao['tipo']);
+              $tipoBadge  = '';
+
+              if ($transferType === 'out') {
+                  $valorSign = '-'; $tipoLabel = 'Transf. saída';  $tipoBadge = 'sky';
+              } elseif ($transferType === 'in') {
+                  $valorSign = '';  $tipoLabel = 'Transf. entrada'; $tipoBadge = 'sky';
+              } elseif ($transacao['tipo'] === 'P') {
+                  $valorSign = '-'; $tipoBadge = 'red';
+              } else {
+                  $valorSign = '';  $tipoBadge = 'green';
+              }
+              $valorCor = $valorSign === '-' ? 'color:var(--fin-red)' : 'color:var(--fin-green)';
+            ?>
+            <tr>
+              <td style="color:var(--fin-muted)"><?= htmlspecialchars($transacao['banco_nome'] ?? 'N/A') ?></td>
+              <td>
+                <a href="<?= BASE_URL ?>/financeiro/detalhe/<?= $transacao['id'] ?>"
+                   class="font-medium text-gray-900 hover:text-blue-600" style="text-decoration:none">
+                  <?= htmlspecialchars($transacao['descricao'] ?? '') ?>
+                </a>
+              </td>
+              <td class="center" style="color:var(--fin-muted)">
+                <?= !empty($transacao['vencimento']) ? date('d/m/Y', strtotime($transacao['vencimento'])) : '—' ?>
+              </td>
+              <td class="center" style="color:var(--fin-muted)">
+                <?= !empty($transacao['data_pagamento']) ? date('d/m/Y', strtotime($transacao['data_pagamento'])) : '—' ?>
+              </td>
+              <td class="center">
+                <span class="fin-badge <?= $tipoBadge ?>"><?= htmlspecialchars($tipoLabel) ?></span>
+              </td>
+              <td class="right font-bold" style="<?= $valorCor ?>">
+                <?= $valorSign ?>R$ <?= number_format($transacao['valor'], 2, ',', '.') ?>
+              </td>
+              <td class="center">
+                <div style="display:flex;align-items:center;justify-content:center;gap:10px">
+                  <a href="<?= BASE_URL ?>/financeiro/editar/<?= $transacao['id'] ?>"
+                     class="tbl-action" style="color:var(--fin-blue)" title="Editar">
+                    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"/><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"/></svg>
+                  </a>
+                  <?php if (!empty($transacao['transfer_partner_id'])): ?>
+                    <a href="<?= BASE_URL ?>/financeiro/detalhe/<?= $transacao['transfer_partner_id'] ?>"
+                       class="tbl-action" style="color:var(--fin-sky)" title="Transação relacionada">
+                      <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path d="M3.172 7l4.95-4.95a1 1 0 111.415 1.414L6.586 8.414H13a5 5 0 010 10H9a1 1 0 110-2h4a3 3 0 000-6H6.586l3.95 3.95a1 1 0 11-1.415 1.414L3.172 7z"/></svg>
+                    </a>
+                  <?php endif; ?>
+                  <a href="<?= BASE_URL ?>/financeiro/bloquear/<?= $transacao['id'] ?>"
+                     class="tbl-action" style="color:var(--fin-amber)" title="Bloquear / Cancelar"
+                     onclick="return confirm('Bloquear esta transação? Ela não será mais contabilizada nos saldos.')">
+                    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd"/></svg>
+                  </a>
+                </div>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  <?php else: ?>
+    <div class="py-12 text-center text-gray-400 text-sm italic">Nenhuma transação encontrada.</div>
+  <?php endif; ?>
+</div>
+</div>
+</div>
+
+<!-- ── MODAL: TRANSFERÊNCIA ENTRE CONTAS ──────────────────── -->
+<div id="transferenciaModal" class="fin-modal-overlay hidden" style="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:1rem">
+  <div class="fin-modal">
+    <div class="fin-modal-header">
+      <div>
+        <div class="fin-modal-title">Transferência entre contas</div>
+        <div class="text-xs text-gray-400 mt-0.5">Mova saldo entre suas contas cadastradas</div>
+      </div>
+      <button id="fecharTransferenciaModal" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="transferenciaForm" action="<?= BASE_URL ?>/financeiro/realizarTransferencia" method="POST">
+      <div class="fin-modal-body" style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <label class="fin-label" for="conta_origem">De (conta de origem)</label>
+          <select id="conta_origem" name="conta_origem" required class="fin-select">
+            <option value="">Selecione a conta de origem</option>
+            <?php foreach ($saldosBancos as $banco): ?>
+              <option value="<?= $banco['id'] ?>">
+                <?= htmlspecialchars($banco['nome']) ?> — R$ <?= number_format($banco['saldo_atual'], 2, ',', '.') ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
         </div>
         <div>
-            <h3 class="font-semibold text-gray-500">Saldo Atual (Bancos)</h3>
-            <p class="text-3xl font-bold text-blue-600">R$ <?= number_format($saldoAtual ?? 0, 2, ',', '.'); ?></p>
-            <p class="text-sm text-gray-400 mt-2">
-                <?php if (!empty($ultimaAtualizacaoSaldo)): ?>
-                    Última atualização: <?= htmlspecialchars(date('d/m/Y', strtotime($ultimaAtualizacaoSaldo))); ?>
-                <?php else: ?>
-                    Nenhuma movimentação
-                <?php endif; ?>
-            </p>
-        </div>
-    </div>
-</div>
-
-<!-- Saldos dos Bancos -->
-<div class="mb-6">
-    <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-semibold text-gray-700">Saldos em Contas</h3>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <?php if (!empty($saldosBancos)): ?>
+          <label class="fin-label" for="conta_destino">Para (conta de destino)</label>
+          <select id="conta_destino" name="conta_destino" required class="fin-select">
+            <option value="">Selecione a conta de destino</option>
             <?php foreach ($saldosBancos as $banco): ?>
-                <div class="bg-white p-4 rounded-lg shadow-md flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:scale-105">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-600"><?= htmlspecialchars($banco['nome']); ?></p>
-                            <p class="text-xs text-gray-400"><?= htmlspecialchars($banco['tipo']); ?></p>
-                        </div>
-                        <img src="<?= get_bank_flag_url($banco['nome']); ?>" alt="Bandeira do <?= htmlspecialchars($banco['nome']); ?>" class="h-8 w-8 object-contain">
-                    </div>
-                    <div>
-                        <p class="text-2xl font-bold mt-2 <?= $banco['saldo_atual'] >= 0 ? 'text-gray-800' : 'text-red-600'; ?>">
-                            R$ <?= number_format($banco['saldo_atual'], 2, ',', '.'); ?>
-                        </p>
-                    </div>
-                </div>
+              <option value="<?= $banco['id'] ?>"><?= htmlspecialchars($banco['nome']) ?></option>
             <?php endforeach; ?>
-        <?php else: ?>
-            <p class="text-gray-500 col-span-full">Nenhuma conta bancária cadastrada.</p>
-        <?php endif; ?>
-    </div>
-</div>
-
-<!-- Seção de Gráficos -->
-<div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
-    <!-- Gráfico de Receitas vs Despesas -->
-    <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md text-center">
-        <h3 class="text-lg font-semibold mb-4">Receitas vs. Despesas (Últimos 6 Meses)</h3>
-        <canvas id="receitasDespesasChart" style="max-height:300px; max-width:100%;"></canvas>
-    </div>
-    <!-- Gráfico de Despesas por Categoria -->
-    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md text-center">
-        <h3 class="text-lg font-semibold mb-4">Despesas por Categoria (Mês Atual)</h3>
-        <canvas id="despesasCategoriaChart" style="max-height:300px; max-width:100%;"></canvas>
-    </div>
-</div>
-<div class="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-6">
-    <!-- Tabela de Fluxo de Caixa Recente -->
-    <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md">
-        <div class="flex justify-between items-center mb-4 border-b pb-2">
-            <div class="flex items-center space-x-4">
-                <h3 class="text-lg font-semibold">Movimentações de Caixa Recentes</h3>
-            </div>
-            <!-- Ações Rápidas -->
-            <div class="flex items-center space-x-2">
-                <a href="<?= BASE_URL; ?>/financeiro/novo?tipo=R" class="flex items-center justify-center text-sm font-medium text-emerald-600 hover:text-emerald-800 px-3 py-1 bg-emerald-100 hover:bg-emerald-200 rounded-md shadow-sm transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" />
-                    </svg>
-                    <span>Receita</span>
-                </a>
-                <a href="<?= BASE_URL; ?>/financeiro/novo?tipo=P" class="flex items-center justify-center text-sm font-medium text-red-600 hover:text-red-800 px-3 py-1 bg-red-100 hover:bg-red-200 rounded-md shadow-sm transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
-                    </svg>
-                    <span>Despesa</span>
-                </a>
-                <button id="openTransferenciaModalBtn" class="flex items-center justify-center text-sm font-medium text-sky-600 hover:text-sky-800 px-3 py-1 bg-sky-100 hover:bg-sky-200 rounded-md shadow-sm transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                    <span>Transferência</span>
-                </button>
-                <a href="<?= BASE_URL; ?>/financeiro/movimentacoes" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 px-3 py-1 bg-indigo-100 hover:bg-indigo-200 rounded-md shadow-sm transition-colors">Ver Todas as Movimentações</a>
-            </div>
+          </select>
         </div>
-        <?php if (!empty($fluxoCaixa)): ?>
-            <!-- Simulação de tabela com dados do modelo -->
-            <div class="overflow-x-auto">
-                <table class="w-full table-auto divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Conta</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Pago Em</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Valor(R$)</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        <?php foreach ($fluxoCaixa as $transacao): ?>
-                            <tr class="hover:bg-gray-50">
-                                <?php
-                                // Lógica simplificada usando o helper, para consistência com outras views
-                                $transferType = get_transfer_type($transacao);
-                                $valorSign = '';
-                                $tipoLabel = get_tipo_transacao_texto($transacao['tipo']);
-                                $tipoClass = get_tipo_transacao_classes($transacao['tipo']);
-
-                                if ($transferType === 'out') {
-                                    $valorSign = '-';
-                                    $tipoLabel = 'Transferência (Saída)';
-                                    $tipoClass = 'bg-sky-100 text-sky-800';
-                                } elseif ($transferType === 'in') {
-                                    $valorSign = '';
-                                    $tipoLabel = 'Transferência (Entrada)';
-                                    $tipoClass = 'bg-sky-100 text-sky-800';
-                                } else {
-                                    // Não é transferência, usa a lógica padrão
-                                    $valorSign = ($transacao['tipo'] === 'P') ? '-' : '';
-                                }
-                                ?>
-
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center"><?php echo htmlspecialchars($transacao['banco_nome'] ?? 'N/A'); ?></td>
-
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-left">
-                                    <a href="<?= htmlspecialchars(BASE_URL . '/financeiro/detalhe/' . $transacao['id']); ?>" class="hover:underline"><?= htmlspecialchars($transacao['descricao']); ?></a>
-                                </td>
-
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center"><?= date('d/m/Y', strtotime($transacao['data'])); ?></td>
-
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?= $tipoClass; ?>">
-                                        <?= htmlspecialchars($tipoLabel); ?>
-                                    </span>
-                                </td>
-
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-center <?= ($valorSign === '-') ? 'text-red-600' : 'text-green-600'; ?>">
-                                    <?= $valorSign . 'R$ ' . number_format($transacao['valor'], 2, ',', '.'); ?>
-                                </td>
-
-                                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                                    <a href="<?= BASE_URL; ?>/financeiro/editar/<?= $transacao['id']; ?>" class="text-indigo-600 hover:text-indigo-900 mr-3" title="Editar">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                                            <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
-                                        </svg>
-                                    </a>
-                                    <?php if (!empty($transacao['transfer_partner_id'])): ?>
-                                        <a href="<?= BASE_URL; ?>/financeiro/detalhe/<?= $transacao['transfer_partner_id']; ?>" class="text-sky-600 hover:text-sky-900 mr-3" title="Ver transação relacionada">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
-                                                <path d="M3.172 7l4.95-4.95a1 1 0 111.415 1.414L6.586 8.414H13 a5 5 0 010 10H9a1 1 0 110-2h4a3 3 0 000-6H6.586l3.95 3.95a1 1 0 11-1.415 1.414L3.172 7z" />
-                                            </svg>
-                                        </a>
-                                    <?php endif; ?>
-                                    <a href="<?= BASE_URL; ?>/financeiro/excluir/<?= $transacao['id']; ?>" class="text-red-600 hover:text-red-900" onclick="return confirm('Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.');" title="Excluir">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                        </svg>
-                                    </a>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php else: ?>
-            <p class="text-gray-500">Nenhuma transação encontrada.</p>
-        <?php endif; ?>
-    </div>
-</div>
-
-<!-- Modal de Transferência entre Contas -->
-<div id="transferenciaModal" class="fixed z-50 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title-transfer" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div id="transferenciaModalBg" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-
-        <!-- This element is to trick the browser into centering the modal contents. -->
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full" role="document">
-            <form id="transferenciaForm" action="<?= BASE_URL; ?>/financeiro/realizarTransferencia" method="POST">
-                <!-- Modal Header -->
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title-transfer">
-                        Transferência entre Contas
-                    </h3>
-                </div>
-
-                <!-- Modal Body -->
-                <div class="px-4 sm:p-6">
-                    <div class="grid grid-cols-1 gap-6">
-                        <div>
-                            <label for="conta_origem" class="block text-sm font-medium text-gray-700">De</label>
-                            <select id="conta_origem" name="conta_origem" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2">
-                                <option value="">Selecione a conta de origem</option>
-                                <?php foreach ($saldosBancos as $banco): ?>
-                                    <option value="<?= $banco['id']; ?>"><?= htmlspecialchars($banco['nome']); ?> (R$ <?= number_format($banco['saldo_atual'], 2, ',', '.'); ?>)</option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="conta_destino" class="block text-sm font-medium text-gray-700">Para</label>
-                            <select id="conta_destino" name="conta_destino" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2">
-                                <option value="">Selecione a conta de destino</option>
-                                <?php foreach ($saldosBancos as $banco): ?>
-                                    <option value="<?= $banco['id']; ?>"><?= htmlspecialchars($banco['nome']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="valor_transferencia" class="block text-sm font-medium text-gray-700">Valor</label>
-                            <input type="text" name="valor" id="valor_transferencia" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2" placeholder="0,00">
-                        </div>
-                        <div>
-                            <label for="data_transferencia" class="block text-sm font-medium text-gray-700">Data da Transferência</label>
-                            <input type="date" name="data_transferencia" id="data_transferencia" value="<?= date('Y-m-d'); ?>" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-sky-600 text-base font-medium text-white hover:bg-sky-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                        Confirmar Transferência
-                    </button>
-                    <button type="button" id="fecharTransferenciaModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                        Cancelar
-                    </button>
-                </div>
-            </form>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label class="fin-label" for="valor_transferencia">Valor</label>
+            <input type="text" name="valor" id="valor_transferencia" required class="fin-input" placeholder="0,00">
+          </div>
+          <div>
+            <label class="fin-label" for="data_transferencia">Data</label>
+            <input type="date" name="data_transferencia" id="data_transferencia" value="<?= date('Y-m-d') ?>" required class="fin-input">
+          </div>
         </div>
-    </div>
+      </div>
+      <div class="fin-modal-footer">
+        <button type="button" id="fecharTransferenciaModalBtn" class="fin-btn ghost">Cancelar</button>
+        <button type="submit" class="fin-btn sky">Confirmar transferência</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- Modal de Geração de Relatório -->
-<div id="relatorioModal" class="fixed z-50 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-
-        <!-- This element is to trick the browser into centering the modal contents. -->
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full" role="document">
-            <form id="relatorioForm" action="<?= BASE_URL; ?>/financeiro/relatorio" method="GET">
-                <!-- Modal Header -->
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                        Gerar Relatório Financeiro
-                    </h3>
-                </div>
-
-                <!-- Modal Body (Scrollable) -->
-                <div class="px-4 sm:p-6 max-h-[70vh] overflow-y-auto">
-                    <!-- Tipo de Relatório -->
-                    <div class="mb-4">
-                        <label for="modal_filtro_tipo_relatorio" class="block text-sm font-medium text-gray-700">Tipo de Relatório</label>
-                        <select id="modal_filtro_tipo_relatorio" name="tipo_relatorio" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2">
-                            <option value="geral" <?= (isset($filtros['tipo_relatorio']) && $filtros['tipo_relatorio'] == 'geral') ? 'selected' : ''; ?>>Extrato Geral</option>
-                            <option value="banco" <?= (isset($filtros['tipo_relatorio']) && $filtros['tipo_relatorio'] == 'banco') ? 'selected' : ''; ?>>Por Conta Bancária</option>
-                        </select>
-                    </div>
-
-                    <!-- Seleção de Banco (visível apenas se tipo_relatorio for 'banco') -->
-                    <div id="modal_campo_banco" class="<?= (isset($filtros['tipo_relatorio']) && $filtros['tipo_relatorio'] == 'banco') ? '' : 'hidden'; ?> mb-4">
-                        <label for="modal_filtro_banco_id" class="block text-sm font-medium text-gray-700">Conta Bancária</label>
-                        <select id="modal_filtro_banco_id" name="banco_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2">
-                            <option value="">Todas as Contas</option>
-                            <?php foreach ($bancos as $banco): ?>
-                                <option value="<?= $banco['id']; ?>" <?= (isset($filtros['banco_id']) && $filtros['banco_id'] == $banco['id']) ? 'selected' : ''; ?>>
-                                    <?= htmlspecialchars($banco['nome']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <!-- Visualizar por -->
-                    <div class="mb-4">
-                        <label for="modal_filtro_periodo" class="block text-sm font-medium text-gray-700">Período</label>
-                        <select id="modal_filtro_periodo" name="periodo" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2">
-                            <option value="recente" <?= (!isset($filtros['periodo']) || $filtros['periodo'] == 'recente') ? 'selected' : ''; ?>>Mais Recentes</option>
-                            <option value="dia" <?= (isset($filtros['periodo']) && $filtros['periodo'] == 'dia') ? 'selected' : ''; ?>>Dia Específico</option>
-                            <option value="mes" <?= (isset($filtros['periodo']) && $filtros['periodo'] == 'mes') ? 'selected' : ''; ?>>Mês Específico</option>
-                            <option value="intervalo" <?= (isset($filtros['periodo']) && $filtros['periodo'] == 'intervalo') ? 'selected' : ''; ?>>Intervalo de Datas</option>
-                        </select>
-                    </div>
-
-                    <!-- Campos de Data (controlados por JS) -->
-                    <div id="modal_campos_data" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div id="modal_campo_data_unica" class="hidden mb-4">
-                            <label for="modal_data_unica" class="block text-sm font-medium text-gray-700">Data</label>
-                            <input type="date" name="data_unica" id="modal_data_unica" value="<?= htmlspecialchars($filtros['data_unica'] ?? ''); ?>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2">
-                        </div>
-                        <div id="modal_campo_mes_ano" class="hidden mb-4">
-                            <label for="modal_mes_ano" class="block text-sm font-medium text-gray-700">Mês/Ano</label>
-                            <input type="month" name="mes_ano" id="modal_mes_ano" value="<?= htmlspecialchars($filtros['mes_ano'] ?? ''); ?>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2">
-                        </div>
-                        <div id="modal_campo_intervalo" class="hidden sm:col-span-2 grid grid-cols-2 gap-4 mb-4">
-                            <div><label for="modal_data_inicio" class="block text-sm font-medium text-gray-700">De</label><input type="date" name="data_inicio" id="modal_data_inicio" value="<?= htmlspecialchars($filtros['data_inicio'] ?? ''); ?>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2"></div>
-                            <div><label for="modal_data_fim" class="block text-sm font-medium text-gray-700">Até</label><input type="date" name="data_fim" id="modal_data_fim" value="<?= htmlspecialchars($filtros['data_fim'] ?? ''); ?>" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-sky-500 focus:border-sky-500 sm:text-sm p-2"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button type="button" id="visualizarRelatorioBtn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-sky-600 text-base font-medium text-white hover:bg-sky-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                        Visualizar Relatório
-                    </button>
-                    <button type="button" id="exportarPdfBtn" class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                        Exportar PDF
-                    </button>
-                    <button type="button" id="fecharRelatorioModal" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                        Cancelar
-                    </button>
-                </div>
-            </form>
+<!-- ── MODAL: RELATÓRIO FINANCEIRO ────────────────────────── -->
+<div id="relatorioModal" class="fin-modal-overlay hidden" style="position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:1rem">
+  <div class="fin-modal wide">
+    <div class="fin-modal-header">
+      <div>
+        <div class="fin-modal-title">Gerar relatório financeiro</div>
+        <div class="text-xs text-gray-400 mt-0.5">Configure os filtros e exporte</div>
+      </div>
+      <button id="fecharRelatorioModalBtn" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="relatorioForm" action="<?= BASE_URL ?>/financeiro/relatorio" method="GET">
+      <div class="fin-modal-body" style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label class="fin-label" for="modal_filtro_tipo_relatorio">Tipo de relatório</label>
+            <select id="modal_filtro_tipo_relatorio" name="tipo_relatorio" class="fin-select">
+              <option value="geral" <?= (($filtros['tipo_relatorio'] ?? '') == 'geral') ? 'selected' : '' ?>>Extrato geral</option>
+              <option value="banco" <?= (($filtros['tipo_relatorio'] ?? '') == 'banco') ? 'selected' : '' ?>>Por conta bancária</option>
+            </select>
+          </div>
+          <div id="modal_campo_banco" class="<?= (($filtros['tipo_relatorio'] ?? '') == 'banco') ? '' : 'hidden' ?>">
+            <label class="fin-label" for="modal_filtro_banco_id">Conta bancária</label>
+            <select id="modal_filtro_banco_id" name="banco_id" class="fin-select">
+              <option value="">Todas as contas</option>
+              <?php foreach ($bancos as $banco): ?>
+                <option value="<?= $banco['id'] ?>" <?= (($filtros['banco_id'] ?? '') == $banco['id']) ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($banco['nome']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
         </div>
-    </div>
+        <div>
+          <label class="fin-label" for="modal_filtro_periodo">Período</label>
+          <select id="modal_filtro_periodo" name="periodo" class="fin-select">
+            <option value="recente"   <?= (($filtros['periodo'] ?? 'recente') == 'recente')   ? 'selected' : '' ?>>Mais recentes</option>
+            <option value="dia"       <?= (($filtros['periodo'] ?? '') == 'dia')       ? 'selected' : '' ?>>Dia específico</option>
+            <option value="mes"       <?= (($filtros['periodo'] ?? '') == 'mes')       ? 'selected' : '' ?>>Mês específico</option>
+            <option value="intervalo" <?= (($filtros['periodo'] ?? '') == 'intervalo') ? 'selected' : '' ?>>Intervalo de datas</option>
+          </select>
+        </div>
+        <div id="modal_campo_data_unica" class="hidden">
+          <label class="fin-label" for="modal_data_unica">Data</label>
+          <input type="date" name="data_unica" id="modal_data_unica" value="<?= htmlspecialchars($filtros['data_unica'] ?? '') ?>" class="fin-input">
+        </div>
+        <div id="modal_campo_mes_ano" class="hidden">
+          <label class="fin-label" for="modal_mes_ano">Mês / Ano</label>
+          <input type="month" name="mes_ano" id="modal_mes_ano" value="<?= htmlspecialchars($filtros['mes_ano'] ?? '') ?>" class="fin-input">
+        </div>
+        <div id="modal_campo_intervalo" class="hidden" style="display:none;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label class="fin-label" for="modal_data_inicio">De</label>
+            <input type="date" name="data_inicio" id="modal_data_inicio" value="<?= htmlspecialchars($filtros['data_inicio'] ?? '') ?>" class="fin-input">
+          </div>
+          <div>
+            <label class="fin-label" for="modal_data_fim">Até</label>
+            <input type="date" name="data_fim" id="modal_data_fim" value="<?= htmlspecialchars($filtros['data_fim'] ?? '') ?>" class="fin-input">
+          </div>
+        </div>
+      </div>
+      <div class="fin-modal-footer">
+        <button type="button" id="fecharRelatorioModal" class="fin-btn ghost">Cancelar</button>
+        <button type="button" id="exportarPdfBtn" class="fin-btn ghost-red">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd"/></svg>
+          Exportar PDF
+        </button>
+        <button type="button" id="visualizarRelatorioBtn" class="fin-btn primary">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
+          Visualizar relatório
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
+<!-- ── JAVASCRIPT ──────────────────────────────────────────── -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // --- MODAL DE RELATÓRIO ---
-        const openRelatorioModalBtn = document.getElementById('openRelatorioModalBtn');
-        const relatorioModal = document.getElementById('relatorioModal');
-        const fecharRelatorioModal = document.getElementById('fecharRelatorioModal');
-        const relatorioModalBg = relatorioModal ? relatorioModal.querySelector('.fixed.inset-0.bg-gray-500') : null;
+document.addEventListener('DOMContentLoaded', function () {
 
-        const modalFiltroTipoRelatorio = document.getElementById('modal_filtro_tipo_relatorio');
-        const modalCampoBanco = document.getElementById('modal_campo_banco');
-        const modalFiltroPeriodo = document.getElementById('modal_filtro_periodo');
-        const modalCampoDataUnica = document.getElementById('modal_campo_data_unica');
-        const modalCampoMesAno = document.getElementById('modal_campo_mes_ano');
-        const modalCampoIntervalo = document.getElementById('modal_campo_intervalo');
+  /* ── HELPER: abrir/fechar modal ── */
+  function openModal(el)  { el.style.display = 'flex'; }
+  function closeModal(el) { el.style.display = 'none'; }
 
-        const relatorioForm = document.getElementById('relatorioForm');
-        const visualizarRelatorioBtn = document.getElementById('visualizarRelatorioBtn');
-        const exportarPdfBtn = document.getElementById('exportarPdfBtn');
+  /* ── MODAL TRANSFERÊNCIA ── */
+  const transferenciaModal = document.getElementById('transferenciaModal');
+  document.getElementById('openTransferenciaModalBtn')?.addEventListener('click', () => openModal(transferenciaModal));
+  document.getElementById('fecharTransferenciaModal')?.addEventListener('click', () => closeModal(transferenciaModal));
+  document.getElementById('fecharTransferenciaModalBtn')?.addEventListener('click', () => closeModal(transferenciaModal));
+  transferenciaModal?.addEventListener('click', e => { if (e.target === transferenciaModal) closeModal(transferenciaModal); });
 
-        // --- MODAL DE TRANSFERÊNCIA ---
-        const openTransferenciaModalBtn = document.getElementById('openTransferenciaModalBtn');
-        const transferenciaModal = document.getElementById('transferenciaModal');
-        const fecharTransferenciaModal = document.getElementById('fecharTransferenciaModal');
-        const transferenciaModalBg = document.getElementById('transferenciaModalBg');
-        const contaOrigemSelect = document.getElementById('conta_origem');
-        const contaDestinoSelect = document.getElementById('conta_destino');
+  // Desabilitar conta destino igual à origem
+  const contaOrigem  = document.getElementById('conta_origem');
+  const contaDestino = document.getElementById('conta_destino');
+  contaOrigem?.addEventListener('change', () => {
+    for (const opt of contaDestino.options) opt.disabled = false;
+    if (contaOrigem.value) {
+      const d = contaDestino.querySelector(`option[value="${contaOrigem.value}"]`);
+      if (d) d.disabled = true;
+    }
+  });
 
-        if (openTransferenciaModalBtn) {
-            openTransferenciaModalBtn.addEventListener('click', () => {
-                if (transferenciaModal) transferenciaModal.classList.remove('hidden');
-            });
-        }
+  /* ── MODAL RELATÓRIO ── */
+  const relatorioModal = document.getElementById('relatorioModal');
+  document.getElementById('openRelatorioModalBtn')?.addEventListener('click', () => { openModal(relatorioModal); toggleModalDateFields(); });
+  document.getElementById('fecharRelatorioModal')?.addEventListener('click', () => closeModal(relatorioModal));
+  document.getElementById('fecharRelatorioModalBtn')?.addEventListener('click', () => closeModal(relatorioModal));
+  relatorioModal?.addEventListener('click', e => { if (e.target === relatorioModal) closeModal(relatorioModal); });
 
-        function closeTransferenciaModal() {
-            if (transferenciaModal) transferenciaModal.classList.add('hidden');
-        }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(transferenciaModal); closeModal(relatorioModal); }
+  });
 
-        if (fecharTransferenciaModal) fecharTransferenciaModal.addEventListener('click', closeTransferenciaModal);
-        if (transferenciaModalBg) transferenciaModalBg.addEventListener('click', closeTransferenciaModal);
+  // Toggle campo banco
+  const tipoRelatorio = document.getElementById('modal_filtro_tipo_relatorio');
+  const campoBanco    = document.getElementById('modal_campo_banco');
+  tipoRelatorio?.addEventListener('change', () => {
+    campoBanco.classList.toggle('hidden', tipoRelatorio.value !== 'banco');
+  });
 
-        function updateDestinoOptions() {
-            if (!contaOrigemSelect || !contaDestinoSelect) return;
-            const origemId = contaOrigemSelect.value;
-            // Reseta as opções de destino
-            for (let option of contaDestinoSelect.options) {
-                option.disabled = false;
-            }
-            // Desabilita a opção de destino que é igual à origem
-            if (origemId) {
-                const destinoOption = contaDestinoSelect.querySelector(`option[value="${origemId}"]`);
-                if (destinoOption) destinoOption.disabled = true;
-            }
-        }
-        if (contaOrigemSelect) contaOrigemSelect.addEventListener('change', updateDestinoOptions);
+  // Toggle campos de data
+  const filtroPeriodo    = document.getElementById('modal_filtro_periodo');
+  const campoDataUnica   = document.getElementById('modal_campo_data_unica');
+  const campoMesAno      = document.getElementById('modal_campo_mes_ano');
+  const campoIntervalo   = document.getElementById('modal_campo_intervalo');
 
-        if (openRelatorioModalBtn) {
-            openRelatorioModalBtn.addEventListener('click', () => {
-                if (relatorioModal) {
-                    relatorioModal.classList.remove('hidden');
-                    toggleModalBancoField();
-                    toggleModalDateFields();
-                }
-            });
-        }
+  function toggleModalDateFields() {
+    const p = filtroPeriodo?.value;
+    [campoDataUnica, campoMesAno].forEach(el => el?.classList.add('hidden'));
+    if (campoIntervalo) campoIntervalo.style.display = 'none';
+    if (p === 'dia')       campoDataUnica?.classList.remove('hidden');
+    else if (p === 'mes')  campoMesAno?.classList.remove('hidden');
+    else if (p === 'intervalo' && campoIntervalo) campoIntervalo.style.display = 'grid';
+  }
+  filtroPeriodo?.addEventListener('change', toggleModalDateFields);
 
-        function closeModal() {
-            if (relatorioModal) relatorioModal.classList.add('hidden');
-        }
-        if (fecharRelatorioModal) fecharRelatorioModal.addEventListener('click', closeModal);
-        if (relatorioModalBg) relatorioModalBg.addEventListener('click', closeModal);
+  // Botões do relatório
+  const relatorioForm = document.getElementById('relatorioForm');
+  document.getElementById('visualizarRelatorioBtn')?.addEventListener('click', () => {
+    relatorioForm.action = '<?= BASE_URL ?>/financeiro/relatorio';
+    relatorioForm.target = '_blank';
+    relatorioForm.submit();
+  });
+  document.getElementById('exportarPdfBtn')?.addEventListener('click', () => {
+    relatorioForm.action = '<?= BASE_URL ?>/financeiro/exportarRelatorioPdf';
+    relatorioForm.target = '_self';
+    relatorioForm.submit();
+  });
 
-        // Fecha o modal com a tecla 'Escape'
-        document.addEventListener('keydown', (e) => {
-            if (e.key === "Escape" && ((relatorioModal && !relatorioModal.classList.contains('hidden')) || (transferenciaModal && !transferenciaModal.classList.contains('hidden')))) {
-                closeModal();
-                closeTransferenciaModal();
-            }
-        });
+  /* ── TOGGLE SALDOS ── */
+  let saldosVisiveis = true;
+  try {
+    saldosVisiveis = localStorage.getItem('saldosVisible') !== 'false';
+  } catch (e) {
+    console.warn("Acesso ao localStorage bloqueado pelo navegador.");
+  }
+  const saldoEls = document.querySelectorAll('.saldo-valor');
 
-        function toggleModalBancoField() {
-            if (modalFiltroTipoRelatorio && modalFiltroTipoRelatorio.value === 'banco') {
-                if (modalCampoBanco) modalCampoBanco.classList.remove('hidden');
-            } else {
-                if (modalCampoBanco) modalCampoBanco.classList.add('hidden');
-            }
-        }
-        if (modalFiltroTipoRelatorio) modalFiltroTipoRelatorio.addEventListener('change', toggleModalBancoField);
+  function updateSaldos() {
+    const eyeOpen   = [document.getElementById('eyeOpenIcon'),   document.getElementById('eyeOpenIconAlt')];
+    const eyeClosed = [document.getElementById('eyeClosedIcon'), document.getElementById('eyeClosedIconAlt')];
+    const label     = document.getElementById('saldoBtnLabel');
 
-        function toggleModalDateFields() {
-            const selectedPeriod = modalFiltroPeriodo ? modalFiltroPeriodo.value : null;
-            if (modalCampoDataUnica) modalCampoDataUnica.classList.add('hidden');
-            if (modalCampoMesAno) modalCampoMesAno.classList.add('hidden');
-            if (modalCampoIntervalo) modalCampoIntervalo.classList.add('hidden');
+    eyeOpen.forEach(el  => el?.classList.toggle('hidden', !saldosVisiveis));
+    eyeClosed.forEach(el => el?.classList.toggle('hidden', saldosVisiveis));
+    if (label) label.textContent = saldosVisiveis ? 'ocultar' : 'exibir';
 
-            if (selectedPeriod === 'dia') {
-                if (modalCampoDataUnica) modalCampoDataUnica.classList.remove('hidden');
-            } else if (selectedPeriod === 'mes') {
-                if (modalCampoMesAno) modalCampoMesAno.classList.remove('hidden');
-            } else if (selectedPeriod === 'intervalo') {
-                if (modalCampoIntervalo) modalCampoIntervalo.classList.remove('hidden');
-            }
-        }
-        if (modalFiltroPeriodo) modalFiltroPeriodo.addEventListener('change', toggleModalDateFields);
-
-        if (visualizarRelatorioBtn) visualizarRelatorioBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (relatorioForm) {
-                relatorioForm.action = '<?= BASE_URL; ?>/financeiro/relatorio';
-                relatorioForm.target = '_blank'; // Abre em nova aba
-                relatorioForm.submit();
-            }
-        });
-
-        if (exportarPdfBtn) exportarPdfBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (relatorioForm) {
-                relatorioForm.action = '<?= BASE_URL; ?>/financeiro/exportarRelatorioPdf';
-                relatorioForm.target = '_self'; // Exporta na mesma aba
-                relatorioForm.submit();
-            }
-        });
-
-        // --- GRÁFICOS ---
-        try {
-            const monthlySummary = <?= $monthlySummaryJson ?? '[]'; ?>;
-            const expenseSummary = <?= $expenseSummaryJson ?? '[]'; ?>;
-
-            // Logs de depuração para console (úteis em dev)
-            console.debug('monthlySummary:', monthlySummary);
-            console.debug('expenseSummary:', expenseSummary);
-
-            if (typeof Chart === 'undefined') {
-                console.error('Chart.js não está carregado. Verifique se o script foi incluído na página.');
-            } else {
-                const receitasDespesasCtx = document.getElementById('receitasDespesasChart').getContext('2d');
-                if (monthlySummary && monthlySummary.length > 0) {
-                    const labels = monthlySummary.map(item => {
-                        const [year, month] = item.mes.split('-');
-                        return new Date(year, month - 1).toLocaleString('default', {
-                            month: 'short',
-                            year: '2-digit'
-                        });
-                    });
-                    const receitasData = monthlySummary.map(item => item.receitas);
-                    const despesasData = monthlySummary.map(item => item.despesas);
-
-                    new Chart(receitasDespesasCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: 'Receitas',
-                                data: receitasData,
-                                backgroundColor: 'rgba(16, 185, 129, 0.6)',
-                                borderColor: 'rgba(16, 185, 129, 1)',
-                                borderWidth: 1
-                            }, {
-                                label: 'Despesas',
-                                data: despesasData,
-                                backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                                borderColor: 'rgba(239, 68, 68, 1)',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return 'R$ ' + value.toLocaleString('pt-BR');
-                                        }
-                                    }
-                                }
-                            },
-                            plugins: {
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            let label = context.dataset.label || '';
-                                            if (label) {
-                                                label += ': ';
-                                            }
-                                            if (context.parsed.y !== null) {
-                                                label += 'R$ ' + context.parsed.y.toLocaleString('pt-BR', {
-                                                    minimumFractionDigits: 2
-                                                });
-                                            }
-                                            return label;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                } else {
-                    receitasDespesasCtx.font = "16px Arial";
-                    receitasDespesasCtx.fillStyle = "#9ca3af";
-                    receitasDespesasCtx.textAlign = "center";
-                    receitasDespesasCtx.fillText("Sem dados para exibir no gráfico.", receitasDespesasCtx.canvas.width / 2, receitasDespesasCtx.canvas.height / 2);
-                }
-
-                const despesasCategoriaCtx = document.getElementById('despesasCategoriaChart').getContext('2d');
-                if (expenseSummary && expenseSummary.length > 0) {
-                    const labelsCategoria = expenseSummary.map(item => item.categoria);
-                    const dataCategoria = expenseSummary.map(item => item.total);
-
-                    new Chart(despesasCategoriaCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: labelsCategoria,
-                            datasets: [{
-                                label: 'Despesas',
-                                data: dataCategoria,
-                                backgroundColor: [
-                                    'rgba(239, 68, 68, 0.7)', 'rgba(249, 115, 22, 0.7)', 'rgba(245, 158, 11, 0.7)',
-                                    'rgba(132, 204, 22, 0.7)', 'rgba(34, 197, 94, 0.7)', 'rgba(16, 185, 129, 0.7)',
-                                    'rgba(20, 184, 166, 0.7)', 'rgba(6, 182, 212, 0.7)', 'rgba(59, 130, 246, 0.7)'
-                                ],
-                                hoverOffset: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                        }
-                    });
-                } else {
-                    despesasCategoriaCtx.font = "16px Arial";
-                    despesasCategoriaCtx.fillStyle = "#9ca3af";
-                    despesasCategoriaCtx.textAlign = "center";
-                    despesasCategoriaCtx.fillText("Sem despesas no mês atual.", despesasCategoriaCtx.canvas.width / 2, despesasCategoriaCtx.canvas.height / 2);
-                }
-            }
-        } catch (e) {
-            console.error('Erro ao inicializar gráficos:', e);
-        }
+    saldoEls.forEach(el => {
+      el.textContent = saldosVisiveis ? el.getAttribute('data-valor') : 'R$ ••••••';
+      if (el.hasAttribute('data-exact')) {
+        el.title = saldosVisiveis ? el.getAttribute('data-exact') : '';
+      }
     });
+  }
+  updateSaldos();
+
+  function toggleSaldos() {
+    saldosVisiveis = !saldosVisiveis;
+    try {
+      localStorage.setItem('saldosVisible', saldosVisiveis);
+    } catch (e) {
+      // Apenas ignora se não puder salvar
+    }
+    updateSaldos();
+  }
+  document.getElementById('toggleSaldosBtn')?.addEventListener('click', toggleSaldos);
+  document.getElementById('toggleSaldosBtnAlt')?.addEventListener('click', toggleSaldos);
+
+  /* ── GRÁFICO: RECEITAS VS DESPESAS ── */
+  // Usamos uma verificação mais robusta para garantir que sempre exista um array válido no JS
+  const monthlySummary = <?= !empty($monthlySummaryJson) ? $monthlySummaryJson : '[]' ?>;
+
+  if (typeof Chart !== 'undefined') {
+    const barCtx = document.getElementById('receitasDespesasChart')?.getContext('2d');
+    if (barCtx) {
+      if (monthlySummary && monthlySummary.length > 0) {
+        // Adicionada verificação de existência do campo 'mes' para evitar erro .split() em produção
+        const labels      = monthlySummary.map(i => { if(!i.mes) return 'N/A'; const [y, m] = i.mes.split('-'); return new Date(y, m-1).toLocaleString('pt-BR', {month:'short', year:'2-digit'}); });
+        const receitasData = monthlySummary.map(i => i.receitas);
+        const despesasData = monthlySummary.map(i => i.despesas);
+        
+        // Cálculo do Saldo Acumulado Progressivo
+        const saldoInicial = <?= (float)($saldoAtual ?? 0) ?>;
+        let runningBalance = saldoInicial;
+        const acumuladoData = monthlySummary.map(i => {
+          runningBalance += (parseFloat(i.receitas) - parseFloat(i.despesas));
+          return runningBalance;
+        });
+
+        new Chart(barCtx, {
+          data: {
+            labels,
+            datasets: [
+              { type: 'bar', label:'Receitas', data: receitasData, backgroundColor:'rgba(22,163,74,.6)', borderColor:'#16a34a', borderWidth:1, borderRadius:4, borderSkipped:false, yAxisID: 'y' },
+              { type: 'bar', label:'Despesas', data: despesasData, backgroundColor:'rgba(220,38,38,.55)', borderColor:'#dc2626', borderWidth:1, borderRadius:4, borderSkipped:false, yAxisID: 'y' },
+              { 
+                type: 'line', 
+                label: 'Saldo Acumulado', 
+                data: acumuladoData, 
+                borderColor: '#1d4ed8',
+                borderWidth: 3, 
+                fill: true,
+                tension: 0.3, 
+                pointRadius: 3,
+                pointBackgroundColor: acumuladoData.map(v => v < 0 ? '#dc2626' : '#1d4ed8'),
+                pointBorderColor: acumuladoData.map(v => v < 0 ? '#dc2626' : '#1d4ed8'),
+                yAxisID: 'ySaldo',
+                segment: {
+                  borderColor: ctx => ctx.p1.parsed.y < 0 ? '#dc2626' : undefined,
+                  backgroundColor: ctx => {
+                    return ctx.p1.parsed.y < 0 ? 'rgba(220, 38, 38, 0.1)' : 'rgba(29, 78, 216, 0.1)';
+                  }
+                },
+                order: 0 // Mantém a linha à frente das barras
+              }
+            ]
+          },
+          options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins: { 
+              legend:{ display: false }, 
+              tooltip:{ callbacks:{ label: c => c.dataset.label + ': R$ ' + c.parsed.y.toLocaleString('pt-BR',{minimumFractionDigits:2}) } } 
+            },
+            scales: {
+              y: { beginAtZero:true, grid:{color:'rgba(0,0,0,.05)'}, ticks:{ callback: v => 'R$ ' + Intl.NumberFormat('pt-BR',{notation:'compact'}).format(v), color:'#6b7280', font:{size:11} } },
+              ySaldo: { position: 'right', beginAtZero: false, grid:{ display: false }, ticks: { callback: v => 'R$ ' + Intl.NumberFormat('pt-BR',{notation:'compact'}).format(v), color:'#1d4ed8', font:{size:10} } },
+              x: { grid:{display:false}, ticks:{color:'#6b7280', font:{size:11}} }
+            }
+          }
+        });
+      } else {
+        barCtx.font = '13px sans-serif';
+        barCtx.fillStyle = '#9ca3af';
+        barCtx.textAlign = 'center';
+        barCtx.fillText('Sem dados para exibir.', barCtx.canvas.width/2, barCtx.canvas.height/2);
+      }
+    }
+
+    /* ── GRÁFICO: DISTRIBUIÇÃO DE DESPESAS ── */
+    const categoryData   = <?= !empty($expenseSummaryJson) ? $expenseSummaryJson : '[]' ?>;
+    const costCenterData = <?= !empty($costCenterSummaryJson) ? $costCenterSummaryJson : '[]' ?>;
+    let currentDistType  = 'category';
+    let distChart        = null;
+
+    const PALETTE = ['#1d4ed8','#16a34a','#dc2626','#b45309','#7c3aed','#0369a1','#be185d','#047857','#c2410c','#1d4ed8'];
+
+    function updateDistributionUI(type) {
+      const raw    = type === 'category' ? categoryData : costCenterData;
+      console.log('DEBUG: Distribuição (' + type + ') Iniciando renderização:', raw);
+
+      const dataToProcess = (raw && Array.isArray(raw) && raw.length > 0) ? raw : [];
+      const labels = dataToProcess.map(i => (i.label && i.label !== 'null') ? i.label : 'Sem Nome');
+      const values = dataToProcess.map(i => parseFloat(i.total) || 0);
+      const total  = values.reduce((a,b) => a+b, 0);
+      const colors = labels.map((_, i) => PALETTE[i % PALETTE.length]);
+
+      const ctx = document.getElementById('distributionChart').getContext('2d');
+      if (distChart) distChart.destroy();
+
+      const surfaceColor = getComputedStyle(document.body).getPropertyValue('--fin-surface').trim() || '#fff';
+      distChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets:[{ data:values, backgroundColor:colors, borderWidth:2, borderColor:surfaceColor }] },
+        options: {
+          responsive:true, maintainAspectRatio:false, cutout:'68%',
+          plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c => c.label+': R$ '+c.parsed.toLocaleString('pt-BR',{minimumFractionDigits:2})+' ('+(total > 0 ? Math.round(c.parsed/total*100) : 0)+'%)' } } }
+        }
+      });
+
+      const tbody = document.getElementById('distributionTableBody');
+      tbody.innerHTML = '';
+      if (dataToProcess.length === 0 || total === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:24px;font-style:italic;font-size:11px">Nenhuma despesa registrada para este mês.</td></tr>';
+        return;
+      }
+      dataToProcess.forEach((item, i) => {
+        const label = (item.label && item.label !== 'null') ? item.label : 'Sem Nome';
+        const val   = parseFloat(item.total);
+        const pct   = total > 0 ? ((val/total)*100).toFixed(1) : 0;
+        tbody.innerHTML += `
+          <tr>
+            <td style="padding:4px 0;display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--fin-text)">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${colors[i]};flex-shrink:0;margin-top:3px"></span>
+              <span title="${label}" style="word-break: break-word;">${label}</span>
+            </td>
+            <td style="text-align:right;font-size:11px;color:var(--fin-text);font-weight:700;padding:4px 0 4px 4px;white-space:nowrap">R$ ${val.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+            <td style="text-align:right;font-size:11px;color:var(--fin-muted);padding:4px 0 4px 4px">${pct}%</td>
+          </tr>`;
+      });
+    }
+
+    // Toggle categoria / centro de custo
+    document.getElementById('btnToggleCategory')?.addEventListener('click', function() {
+      if (currentDistType === 'category') return;
+      currentDistType = 'category';
+      this.classList.add('active');
+      document.getElementById('btnToggleCostCenter').classList.remove('active');
+      updateDistributionUI('category');
+    });
+    document.getElementById('btnToggleCostCenter')?.addEventListener('click', function() {
+      if (currentDistType === 'costcenter') return;
+      currentDistType = 'costcenter';
+      this.classList.add('active');
+      document.getElementById('btnToggleCategory').classList.remove('active');
+      updateDistributionUI('costcenter');
+    });
+
+    updateDistributionUI('category');
+  }
+
+  /* ── FILTRO DO GRÁFICO ── */
+  document.getElementById('aplicarFiltroBtn')?.addEventListener('click', () => {
+    const p = document.getElementById('periodoFiltro')?.value;
+    window.location.href = `<?= BASE_URL ?>/financeiro/index?periodo=${p}`;
+  });
+
+  /* ── PAGINAÇÃO DOS CARDS ── */
+  function setupCardPagination(listId, controlsId, pageSize) {
+    const list     = document.getElementById(listId);
+    const controls = document.getElementById(controlsId);
+    if (!list || !controls) return;
+
+    const items      = list.querySelectorAll('li');
+    const totalItems = items.length;
+    const totalPages = Math.ceil(totalItems / pageSize);
+    let currentPage  = 1;
+
+    const btnPrev  = controls.querySelector('.btn-prev');
+    const btnNext  = controls.querySelector('.btn-next');
+    const pageInfo = controls.querySelector('.page-info');
+
+    if (totalItems <= pageSize) { items.forEach(el => el.style.display = ''); return; }
+    controls.classList.remove('hidden');
+
+    function showPage(page) {
+      const start = (page-1) * pageSize;
+      const end   = start + pageSize;
+      items.forEach((el, i) => { el.style.display = (i >= start && i < end) ? '' : 'none'; });
+      if (pageInfo) pageInfo.textContent = `${page}/${totalPages}`;
+      if (btnPrev)  btnPrev.disabled  = page === 1;
+      if (btnNext)  btnNext.disabled  = page === totalPages;
+    }
+    btnPrev?.addEventListener('click', e => { e.preventDefault(); if (currentPage > 1) { currentPage--; showPage(currentPage); } });
+    btnNext?.addEventListener('click', e => { e.preventDefault(); if (currentPage < totalPages) { currentPage++; showPage(currentPage); } });
+    showPage(1);
+  }
+
+  setupCardPagination('lista-pagar',   'paginacao-pagar',   5);
+  setupCardPagination('lista-receber', 'paginacao-receber', 5);
+
+}); // fim DOMContentLoaded
 </script>

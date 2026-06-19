@@ -77,6 +77,20 @@ class BancoController extends BaseController
             exit();
         }
 
+        // Lógica de upload de logo
+        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = ROOT_PATH . '/public/uploads/bancos/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0775, true);
+            }
+            $ext = strtolower(pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION));
+            $newFilename = 'banco_' . uniqid() . '.' . $ext;
+
+            if (move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $newFilename)) {
+                $dados['logo'] = $newFilename;
+            }
+        }
+
         if ($this->bancoModel->salvar($dados)) {
             $this->setFlashMessage('success', 'Banco salvo com sucesso!');
         } else {

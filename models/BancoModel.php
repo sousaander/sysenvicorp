@@ -19,7 +19,7 @@ class BancoModel extends Model
     public function getAll(): array
     {
         try {
-            $stmt = $this->db->query("SELECT id, nome, tipo, saldo_inicial FROM bancos ORDER BY nome ASC");
+            $stmt = $this->db->query("SELECT id, nome, tipo, saldo_inicial, logo FROM bancos ORDER BY nome ASC");
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Erro ao buscar bancos: " . $e->getMessage());
@@ -33,7 +33,7 @@ class BancoModel extends Model
     public function getById(int $id): ?array
     {
         try {
-            $stmt = $this->db->prepare("SELECT id, nome, tipo, saldo_inicial FROM bancos WHERE id = ?");
+            $stmt = $this->db->prepare("SELECT id, nome, tipo, saldo_inicial, logo FROM bancos WHERE id = ?");
             $stmt->execute([$id]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             return $result ?: null;
@@ -49,14 +49,17 @@ class BancoModel extends Model
     public function salvar(array $dados): bool
     {
         $sql = $dados['id']
-            ? "UPDATE bancos SET nome = :nome, tipo = :tipo, saldo_inicial = :saldo_inicial WHERE id = :id"
-            : "INSERT INTO bancos (nome, tipo, saldo_inicial) VALUES (:nome, :tipo, :saldo_inicial)";
+            ? "UPDATE bancos SET nome = :nome, tipo = :tipo, saldo_inicial = :saldo_inicial" . (isset($dados['logo']) ? ", logo = :logo" : "") . " WHERE id = :id"
+            : "INSERT INTO bancos (nome, tipo, saldo_inicial, logo) VALUES (:nome, :tipo, :saldo_inicial, :logo)";
 
         try {
             $stmt = $this->db->prepare($sql);
             $stmt->bindValue(':nome', $dados['nome']);
             $stmt->bindValue(':tipo', $dados['tipo'] ?: 'Conta Corrente');
             $stmt->bindValue(':saldo_inicial', $dados['saldo_inicial']);
+            if (isset($dados['logo']) || !$dados['id']) {
+                $stmt->bindValue(':logo', $dados['logo'] ?? null);
+            }
             if ($dados['id']) {
                 $stmt->bindValue(':id', $dados['id'], PDO::PARAM_INT);
             }
