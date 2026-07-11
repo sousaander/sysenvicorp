@@ -135,6 +135,7 @@ if (session_status() == PHP_SESSION_NONE) session_start();
   .fin-badge.sky    { background: var(--fin-sky-light);   color: var(--fin-sky); }
   .fin-badge.amber  { background: var(--fin-amber-light); color: var(--fin-amber); }
   .fin-badge.gray   { background: #f3f4f6; color: #374151; }
+  .dark-theme .fin-badge.gray { background: rgba(148,163,184,.12); color: #d1d5db; }
 
   /* Alert */
   .fin-alert {
@@ -577,7 +578,12 @@ $kpiPagarCor = $venceHoje ? 'amber' : 'red';
                 </span>
                 <span class="conta-meta">
                   <span class="conta-date"><?= date('d/m', strtotime($conta['vencimento'])) ?></span>
-                  <span class="font-bold text-red-600 text-sm">R$ <?= number_format($conta['valor'], 2, ',', '.') ?></span>
+                  <?php if (isset($conta['status']) && $conta['status'] === 'Pago Parcial'): ?>
+                    <span class="text-xs text-blue-500 font-medium mr-1">Restam</span>
+                    <span class="font-bold text-red-600 text-sm">R$ <?= number_format(($conta['valor'] + ($conta['juros'] ?? 0) - ($conta['desconto'] ?? 0)) - ($conta['valor_pago'] ?? 0), 2, ',', '.') ?></span>
+                  <?php else: ?>
+                    <span class="font-bold text-red-600 text-sm">R$ <?= number_format($conta['valor'], 2, ',', '.') ?></span>
+                  <?php endif; ?>
                 </span>
               </li>
             <?php endforeach; ?>
@@ -626,7 +632,12 @@ $kpiPagarCor = $venceHoje ? 'amber' : 'red';
                 </span>
                 <span class="conta-meta">
                   <span class="conta-date"><?= date('d/m', strtotime($conta['vencimento'])) ?></span>
-                  <span class="font-bold text-green-600 text-sm">R$ <?= number_format($conta['valor'], 2, ',', '.') ?></span>
+                  <?php if (isset($conta['status']) && $conta['status'] === 'Pago Parcial'): ?>
+                    <span class="text-xs text-blue-500 font-medium mr-1">Restam</span>
+                    <span class="font-bold text-green-600 text-sm">R$ <?= number_format(($conta['valor'] + ($conta['juros'] ?? 0) - ($conta['desconto'] ?? 0)) - ($conta['valor_pago'] ?? 0), 2, ',', '.') ?></span>
+                  <?php else: ?>
+                    <span class="font-bold text-green-600 text-sm">R$ <?= number_format($conta['valor'], 2, ',', '.') ?></span>
+                  <?php endif; ?>
                 </span>
               </li>
             <?php endforeach; ?>
@@ -1176,7 +1187,15 @@ $kpiPagarCor = $venceHoje ? 'amber' : 'red';
                 <span class="fin-badge <?= $tipoBadge ?>"><?= htmlspecialchars($tipoLabel) ?></span>
               </td>
               <td class="right font-bold" style="<?= $valorCor ?>">
-                <?= $valorSign ?>R$ <?= number_format($transacao['valor'], 2, ',', '.') ?>
+                <?php if ($transacao['status'] === 'Pago'): ?>
+                  <?= $valorSign ?>R$ <?= number_format($transacao['valor_pago'] ?? $transacao['valor'], 2, ',', '.') ?>
+                <?php elseif ($transacao['status'] === 'Pago Parcial'): ?>
+                  <span class="text-gray-500"><?= $valorSign ?>R$ <?= number_format($transacao['valor'], 2, ',', '.') ?></span>
+                  <br>
+                  <span class="text-xs" style="color:var(--fin-blue)">Pago: R$ <?= number_format($transacao['valor_pago'] ?? 0, 2, ',', '.') ?> | Resta: R$ <?= number_format(($transacao['valor'] + ($transacao['juros'] ?? 0) - ($transacao['desconto'] ?? 0)) - ($transacao['valor_pago'] ?? 0), 2, ',', '.') ?></span>
+                <?php else: ?>
+                  <?= $valorSign ?>R$ <?= number_format($transacao['valor'], 2, ',', '.') ?>
+                <?php endif; ?>
               </td>
               <td class="center">
                 <div style="display:flex;align-items:center;justify-content:center;gap:10px">

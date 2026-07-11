@@ -25,7 +25,8 @@ function is_active($path) {
     height: 64px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 10px;
+    padding: 0 12px;
     flex-shrink: 0;
     cursor: pointer;
     border-bottom: 1px solid rgba(255,255,255,0.07);
@@ -34,16 +35,59 @@ function is_active($path) {
 }
 #sidebar-header:hover { background: rgba(255,255,255,0.06); }
 
-#sidebar-header img {
-    height: 36px;
-    width: 36px;
-    object-fit: contain;
-    transition: transform 0.3s ease, filter 0.3s ease;
-    filter: drop-shadow(0 0 6px rgba(56,189,248,0.25));
+.sidebar-logo-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
 }
-#sidebar-header:hover img {
-    transform: scale(1.08);
-    filter: drop-shadow(0 0 12px rgba(56,189,248,0.5));
+
+.sidebar-logo-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid rgba(255,255,255,0.15);
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+#sidebar-header:hover .sidebar-logo-icon {
+    background: #fff;
+    border-color: rgba(255,255,255,0.3);
+}
+
+.sidebar-logo-icon img {
+    height: 24px;
+    width: 24px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+#sidebar-header:hover .sidebar-logo-icon img {
+    transform: scale(1.1);
+}
+
+.sidebar-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    transition: opacity 0.3s ease;
+}
+.sidebar-brand-name {
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.02em;
+}
+.sidebar-brand-sub {
+    font-size: 10px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .sidebar-collapse-btn {
@@ -59,7 +103,7 @@ function is_active($path) {
     justify-content: center;
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.4);
+    color: rgba(255,255,255,0.6);
     font-size: 14px;
     transition: all 0.2s ease;
 }
@@ -89,7 +133,7 @@ function is_active($path) {
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.28);
+    color: rgba(255,255,255,0.5);
     padding: 12px 10px 4px;
     margin-bottom: 2px;
 }
@@ -103,7 +147,7 @@ function is_active($path) {
     border-radius: 8px;
     font-size: 13px;
     font-weight: 450;
-    color: rgba(255,255,255,0.6);
+    color: rgba(255,255,255,0.78);
     text-decoration: none;
     cursor: pointer;
     transition: all 0.18s ease;
@@ -161,10 +205,10 @@ function is_active($path) {
 .has-submenu > ul .sys-sidebar-item {
     font-size: 12.5px;
     padding: 6px 10px;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255,255,255,0.68);
 }
 .has-submenu > ul .sys-sidebar-item:hover,
-.has-submenu > ul .sys-sidebar-item.active { color: rgba(255,255,255,0.88); }
+.has-submenu > ul .sys-sidebar-item.active { color: rgba(255,255,255,0.92); }
 
 /* Submenu de terceiro nível */
 .has-submenu > ul .has-submenu > ul {
@@ -234,6 +278,12 @@ function is_active($path) {
 .item-slate .icon-box-3d { background: rgba(148,163,184,0.12); border-color: rgba(148,163,184,0.18); color: #94A3B8; }
 .item-slate.active .icon-box-3d, .item-slate:hover .icon-box-3d { background: rgba(148,163,184,0.2); }
 
+/* Orange — Fiscal e Contábil */
+.item-orange.active, .item-orange:hover { background: rgba(249,115,22,0.1); }
+.item-orange.active::before { background: #f97316; }
+.item-orange .icon-box-3d { background: rgba(249,115,22,0.12); border-color: rgba(249,115,22,0.18); color: #f97316; }
+.item-orange.active .icon-box-3d, .item-orange:hover .icon-box-3d { background: rgba(249,115,22,0.2); }
+
 /* ── Badge de contagem ── */
 .sidebar-badge {
     margin-left: auto;
@@ -258,7 +308,15 @@ function is_active($path) {
 
 <!-- Sidebar Header -->
 <div id="sidebar-header">
-    <img src="<?php echo BASE_URL; ?>/public/assets/images/logo-icon.png" alt="logo icon">
+    <div class="sidebar-logo-wrap">
+        <div class="sidebar-logo-icon">
+            <img src="<?php echo BASE_URL; ?>/public/assets/images/logo-icon.png" alt="logo icon">
+        </div>
+        <div class="sidebar-brand-text">
+            <span class="sidebar-brand-name">Envicorp</span>
+            <span class="sidebar-brand-sub">Engenharia & Negócios</span>
+        </div>
+    </div>
     <div class="sidebar-collapse-btn sidebar-text">
         <i class='bx bx-chevrons-left'></i>
     </div>
@@ -451,6 +509,115 @@ function is_active($path) {
                             <li><a href="<?php echo BASE_URL; ?>/rh/historicoFerias" class="sys-sidebar-item item-rose group"><span class="sidebar-text">Histórico de Férias</span></a></li>
                         </ul>
                     </li>
+                <?php endif; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <!-- Módulo Fiscal e Contábil -->
+    <?php if (has_any_permission(['fiscal_dashboard_view', 'fiscal_lancamentos_view', 'fiscal_notas_view', 'fiscal_relatorios_view', 'contabil_dashboard_view', 'contabil_planocontas_view', 'contabil_lancamentos_view', 'contabil_integrar', 'contabil_demonstracoes_view', 'contabil_conciliacao_view', 'contabil_parametros_view', 'estoque_view', 'estoque_manage', 'estoque_movimentar', 'estoque_inventario', 'estoque_integrar', 'regras_fiscais_view', 'regras_fiscais_manage', 'relatorios_view', 'relatorios_manage', 'obrigacoes_fiscais_view', 'obrigacoes_fiscais_manage', 'legislacao_view', 'legislacao_manage'])) : ?>
+        <div class="has-submenu">
+            <a href="#" class="sys-sidebar-item item-orange justify-between w-full group <?php echo is_active('/fiscal') ?: is_active('/contabil'); ?>">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div class="icon-box-3d"><i class='bx bxs-calculator'></i></div>
+                    <span class="sidebar-text">Fiscal e Contábil</span>
+                </div>
+                <i class='bx bx-chevron-down submenu-arrow sidebar-text <?php echo (is_active('/fiscal') || is_active('/contabil')) ? 'rotate-180' : ''; ?>'></i>
+            </a>
+            <ul class="hidden mt-1 space-y-1">
+
+                <span class="sidebar-section-label sidebar-text" style="padding:6px 10px 2px;font-size:8px">Fiscal</span>
+
+                <?php if (has_permission('fiscal_dashboard_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/fiscal" class="sys-sidebar-item item-orange group <?php echo is_active('/fiscal/index'); ?>"><span class="sidebar-text">Dashboard Fiscal</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('fiscal_lancamentos_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/fiscal/lancamentos" class="sys-sidebar-item item-orange group <?php echo is_active('/fiscal/lancamentos'); ?>"><span class="sidebar-text">Lançamentos</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('fiscal_notas_view')) : ?>
+                    <li class="has-submenu">
+                        <a href="#" class="sys-sidebar-item item-orange justify-between w-full group <?php echo is_active('/fiscal/notas') ?: is_active('/nfse') ?: is_active('/cte'); ?>" style="justify-content:space-between">
+                            <span class="sidebar-text">Notas Fiscais</span>
+                            <i class='bx bx-chevron-down submenu-arrow sidebar-text' style="font-size:12px"></i>
+                        </a>
+                        <ul class="hidden mt-1 space-y-1" style="border-left:1px solid rgba(255,255,255,0.06);margin-left:14px;padding-left:10px">
+                            <li><a href="<?php echo BASE_URL; ?>/fiscal/notas" class="sys-sidebar-item item-orange group <?php echo is_active('/fiscal/notas'); ?>"><span class="sidebar-text">NF-e</span></a></li>
+                            <li><a href="<?php echo BASE_URL; ?>/nfse" class="sys-sidebar-item item-orange group <?php echo is_active('/nfse'); ?>"><span class="sidebar-text">NFS-e</span></a></li>
+                            <li><a href="<?php echo BASE_URL; ?>/cte" class="sys-sidebar-item item-orange group <?php echo is_active('/cte'); ?>"><span class="sidebar-text">CT-e</span></a></li>
+                        </ul>
+                    </li>
+                <?php endif; ?>
+                <?php if (has_permission('fiscal_relatorios_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/fiscal/relatorios" class="sys-sidebar-item item-orange group <?php echo is_active('/fiscal/relatorios'); ?>"><span class="sidebar-text">Relatórios</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('fiscal_relatorios_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/fiscal/sped" class="sys-sidebar-item item-orange group <?php echo is_active('/fiscal/sped'); ?>"><span class="sidebar-text">SPED</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('fiscal_relatorios_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/fiscal/retencoes" class="sys-sidebar-item item-orange group <?php echo is_active('/fiscal/retencoes'); ?>"><span class="sidebar-text">Retenções</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('fiscal_relatorios_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/fiscal/parametros" class="sys-sidebar-item item-orange group <?php echo is_active('/fiscal/parametros'); ?>"><span class="sidebar-text">Parâmetros</span></a></li>
+                <?php endif; ?>
+
+                <span class="sidebar-section-label sidebar-text" style="padding:6px 10px 2px;font-size:8px">Contábil</span>
+
+                <?php if (has_permission('contabil_dashboard_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/contabil" class="sys-sidebar-item item-orange group <?php echo is_active('/contabil/index'); ?>"><span class="sidebar-text">Dashboard Contábil</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('contabil_planocontas_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/contabil/planocontas" class="sys-sidebar-item item-orange group <?php echo is_active('/contabil/planocontas'); ?>"><span class="sidebar-text">Plano de Contas</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('contabil_lancamentos_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/contabil/lancamentos" class="sys-sidebar-item item-orange group <?php echo is_active('/contabil/lancamentos'); ?>"><span class="sidebar-text">Lançamentos Contábeis</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('contabil_integrar')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/contabil/integrar" class="sys-sidebar-item item-orange group <?php echo is_active('/contabil/integrar'); ?>"><span class="sidebar-text">Lançamentos Automáticos</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('contabil_demonstracoes_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/contabil/demonstracoes" class="sys-sidebar-item item-orange group <?php echo is_active('/contabil/demonstracoes'); ?>"><span class="sidebar-text">Demonstrações Contábeis</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('contabil_conciliacao_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/contabil/conciliacoes" class="sys-sidebar-item item-orange group <?php echo is_active('/contabil/conciliacoes'); ?>"><span class="sidebar-text">Conciliação Bancária</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('contabil_parametros_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/contabil/parametros" class="sys-sidebar-item item-orange group <?php echo is_active('/contabil/parametros'); ?>"><span class="sidebar-text">Parâmetros Contábeis</span></a></li>
+                <?php endif; ?>
+
+                <span class="sidebar-section-label sidebar-text" style="padding:6px 10px 2px;font-size:8px">Boas Práticas</span>
+
+                <?php if (has_any_permission(['regras_fiscais_view', 'regras_fiscais_manage'])) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/regrasFiscais" class="sys-sidebar-item item-orange group <?php echo is_active('/regrasFiscais'); ?>"><span class="sidebar-text">Regras Fiscais</span></a></li>
+                <?php endif; ?>
+                <?php if (has_any_permission(['relatorios_view', 'relatorios_manage'])) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/relatorios" class="sys-sidebar-item item-orange group <?php echo is_active('/relatorios'); ?>"><span class="sidebar-text">Relatórios Personalizados</span></a></li>
+                <?php endif; ?>
+                <?php if (has_any_permission(['obrigacoes_fiscais_view', 'obrigacoes_fiscais_manage'])) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/obrigacoesFiscais/dashboard" class="sys-sidebar-item item-orange group <?php echo is_active('/obrigacoesFiscais'); ?>"><span class="sidebar-text">Obrigações Fiscais</span></a></li>
+                <?php endif; ?>
+                <?php if (has_any_permission(['legislacao_view', 'legislacao_manage'])) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/legislacao" class="sys-sidebar-item item-orange group <?php echo is_active('/legislacao'); ?>"><span class="sidebar-text">Legislação</span></a></li>
+                <?php endif; ?>
+
+                <span class="sidebar-section-label sidebar-text" style="padding:6px 10px 2px;font-size:8px">Estoque</span>
+
+                <?php if (has_any_permission(['estoque_view', 'estoque_manage', 'estoque_movimentar', 'estoque_inventario'])) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/estoque" class="sys-sidebar-item item-orange group <?php echo is_active('/estoque/index'); ?>"><span class="sidebar-text">Dashboard</span></a></li>
+                <?php endif; ?>
+                <?php if (has_any_permission(['estoque_view', 'estoque_manage'])) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/estoque/produtos" class="sys-sidebar-item item-orange group <?php echo is_active('/estoque/produtos'); ?>"><span class="sidebar-text">Produtos</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('estoque_movimentar')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/estoque/movimentos" class="sys-sidebar-item item-orange group <?php echo is_active('/estoque/movimentos'); ?>"><span class="sidebar-text">Movimentações</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('estoque_view')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/estoque/saldo" class="sys-sidebar-item item-orange group <?php echo is_active('/estoque/saldo'); ?>"><span class="sidebar-text">Saldo</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('estoque_inventario')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/estoque/inventarios" class="sys-sidebar-item item-orange group <?php echo is_active('/estoque/inventarios'); ?>"><span class="sidebar-text">Inventário</span></a></li>
+                <?php endif; ?>
+                <?php if (has_permission('estoque_integrar')) : ?>
+                    <li><a href="<?php echo BASE_URL; ?>/estoque/integrar" class="sys-sidebar-item item-orange group <?php echo is_active('/estoque/integrar'); ?>"><span class="sidebar-text">Integração Contábil</span></a></li>
                 <?php endif; ?>
             </ul>
         </div>

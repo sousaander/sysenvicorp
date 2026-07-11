@@ -138,9 +138,9 @@ class FinanceiroController extends BaseController
             $bancosMap[$b['id']] = $b['nome'];
         }
 
-        // Anexa nome do banco e info do parceiro de transferência para cada transação
+        // Anexa info do parceiro de transferência para cada transação
+        // banco_nome e banco_color já vêm do SQL (LEFT JOIN com bancos, sem filtro de ativo)
         foreach ($fluxoCaixa as &$t) {
-            $t['banco_nome'] = $bancosMap[$t['banco_id']] ?? 'N/A';
             $t['partner_banco_nome'] = null;
             if (!empty($t['documento_vinculado'])) {
                 $t['transfer_partner_id'] = $this->financeiroModel->encontrarIdParceiroTransferenciaPorDocumento($t['documento_vinculado']);
@@ -659,17 +659,22 @@ class FinanceiroController extends BaseController
             $bancosMap[$b['id']] = $b;
         }
 
-        // Anexa nome do banco e info do parceiro de transferência para uso nas views
+        // Anexa info do parceiro de transferência para uso nas views
+        // banco_nome e banco_color já vêm do SQL (LEFT JOIN com bancos, sem filtro de ativo)
         foreach ($fluxoCaixa as &$t) {
-            $t['banco_nome'] = $bancosMap[$t['banco_id']]['nome'] ?? 'N/A';
-            $t['banco_color'] = $bancosMap[$t['banco_id']]['cor'] ?? '#FFFFFF';
+            $t['banco_color'] ??= '#FFFFFF';
             $t['transfer_partner_id'] = null;
             if (!empty($t['documento_vinculado'])) {
                 $t['transfer_partner_id'] = $this->financeiroModel->encontrarIdParceiroTransferenciaPorDocumento($t['documento_vinculado']);
                 if (!empty($t['transfer_partner_id'])) {
                     $partner = $this->financeiroModel->getTransacaoPorId($t['transfer_partner_id']);
                     if ($partner) {
-                        $t['partner_banco_nome'] = $bancosMap[$partner['banco_id']] ?? null;
+                        $partnerBancoId = $partner['banco_id'] ?? null;
+                        $t['partner_banco_nome'] = $bancosMap[$partnerBancoId]['nome'] ?? null;
+                        if (!$t['partner_banco_nome'] && $partnerBancoId) {
+                            $partnerBanco = $this->financeiroModel->getBancoPorId($partnerBancoId);
+                            $t['partner_banco_nome'] = $partnerBanco['nome'] ?? null;
+                        }
                     }
                 }
             }
@@ -928,6 +933,7 @@ class FinanceiroController extends BaseController
             'centrosCusto' => $centrosCusto, // Passa para a view
             'clientes' => $clientes,
             'fornecedores' => $fornecedores,
+            'tipoPreSelecionado' => $tipoPreSelecionado,
         ];
         $this->renderView('financeiro/form', $data);
     }
@@ -972,6 +978,8 @@ class FinanceiroController extends BaseController
         $clientes = $this->clientesModel->getAllClientes();
         $fornecedores = $this->fornecedoresModel->getAllFornecedores();
 
+        $pagamentosParciais = $this->financeiroModel->getPagamentosParciais($transacao['id']);
+
         $data = [
             'pageTitle' => 'Editar Movimentação',
             'transacao' => $transacao,
@@ -980,6 +988,7 @@ class FinanceiroController extends BaseController
             'centrosCusto' => $centrosCusto,
             'clientes' => $clientes,
             'fornecedores' => $fornecedores,
+            'pagamentosParciais' => $pagamentosParciais,
         ];
 
         $this->renderView('financeiro/form', $data);
@@ -1029,6 +1038,7 @@ class FinanceiroController extends BaseController
             'clientes' => $clientes,
             'fornecedores' => $fornecedores,
             'urlVoltar' => $urlVoltar,
+            'pagamentosParciais' => $this->financeiroModel->getPagamentosParciais($transacao['id']),
         ];
         $this->renderView('financeiro/form', $data); // Reutiliza a view do formulário para edição
     }
@@ -1079,8 +1089,12 @@ class FinanceiroController extends BaseController
             $this->session->set('last_submit_time', time());
 
             // Tratamento especial para o campo 'valor' que vem formatado
-            $valorFormatado = $_POST['valor'] ?? '0';
-            $valorFormatado = trim($valorFormatado);
+            // Fallback para o campo de display caso o hidden 'valor' venha vazio
+            $valorRaw = $_POST['valor'] ?? '';
+            if ($valorRaw === '' || $valorRaw === '0,00' || $valorRaw === '0') {
+                $valorRaw = $_POST['valor_formatado_display'] ?? '0';
+            }
+            $valorFormatado = trim($valorRaw);
             // Converte valores monetários em formatos pt-BR (ex: 1.234,56) ou en (ex: 1234.56) para float
             $valorFloat = (function ($str) {
                 $str = trim($str);
@@ -1118,6 +1132,11 @@ class FinanceiroController extends BaseController
                 'tipo' => filter_input(INPUT_POST, 'tipo', FILTER_SANITIZE_SPECIAL_CHARS),
                 'descricao' => filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS),
                 'valor' => $valorFloat,
+                'valor_pago' => (function ($str) use ($existingTransacao) {
+                    $str = trim($str ?? '');
+                    if ($str === '') return $existingTransacao['valor_pago'] ?? 0;
+                    return (float)str_replace(['.', ','], ['', '.'], $str);
+                })($_POST['valor_pago'] ?? null),
                 'vencimento' => filter_input(INPUT_POST, 'vencimento'),
                 'data_pagamento' => filter_input(INPUT_POST, 'data_pagamento') ?: null, // Novo campo
                 'dataEmissao' => filter_input(INPUT_POST, 'dataEmissao') ?: null,
@@ -1150,6 +1169,28 @@ class FinanceiroController extends BaseController
                 'tipo_repeticao' => filter_input(INPUT_POST, 'tipo_repeticao', FILTER_SANITIZE_SPECIAL_CHARS) ?: 'parcelamento',
                 'parcelas' => filter_input(INPUT_POST, 'parcelas', FILTER_VALIDATE_INT) ?: 1,
             ];
+
+            // Se o usuário marcou 'Pago' mas não há valor_pago, volta para Pendente
+            if ($dados['status'] === 'Pago' && $dados['valor_pago'] <= 0) {
+                $dados['status'] = 'Pendente';
+            }
+            // Status Pendente sempre zera o valor_pago, remove pagamentos parciais e limpa data_pagamento
+            if ($dados['status'] === 'Pendente') {
+                $dados['valor_pago'] = 0;
+                $dados['data_pagamento'] = null;
+                if ($dados['id']) {
+                    $this->financeiroModel->limparPagamentosParciais($dados['id']);
+                }
+            }
+            // Para Pago Parcial, arredonda o valor vindo do POST
+            if ($dados['status'] === 'Pago Parcial') {
+                $dados['valor_pago'] = round($dados['valor_pago'], 2);
+                // Se o total pago atingir ou exceder o valor original, considera como Pago
+                if ($dados['valor_pago'] >= $dados['valor']) {
+                    $dados['valor_pago'] = $dados['valor'];
+                    $dados['status'] = 'Pago';
+                }
+            }
 
             // --- INÍCIO: Lógica de Upload de Anexo ---
             $anexoPath = null;
@@ -1293,6 +1334,20 @@ class FinanceiroController extends BaseController
 
                         if ($transacaoId) {
                             $this->sincronizarDespesaProjeto($transacaoId);
+
+                            // Insere na tabela de histórico de pagamentos parciais
+                            if (in_array($dados['status'], ['Pago', 'Pago Parcial']) && $dados['valor_pago'] > 0) {
+                                $valorPagoExistente = (float)($existingTransacao['valor_pago'] ?? 0);
+                                $diferenca = round($dados['valor_pago'] - $valorPagoExistente, 2);
+                                if ($diferenca > 0) {
+                                    $this->financeiroModel->inserirPagamentoParcial(
+                                        $transacaoId,
+                                        $diferenca,
+                                        $dados['data_pagamento'] ?? date('Y-m-d'),
+                                        $dados['forma_pagamento'] ?? null
+                                    );
+                                }
+                            }
                         }
 
                         $message = $id ? 'Transação atualizada com sucesso!' : 'Transação cadastrada com sucesso!';
@@ -1304,7 +1359,6 @@ class FinanceiroController extends BaseController
                 }
             } else {
                 $this->setFlashMessage('error', 'Dados inválidos. Por favor, preencha todos os campos obrigatórios.');
-                error_log("Dados inválidos recebidos no formulário financeiro.");
             }
         }
 
@@ -1472,6 +1526,50 @@ class FinanceiroController extends BaseController
         }
 
         header('Location: ' . $_SERVER['HTTP_REFERER'] ?? BASE_URL . '/financeiro/movimentacoes');
+        exit();
+    }
+
+    public function ajaxEditarPagamentoParcial()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
+            echo json_encode(['success' => false, 'message' => 'Requisição inválida.']);
+            exit();
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        $valor = (float)str_replace(['.', ','], ['', '.'], $_POST['valor'] ?? '0');
+        $dataPagamento = $_POST['data_pagamento'] ?? '';
+        $formaPagamento = $_POST['forma_pagamento'] ?? '';
+
+        if ($id <= 0 || $valor <= 0 || !$dataPagamento) {
+            echo json_encode(['success' => false, 'message' => 'Dados inválidos.']);
+            exit();
+        }
+
+        $resultado = $this->financeiroModel->editarPagamentoParcial($id, $valor, $dataPagamento, $formaPagamento ?: null);
+        echo json_encode($resultado);
+        exit();
+    }
+
+    public function ajaxExcluirPagamentoParcial()
+    {
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !$this->validateCsrfToken($_POST['csrf_token'] ?? '')) {
+            echo json_encode(['success' => false, 'message' => 'Requisição inválida.']);
+            exit();
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            echo json_encode(['success' => false, 'message' => 'ID inválido.']);
+            exit();
+        }
+
+        $resultado = $this->financeiroModel->excluirPagamentoParcial($id);
+        echo json_encode($resultado);
         exit();
     }
 
@@ -1694,7 +1792,7 @@ class FinanceiroController extends BaseController
         } else {
             $orderBy = "CASE 
                 WHEN t.status = 'Atrasado' OR (t.status = 'Pendente' AND t.vencimento < CURDATE()) THEN 0 
-                WHEN t.status = 'Pendente' THEN 1 
+                WHEN t.status = 'Pendente' OR t.status = 'Pago Parcial' THEN 1 
                 ELSE 2 
             END, t.vencimento";
             $orderDir = 'ASC';
@@ -1704,8 +1802,10 @@ class FinanceiroController extends BaseController
         $totalTransacoes = $this->financeiroModel->getContagemTransacoes('R', $filtros);
         $totalPaginas = ceil($totalTransacoes / $itensPorPagina);
 
-        // Calcula o total dos valores exibidos na página atual
-        $totalPagina = array_sum(array_column($transacoes, 'valor'));
+        // Calcula o total dos valores exibidos na página atual (considerando saldo restante para parciais)
+        $totalPagina = array_sum(array_map(function($t) {
+            return ($t['status'] === 'Pago Parcial') ? ($t['valor'] - ($t['valor_pago'] ?? 0)) : $t['valor'];
+        }, $transacoes));
 
         $titulo = 'Recebimentos'; // Título padrão
         if ($filtros['status'] === 'Pendente' || $filtros['status'] === 'Atrasado') {

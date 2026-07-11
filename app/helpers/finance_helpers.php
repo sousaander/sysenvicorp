@@ -11,24 +11,21 @@ if (!function_exists('get_bank_flag_url')) {
     function get_bank_flag_url(string $bankName): string
     {
         $base_url = BASE_URL . '/img/bank_flags/';
-        $default_flag = $base_url . 'default.svg'; // Ícone padrão
+        $default_flag = '';
 
         $normalized_name = strtolower($bankName);
 
         // Mapeamento de palavras-chave para nomes de arquivos de imagem
         $map = [
             'caixa principal (escritório)' => 'caixa-principal-escritorio.png',
-            'itau' => 'itau.svg',
-            'itaú' => 'itau.svg',
-            'bradesco' => 'bradesco.svg',
-            'caixa' => 'caixa.svg',
+            'caixa' => 'caixa-principal-escritorio.png',
+            'itaú' => 'itaú.png',
+            'itau' => 'itaú.png',
             'santander' => 'santander.png',
-            'banco do brasil' => 'bancodobrasil.svg',
-            'bb' => 'bancodobrasil.svg',
-            'sicoob' => 'sicoob.svg',
-            'sicredi' => 'sicredi.svg',
+            'banco do brasil' => 'banco do brasil.png',
+            'bb' => 'banco do brasil.png',
+            'sicoob' => 'sicoob.png',
             'inter' => 'inter.png',
-            'nubank' => 'nubank.svg',
             'cora' => 'cora.png',
         ];
 
@@ -85,6 +82,7 @@ if (!function_exists('get_status_config')) {
             'Pendente' => ['texto' => 'Pendente', 'classes' => 'bg-yellow-200 text-yellow-800'],
             'Atrasado' => ['texto' => 'Atrasado', 'classes' => 'bg-red-200 text-red-800'],
             'Cancelado' => ['texto' => 'Cancelado', 'classes' => 'bg-gray-200 text-gray-800'],
+            'Pago Parcial' => ['texto' => ($tipo === 'R' ? 'Parcialmente Recebido' : 'Pago Parcial'), 'classes' => 'bg-blue-200 text-blue-800'],
         ];
 
         return $statusMap[$status] ?? ['texto' => htmlspecialchars($status), 'classes' => 'bg-gray-200 text-gray-800'];

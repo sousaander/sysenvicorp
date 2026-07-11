@@ -226,6 +226,67 @@ if (!isset($monthlySummary)) {
   /* === CHART === */
   .db-chart-wrap { position: relative; height: 220px; }
 
+  /* === MODAL APROVAÇÃO DIRETOR === */
+  #diretorModal > div { background: var(--db-surface); border: 1px solid var(--db-border); border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+  body.dark-theme #diretorModal > div { background: #1a2338; }
+  #diretorModal .space-y-6 > * + * { margin-top: 1.5rem; }
+  #diretorModal .text-xs { font-size: 11px; }
+  #diretorModal .tracking-wide { letter-spacing: 0.05em; }
+  #diretorModal .font-bold { font-weight: 700; }
+  #diretorModal .text-gray-500 { color: var(--db-text3); }
+  #diretorModal .text-gray-800 { color: var(--db-text); }
+  #diretorModal .text-gray-700 { color: var(--db-text2); }
+  #diretorModal .bg-gray-50 { background: var(--db-surface2); }
+  #diretorModal .rounded-lg { border-radius: 8px; }
+  #diretorModal .p-3 { padding: 12px; }
+  #diretorModal .grid-cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  #diretorModal .border-b { border-bottom: 1px solid var(--db-border); }
+  #diretorModal .pb-4 { padding-bottom: 16px; }
+  #diretorModal .pt-4 { padding-top: 16px; }
+  #diretorModal .border-t { border-top: 1px solid var(--db-border); }
+  #diretorModal .flex { display: flex; }
+  #diretorModal .items-center { align-items: center; }
+  #diretorModal .justify-between { justify-content: space-between; }
+  #diretorModal .justify-end { justify-content: flex-end; }
+  #diretorModal .gap-3 { gap: 12px; }
+  #diretorModal .gap-4 { gap: 16px; }
+  #diretorModal .text-sm { font-size: 13px; }
+  #diretorModal .text-xl { font-size: 20px; }
+  #diretorModal .leading-none { line-height: 1; }
+  #diretorModal .text-2xl { font-size: 24px; }
+  #diretorModal .uppercase { text-transform: uppercase; }
+  #diretorModal .mt-1 { margin-top: 4px; }
+  #diretorModal .mb-1 { margin-bottom: 4px; }
+  #diretorModal .mr-1 { margin-right: 4px; }
+  #diretorModal .mr-2 { margin-right: 8px; }
+  #diretorModal .text-indigo-500 { color: var(--db-accent2); }
+  #diretorModal .text-indigo-600 { color: var(--db-accent2); }
+  #diretorModal .text-sky-600 { color: #0284c7; }
+  #diretorModal .text-rose-600 { color: #e11d48; }
+  #diretorModal .bg-sky-50 { background: rgba(56,189,248,0.08); }
+  #diretorModal .bg-rose-50 { background: rgba(251,113,133,0.08); }
+  #diretorModal .bg-emerald-600 { background: #059669; }
+  #diretorModal .hover\:bg-emerald-700:hover { background: #047857; }
+  #diretorModal .hover\:bg-rose-600:hover { background: #dc2626; }
+  #diretorModal .hover\:text-white:hover { color: #fff; }
+  #diretorModal .border { border: 1px solid var(--db-border); }
+  #diretorModal .border-rose-200 { border-color: #fecaca; }
+  #diretorModal .rounded-xl { border-radius: 12px; }
+  #diretorModal .px-4 { padding-left: 16px; padding-right: 16px; }
+  #diretorModal .py-2 { padding-top: 8px; padding-bottom: 8px; }
+  #diretorModal .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+  #diretorModal .transition { transition: all 0.15s ease; }
+  #diretorModal .text-gray-400 { color: var(--db-text3); }
+  #diretorModal .hover\:text-gray-600:hover { color: var(--db-text2); }
+  body.dark-theme #diretorModal .text-gray-800 { color: #f1f5f9; }
+  body.dark-theme #diretorModal .text-gray-700 { color: #cbd5e1; }
+  body.dark-theme #diretorModal .text-gray-500 { color: #64748b; }
+  body.dark-theme #diretorModal .text-gray-400 { color: #64748b; }
+  body.dark-theme #diretorModal .hover\:text-gray-200:hover { color: #e2e8f0; }
+  body.dark-theme #diretorModal .bg-gray-50 { background: #1a2338; }
+  body.dark-theme #diretorModal .bg-white { background: #131a2b; }
+  body.dark-theme #diretorModal .border-rose-200 { border-color: #7f1d1d; }
+
   /* === MODAL TAREFA (Estilos Faltantes) === */
   .db-modal-box {
     background: var(--db-surface);
@@ -366,7 +427,8 @@ if (!isset($monthlySummary)) {
     <span class="db-card-title">Tarefas em Aberto</span>
     <a href="<?php echo BASE_URL; ?>/projetos" class="db-card-link">Ver todas →</a>
   </div>
-  <?php if (!empty($minhasTarefas)): ?>
+  <?php $hasTasks = !empty($minhasTarefas); $hasProposals = !empty($propostasPendentesDiretor); ?>
+  <?php if ($hasTasks || $hasProposals): ?>
     <div style="overflow-x:auto">
       <table class="db-table">
         <thead>
@@ -388,6 +450,22 @@ if (!isset($monthlySummary)) {
             </td>
           </tr>
           <?php endforeach; ?>
+          <?php if ($hasProposals): ?>
+          <tr><td colspan="5" style="padding:0.4rem 1rem;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--db-text2);background:var(--db-surface2)">Aprovação de Diretor</td></tr>
+          <?php foreach ($propostasPendentesDiretor as $prop): 
+            $propPrazo = !empty($prop['enviado_para_diretor_em']) ? date('d/m/Y', strtotime($prop['enviado_para_diretor_em'] . ' +3 days')) : '—';
+          ?>
+          <tr style="background:rgba(227,161,26,0.04)">
+            <td class="bold"><i class="fas fa-user-tie" style="color:var(--db-orange);margin-right:6px"></i>Proposta #<?= htmlspecialchars($prop['numero_proposta'] ?? $prop['id']) ?> — <?= htmlspecialchars($prop['cliente_nome'] ?? 'N/A') ?></td>
+            <td>Comercial</td>
+            <td><span class="db-badge orange">Alta</span></td>
+            <td><?= $propPrazo ?></td>
+            <td style="text-align:right">
+              <button onclick="abrirModalDiretor(<?= $prop['id'] ?>)" class="db-btn-sm" style="background:var(--db-orange);color:#fff;border:none;font-weight:700">Aprovar</button>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+          <?php endif; ?>
         </tbody>
       </table>
     </div>
@@ -583,6 +661,92 @@ if (!isset($monthlySummary)) {
   </div>
 </div>
 
+<!-- === MODAL APROVAÇÃO DIRETOR === -->
+<div id="diretorModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-[60] hidden" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);align-items:center;justify-content:center">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+    <div id="diretorModalContent" class="p-6"></div>
+  </div>
+</div>
+
+<!-- ── Modal de envio de E-mail ── -->
+<?php
+$nomeEmpresa = htmlspecialchars($empresa['nome_fantasia'] ?? $empresa['razao_social'] ?? '');
+$userEmail = htmlspecialchars($userEmail ?? '');
+$userCargo = htmlspecialchars($userCargo ?? '');
+$remetenteNome = htmlspecialchars($userName ?? '');
+$assinaturaPadrao = $nomeEmpresa . "\n" . ($userCargo ? $userCargo . ' - ' : '') . $remetenteNome;
+$logoUrl = '';
+$logoPath = $empresa['logo_path'] ?? '';
+if ($logoPath) {
+    $logoFile = ROOT_PATH . '/public/uploads/logos/' . $logoPath;
+    if (file_exists($logoFile)) {
+        $logoUrl = BASE_URL . '/uploads/logos/' . $logoPath;
+    }
+}
+?>
+<div id="emailModal" class="fixed inset-0 bg-gray-800 dark:bg-black bg-opacity-75 dark:bg-opacity-75 flex items-center justify-center z-50 hidden">
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl">
+    <form id="emailForm" action="" method="POST" class="p-6">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token ?? '') ?>" />
+      <h3 class="text-xl font-bold mb-4 dark:text-white">Enviar Proposta por E-mail</h3>
+
+<div class="mb-4 p-3 bg-blue-50 dark:bg-gray-700/80 border border-blue-200 dark:border-gray-600 rounded-lg">
+        <label class="block text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">De (remetente)</label>
+        <div class="flex items-center gap-3 mt-1">
+          <?php if ($logoUrl): ?>
+            <img src="<?= $logoUrl ?>" alt="<?= $nomeEmpresa ?>" class="h-8 w-auto object-contain">
+          <?php else: ?>
+            <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold text-xs"><?= mb_substr($nomeEmpresa, 0, 2, 'UTF-8') ?></div>
+          <?php endif; ?>
+          <div>
+            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100"><?= $nomeEmpresa ?></p>
+            <p class="text-xs font-medium text-gray-600 dark:text-gray-300">
+              <?= $remetenteNome ?>
+              <span class="text-gray-400 dark:text-gray-400 font-normal">&lt;<?= $userEmail ?>&gt;</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label for="email_destinatario" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Para:</label>
+        <input type="email" name="email_destinatario" id="email_destinatario" required class="w-full border dark:border-gray-700 dark:bg-gray-700 dark:text-white rounded p-2 mt-1" placeholder="email@cliente.com">
+      </div>
+
+      <div class="mb-4">
+        <label for="email_assunto" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Assunto:</label>
+        <input type="text" name="email_assunto" id="email_assunto" required class="w-full border dark:border-gray-700 dark:bg-gray-700 dark:text-white rounded p-2 mt-1">
+      </div>
+
+      <div class="mb-4">
+        <label for="email_corpo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Mensagem:</label>
+        <textarea name="email_corpo" id="email_corpo" rows="6" class="w-full border dark:border-gray-700 dark:bg-gray-700 dark:text-white rounded p-2 mt-1"></textarea>
+      </div>
+
+      <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
+        <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Assinatura (será exibida no rodapé do e-mail)</label>
+        <div class="flex items-start gap-3">
+          <?php if ($logoUrl): ?>
+            <img src="<?= $logoUrl ?>" alt="<?= $nomeEmpresa ?>" class="h-10 w-auto object-contain mt-1">
+          <?php endif; ?>
+          <div class="text-sm text-gray-700 dark:text-gray-300">
+            <p class="font-bold text-gray-900 dark:text-gray-100"><?= $nomeEmpresa ?></p>
+            <p><?= ($userCargo ? $userCargo . ' - ' : '') . $remetenteNome ?></p>
+            <p class="text-xs text-gray-400 dark:text-gray-500"><?= $userEmail ?></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="document.getElementById('emailModal').classList.add('hidden')" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 dark:text-white rounded font-bold">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded font-bold">
+          <i class="fas fa-paper-plane mr-1"></i> Enviar E-mail
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- === SCRIPTS === -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -638,6 +802,159 @@ if (!isset($monthlySummary)) {
     fetch('<?php echo BASE_URL; ?>/projetos/concluirTarefaAjax', { method: 'POST', body: fd })
       .then(r => r.json())
       .then(data => { if (data.success) location.reload(); else alert(data.message || 'Erro.'); });
+  };
+
+  // ── MODAL APROVAÇÃO DIRETOR ──
+  const diretorModal = document.getElementById('diretorModal');
+  const diretorModalContent = document.getElementById('diretorModalContent');
+
+  window.abrirModalDiretor = function(id) {
+    if (!diretorModal || !diretorModalContent) return;
+    diretorModal.style.display = 'flex';
+    diretorModalContent.innerHTML = `
+      <div class="flex justify-center items-center py-16">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+        <p class="ml-4 text-gray-600 font-semibold">Carregando...</p>
+      </div>`;
+    fetch('<?php echo BASE_URL; ?>/orcamento/getDiretorModalAjax/' + id)
+      .then(response => response.text())
+      .then(html => { diretorModalContent.innerHTML = html; })
+      .catch(() => {
+        diretorModalContent.innerHTML = `
+          <div class="p-8 text-center">
+            <i class="fas fa-exclamation-circle text-red-500 text-4xl mb-4"></i>
+            <p class="text-gray-800 font-bold">Erro ao carregar.</p>
+            <button onclick="closeDiretorModal()" class="mt-4 text-indigo-600 underline">Fechar</button>
+          </div>`;
+      });
+  };
+
+  window.closeDiretorModal = function() {
+    if (diretorModal) diretorModal.style.display = 'none';
+    if (diretorModalContent) diretorModalContent.innerHTML = '';
+  };
+
+  window.openPropostaView = function(id) {
+    closeDiretorModal();
+    window.open('<?php echo BASE_URL; ?>/orcamento/pdf/' + id, '_blank');
+  };
+
+  window.aprovarDiretor = function(id, email, titulo, telefone) {
+    Swal.fire({
+      title: 'Confirmar aprovação?',
+      text: 'Esta ação registrará sua aprovação como diretor.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-check"></i> Sim, aprovar',
+      confirmButtonColor: '#059669',
+      cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+      cancelButtonColor: '#6b7280',
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      Swal.fire({ title: 'Aprovando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const formData = new FormData();
+      formData.append('csrf_token', '<?= $csrf_token ?? '' ?>');
+      fetch('<?php echo BASE_URL; ?>/orcamento/aprovarDiretorAjax/' + id, { method: 'POST', body: formData })
+      .then(res => res.json())
+      .then(data => {
+        closeDiretorModal();
+        if (data.success) {
+          Swal.fire({
+            title: 'Proposta aprovada!',
+            text: 'O que deseja fazer agora?',
+            icon: 'success',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: '<i class="fab fa-whatsapp"></i> WhatsApp',
+            confirmButtonColor: '#25D366',
+            denyButtonText: '<i class="fas fa-envelope"></i> E-mail',
+            denyButtonColor: '#2563eb',
+            cancelButtonText: '<i class="fas fa-check"></i> Fechar',
+            cancelButtonColor: '#6b7280',
+          }).then(result => {
+            if (result.isConfirmed) enviarWhatsApp(id, titulo, telefone);
+            else if (result.isDenied) openEmailModal(id, titulo, email);
+            else location.reload();
+          });
+        } else {
+          Swal.fire('Erro', data.message || 'Erro ao aprovar proposta.', 'error');
+        }
+      })
+      .catch(() => { Swal.fire('Erro', 'Falha na comunicação com o servidor.', 'error'); closeDiretorModal(); });
+    });
+  };
+
+  function enviarWhatsApp(id, titulo, telefone) {
+    const originalCursor = document.body.style.cursor;
+    document.body.style.cursor = 'wait';
+    fetch('<?php echo BASE_URL; ?>/orcamento/gerarLinkPublico/' + id + '?origem=whatsapp')
+      .then(res => res.json())
+      .then(data => {
+        document.body.style.cursor = originalCursor;
+        if (data.success) {
+          const texto = 'Prezado cliente, segue o link para visualização e aprovação da proposta *' + titulo + '*:\n\n ' + data.link + ' \n\nFicamos à disposição para qualquer dúvida através do nosso contato oficial: <?= WHATSAPP_COMERCIAL_FORMATTED ?>.';
+          const cleanPhone = telefone ? telefone.replace(/\D/g, '') : '';
+          const url = cleanPhone.length >= 10
+            ? 'https://wa.me/55' + cleanPhone + '?text=' + encodeURIComponent(texto)
+            : 'https://wa.me/?text=' + encodeURIComponent(texto);
+          window.open(url, '_blank');
+        } else {
+          alert(data.message || 'Erro ao gerar o link público.');
+        }
+      })
+      .catch(err => {
+        document.body.style.cursor = originalCursor;
+        console.error(err);
+        alert('Falha na comunicação com o servidor.');
+      });
+  }
+
+  function openEmailModal(id, titulo, email) {
+    const eModal = document.getElementById('emailModal');
+    const form = document.getElementById('emailForm');
+    if (!eModal || !form) return;
+    form.action = '<?php echo BASE_URL; ?>/orcamento/enviarEmail/' + id;
+    document.getElementById('email_destinatario').value = email || '';
+    document.getElementById('email_assunto').value = 'Proposta Comercial: ' + titulo;
+    document.getElementById('email_corpo').value = 'Prezado(a),\n\nSegue em anexo nossa proposta comercial referente a "' + titulo + '".\n\nFicamos à disposição para qualquer esclarecimento.';
+    eModal.classList.remove('hidden');
+  }
+
+  window.rejeitarDiretor = function(id) {
+    Swal.fire({
+      title: 'Rejeitar Proposta',
+      text: 'Informe o motivo da rejeição:',
+      icon: 'warning',
+      input: 'textarea',
+      inputPlaceholder: 'Descreva o motivo da rejeição...',
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-times"></i> Rejeitar',
+      confirmButtonColor: '#dc2626',
+      cancelButtonText: '<i class="fas fa-arrow-left"></i> Voltar',
+      cancelButtonColor: '#6b7280',
+      preConfirm: (value) => {
+        if (!value || value.trim() === '') { Swal.showValidationMessage('A justificativa é obrigatória'); return false; }
+        return value.trim();
+      }
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      Swal.fire({ title: 'Rejeitando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      const formData = new FormData();
+      formData.append('csrf_token', '<?= $csrf_token ?? '' ?>');
+      formData.append('justificativa', result.value);
+      fetch('<?php echo BASE_URL; ?>/orcamento/rejeitarDiretorAjax/' + id, { method: 'POST', body: formData })
+      .then(res => res.json())
+      .then(data => {
+        closeDiretorModal();
+        if (data.success) {
+          Swal.fire({ title: 'Proposta rejeitada!', text: 'A proposta foi retornada para edição.', icon: 'info', timer: 2500, showConfirmButton: false })
+            .then(() => location.reload());
+        } else {
+          Swal.fire('Erro', data.message || 'Erro ao rejeitar proposta.', 'error');
+        }
+      })
+      .catch(() => { Swal.fire('Erro', 'Falha na comunicação com o servidor.', 'error'); closeDiretorModal(); });
+    });
   };
 
   // ── MAPA DO BRASIL ──

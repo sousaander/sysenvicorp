@@ -86,21 +86,50 @@
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($orc['itens'] as $idx => $item): ?>
+            <?php
+            $subSectionCounter = 0;
+            foreach ($orc['itens'] as $idx => $item):
+                $cat = $item['categoria'] ?? '';
+                $isTitulo    = ($cat === 'Titulo');
+                $isSubtitulo = ($cat === 'Subtitulo');
+                $isLegend    = ($cat === 'Legenda');
+                if ($isTitulo):
+                    $subSectionCounter++;
+            ?>
+            <tr style="background:#f8fafc">
+                <td colspan="7" style="padding:10px 12px;font-weight:700;font-size:13px;color:#0ea5e9">
+                    <span style="font-family:monospace;font-size:11px;color:#b8860b;margin-right:6px"><?= str_pad($subSectionCounter, 2, '0', STR_PAD_LEFT) ?>.</span>
+                    <?= htmlspecialchars($item['descricao'] ?? $item['nome'] ?? '') ?>
+                </td>
+            </tr>
+            <?php elseif ($isSubtitulo): ?>
+            <tr>
+                <td colspan="7" style="padding:8px 14px;font-size:12.5px;color:#6b7280;line-height:1.7;text-align:justify">
+                    <?= nl2br(htmlspecialchars($item['descricao'] ?? $item['detalhes'] ?? '')) ?>
+                </td>
+            </tr>
+            <?php elseif ($isLegend): ?>
+            <tr style="background:#f8fafc">
+                <td colspan="7" style="padding:8px 12px">
+                    <span style="font-size:10.5px;font-weight:700;color:#b8860b;text-transform:uppercase;letter-spacing:.05em"><?= htmlspecialchars($item['descricao'] ?? $item['nome'] ?? '') ?></span>
+                </td>
+            </tr>
+            <?php else: ?>
             <tr>
                 <td class="text-muted"><?= $idx + 1 ?></td>
                 <td>
                     <div><?= htmlspecialchars($item['descricao']) ?></div>
-                    <?php if ($item['detalhes']): ?>
+                    <?php if (!empty($item['detalhes']) && $item['detalhes'] !== ($item['descricao'] ?? '')): ?>
                         <small class="text-muted"><?= htmlspecialchars($item['detalhes']) ?></small>
                     <?php endif; ?>
                 </td>
-                <td class="text-center"><?= htmlspecialchars($item['unidade']) ?></td>
-                <td class="text-end"><?= number_format((float)$item['quantidade'], 2, ',', '.') ?></td>
-                <td class="text-end">R$ <?= number_format((float)$item['valor_unit'], 2, ',', '.') ?></td>
-                <td class="text-end"><?= $item['desconto_item'] > 0 ? $item['desconto_item'] . '%' : '—' ?></td>
-                <td class="text-end fw-semibold">R$ <?= number_format((float)$item['total_item'], 2, ',', '.') ?></td>
+                <td class="text-center"><?= htmlspecialchars($item['unidade'] ?? 'un') ?></td>
+                <td class="text-end"><?= number_format((float)($item['quantidade'] ?? 0), 2, ',', '.') ?></td>
+                <td class="text-end">R$ <?= number_format((float)($item['valor_unit'] ?? 0), 2, ',', '.') ?></td>
+                <td class="text-end"><?= ($item['desconto_item'] ?? 0) > 0 ? $item['desconto_item'] . '%' : '—' ?></td>
+                <td class="text-end fw-semibold">R$ <?= number_format((float)($item['total_item'] ?? 0), 2, ',', '.') ?></td>
             </tr>
+            <?php endif; ?>
             <?php endforeach; ?>
         </tbody>
         <tfoot>

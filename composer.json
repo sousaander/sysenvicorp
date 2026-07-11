@@ -21,6 +21,11 @@
     "dompdf/dompdf": "^3.1",
     "jfcherng/php-diff": "^6.10",
     "phpmailer/phpmailer": "^7.0",
-    "phpoffice/phpspreadsheet": "^2.3"
+    "phpoffice/phpspreadsheet": "^2.3",
+    "setasign/fpdi": "2.6",
+    "setasign/fpdf": "1.9",
+    "nfephp-org/sped-nfe": "^5.2",
+    "chillerlan/php-qrcode": "^6.0",
+    "tecnickcom/tcpdf": "^7.0"
   }
 }

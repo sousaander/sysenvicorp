@@ -117,3 +117,41 @@ form label {
     display: flex; align-items: center; justify-content: center;
 }
 .timeline-item .tl-dot i { font-size: .55rem; color: #fff; }
+
+/* ══════════════════════════════════════════════════════════════
+   DARK MODE (via body.dark-theme)
+   ══════════════════════════════════════════════════════════════ */
+body.dark-theme .tabela-itens thead th {
+    background-color: var(--db-surface2, #1e293b) !important;
+    color: var(--db-text2, #94a3b8) !important;
+    border-bottom-color: var(--db-border, #334155) !important;
+}
+
+body.dark-theme .tabela-itens .form-control-sm {
+    color: var(--db-text, #e2e8f0) !important;
+}
+
+body.dark-theme .tabela-itens tr:hover .form-control-sm {
+    border-color: var(--db-border, #334155) !important;
+    background-color: var(--db-surface2, #0f172a) !important;
+}
+
+body.dark-theme .tabela-itens .form-control-sm:focus {
+    background-color: var(--db-surface, #1e293b) !important;
+}
+
+body.dark-theme .resumo-financeiro .total-final {
+    color: #60a5fa;
+}
+
+body.dark-theme form label {
+    color: var(--db-text2, #94a3b8);
+}
+
+body.dark-theme .timeline::before {
+    background: var(--db-border, #334155);
+}
+
+body.dark-theme .timeline-item .tl-dot {
+    border-color: var(--db-surface, #1e293b);
+}

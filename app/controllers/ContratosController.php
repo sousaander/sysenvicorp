@@ -580,7 +580,7 @@ class ContratosController extends BaseController
             'prazo_carencia_multa' => filter_input(INPUT_POST, 'prazo_carencia_multa', FILTER_VALIDATE_INT),
             'penalidade_descumprimento' => filter_input(INPUT_POST, 'penalidade_descumprimento', FILTER_SANITIZE_SPECIAL_CHARS),
             'multa_rescisao_antecipada' => filter_input(INPUT_POST, 'multa_rescisao_antecipada', FILTER_SANITIZE_SPECIAL_CHARS),
-            'observacoes_financeiras' => filter_input(INPUT_POST, 'observacoes_financeiras', FILTER_SANITIZE_SPECIAL_CHARS),
+            'observacoes_financeiras' => $_POST['observacoes_financeiras'] ?? '',
             
             'confidencialidade_tags' => $_POST['confidencialidade_tags'] ?? null,
             'prazo_sigilo' => filter_input(INPUT_POST, 'prazo_sigilo', FILTER_SANITIZE_SPECIAL_CHARS),
@@ -590,28 +590,28 @@ class ContratosController extends BaseController
             'subcontratacao_dados' => isset($_POST['subcontratacao_dados']) ? 1 : 0,
             'base_legal_lgpd' => filter_input(INPUT_POST, 'base_legal_lgpd', FILTER_SANITIZE_SPECIAL_CHARS),
             'lgpd_conformidade' => isset($_POST['lgpd_conformidade']) ? 1 : 0,
-            'clausula_confidencialidade' => filter_input(INPUT_POST, 'clausula_confidencialidade', FILTER_SANITIZE_SPECIAL_CHARS),
+            'clausula_confidencialidade' => $_POST['clausula_confidencialidade'] ?? '',
             
             'aviso_previo_rescisao' => filter_input(INPUT_POST, 'aviso_previo_rescisao', FILTER_SANITIZE_SPECIAL_CHARS),
             'rescisao_descumprimento' => filter_input(INPUT_POST, 'rescisao_descumprimento', FILTER_SANITIZE_SPECIAL_CHARS),
             'nao_concorrencia' => filter_input(INPUT_POST, 'nao_concorrencia', FILTER_SANITIZE_SPECIAL_CHARS),
             'indenizacao_rescisao' => filter_input(INPUT_POST, 'indenizacao_rescisao', FILTER_SANITIZE_SPECIAL_CHARS),
-            'causas_rescisao_imotivada' => filter_input(INPUT_POST, 'causas_rescisao_imotivada', FILTER_SANITIZE_SPECIAL_CHARS),
-            'causas_justa_causa' => filter_input(INPUT_POST, 'causas_justa_causa', FILTER_SANITIZE_SPECIAL_CHARS),
-            'obrigacoes_pos_encerramento' => filter_input(INPUT_POST, 'obrigacoes_pos_encerramento', FILTER_SANITIZE_SPECIAL_CHARS),
-            'responsabilidades_contratante' => filter_input(INPUT_POST, 'responsabilidades_contratante', FILTER_SANITIZE_SPECIAL_CHARS),
-            'responsabilidades_contratado' => filter_input(INPUT_POST, 'responsabilidades_contratado', FILTER_SANITIZE_SPECIAL_CHARS),
-            'criterios_aceite' => filter_input(INPUT_POST, 'criterios_aceite', FILTER_SANITIZE_SPECIAL_CHARS),
+            'causas_rescisao_imotivada' => $_POST['causas_rescisao_imotivada'] ?? '',
+            'causas_justa_causa' => $_POST['causas_justa_causa'] ?? '',
+            'obrigacoes_pos_encerramento' => $_POST['obrigacoes_pos_encerramento'] ?? '',
+            'responsabilidades_contratante' => $_POST['responsabilidades_contratante'] ?? '',
+            'responsabilidades_contratado' => $_POST['responsabilidades_contratado'] ?? '',
+            'criterios_aceite' => $_POST['criterios_aceite'] ?? '',
             'renovacao_automatica' => filter_input(INPUT_POST, 'renovacao_automatica', FILTER_SANITIZE_SPECIAL_CHARS),
             
-            'clausulas_adicionais' => filter_input(INPUT_POST, 'clausulas_adicionais', FILTER_SANITIZE_SPECIAL_CHARS),
+            'clausulas_adicionais' => $_POST['clausulas_adicionais'] ?? '',
             'assinatura_tipo' => filter_input(INPUT_POST, 'assinatura_tipo', FILTER_SANITIZE_SPECIAL_CHARS),
             'numero_vias' => filter_input(INPUT_POST, 'numero_vias', FILTER_SANITIZE_SPECIAL_CHARS),
 
             'data_inicio' => filter_input(INPUT_POST, 'data_inicio'),
             'vencimento' => filter_input(INPUT_POST, 'vencimento'),
             'duracao_meses' => filter_input(INPUT_POST, 'duracao_meses', FILTER_VALIDATE_INT),
-            'observacoes' => filter_input(INPUT_POST, 'observacoes', FILTER_SANITIZE_SPECIAL_CHARS),
+            'observacoes' => $_POST['observacoes'] ?? '',
             'projeto_id' => filter_input(INPUT_POST, 'projeto_id', FILTER_VALIDATE_INT) ?: null,
             'objeto' => $_POST['objeto'] ?? '', 
         ];
@@ -875,9 +875,9 @@ class ContratosController extends BaseController
 
         $dados = [
             'id' => filter_input(INPUT_POST, 'contrato_id', FILTER_VALIDATE_INT),
-            'clausula_lgpd' => filter_input(INPUT_POST, 'clausula_lgpd', FILTER_SANITIZE_SPECIAL_CHARS),
-            'risco_contratual' => filter_input(INPUT_POST, 'risco_contratual', FILTER_SANITIZE_SPECIAL_CHARS),
-            'parecer_juridico' => filter_input(INPUT_POST, 'parecer_juridico', FILTER_SANITIZE_SPECIAL_CHARS),
+            'clausula_lgpd' => $_POST['clausula_lgpd'] ?? '',
+            'risco_contratual' => $_POST['risco_contratual'] ?? '',
+            'parecer_juridico' => $_POST['parecer_juridico'] ?? '',
         ];
 
         if ($this->model->salvarDadosCompliance($dados)) {
@@ -1025,9 +1025,9 @@ class ContratosController extends BaseController
         $dados = [
             'id' => filter_input(INPUT_POST, 'aditivo_id', FILTER_VALIDATE_INT) ?: null,
             'contrato_id' => $contrato_id,
-            'tipo_aditivo' => filter_input(INPUT_POST, 'tipo_aditivo', FILTER_SANITIZE_SPECIAL_CHARS),
+            'tipo_aditivo' => $_POST['tipo_aditivo'] ?? '',
             'data_aditivo' => filter_input(INPUT_POST, 'data_aditivo'),
-            'descricao' => filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS),
+            'descricao' => $_POST['descricao'] ?? '',
             'valor_alteracao' => !empty($_POST['valor_alteracao']) ? (float)str_replace(['.', ','], ['', '.'], $_POST['valor_alteracao']) : null,
             'novo_vencimento' => filter_input(INPUT_POST, 'novo_vencimento') ?: null,
         ];
@@ -1167,9 +1167,9 @@ class ContratosController extends BaseController
 
         $dados = [
             'contrato_id' => filter_input(INPUT_POST, 'contrato_id', FILTER_VALIDATE_INT),
-            'descricao' => filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS),
-            'tipo_clausula' => filter_input(INPUT_POST, 'tipo_clausula', FILTER_SANITIZE_SPECIAL_CHARS),
-            'responsavel' => filter_input(INPUT_POST, 'responsavel', FILTER_SANITIZE_SPECIAL_CHARS),
+            'descricao' => $_POST['descricao'] ?? '',
+            'tipo_clausula' => $_POST['tipo_clausula'] ?? '',
+            'responsavel' => $_POST['responsavel'] ?? '',
             'data_prevista' => filter_input(INPUT_POST, 'data_prevista') ?: null,
         ];
 
@@ -1278,7 +1278,7 @@ class ContratosController extends BaseController
 
         $dados = [
             'contrato_id' => filter_input(INPUT_POST, 'contrato_id', FILTER_VALIDATE_INT),
-            'descricao' => filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS),
+            'descricao' => $_POST['descricao'] ?? '',
             'valor' => (float) $valorLimpo,
             'data_vencimento' => filter_input(INPUT_POST, 'data_vencimento'),
         ];
@@ -1326,6 +1326,7 @@ class ContratosController extends BaseController
             'valor' => $parcela['valor'],
             'vencimento' => $parcela['data_vencimento'],
             'status' => 'Pendente',
+            'valor_pago' => 0,
             'contrato_parcela_id' => $parcela['id'], // Vínculo com a parcela
             // Outros campos podem ser adicionados aqui, como 'classificacao_id'
             'data_pagamento' => null,
@@ -1408,7 +1409,7 @@ class ContratosController extends BaseController
         }
 
         $contratoId = filter_input(INPUT_POST, 'contrato_id', FILTER_VALIDATE_INT);
-        $mensagemAdicional = filter_input(INPUT_POST, 'mensagem', FILTER_SANITIZE_SPECIAL_CHARS);
+        $mensagemAdicional = $_POST['mensagem'] ?? '';
 
         if (!$contratoId) {
             $this->setFlashMessage('error', 'Contrato inválido. Por favor, selecione um contrato da lista.');

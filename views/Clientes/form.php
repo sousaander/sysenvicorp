@@ -339,9 +339,13 @@ $statusList = [
                   <input type="text" id="logradouro" name="enderecos[principal][logradouro]" required value="<?php echo htmlspecialchars($enderecos['principal']['logradouro'] ?? ''); ?>">
                 </div>
               </div>
-              <div class="g3">
+              <div class="g2">
                  <div class="field"><label>Número</label><input type="text" name="enderecos[principal][numero]" value="<?php echo htmlspecialchars($enderecos['principal']['numero'] ?? ''); ?>"></div>
-                 <div class="field"><label>Cidade</label><input type="text" id="cidade" name="enderecos[principal][cidade]" value="<?php echo htmlspecialchars($enderecos['principal']['cidade'] ?? ''); ?>"></div>
+                 <div class="field"><label>Complemento</label><input type="text" name="enderecos[principal][complemento]" value="<?php echo htmlspecialchars($enderecos['principal']['complemento'] ?? ''); ?>"></div>
+              </div>
+              <div class="g3">
+                 <div class="field"><label>Bairro</label><input type="text" id="bairro" name="enderecos[principal][bairro]" value="<?php echo htmlspecialchars($enderecos['principal']['bairro'] ?? ''); ?>"></div>
+                 <div class="field"><label>Município</label><input type="text" id="cidade" name="enderecos[principal][cidade]" value="<?php echo htmlspecialchars($enderecos['principal']['cidade'] ?? ''); ?>"></div>
                  <div class="field"><label>UF</label><input type="text" id="estado" name="enderecos[principal][estado]" maxlength="2" value="<?php echo htmlspecialchars($enderecos['principal']['estado'] ?? ''); ?>"></div>
               </div>
             </div>
@@ -640,6 +644,7 @@ $statusList = [
       const data = await response.json();
       if (!data.erro) {
         document.getElementById('logradouro').value = data.logradouro;
+        document.getElementById('bairro').value = data.bairro || '';
         document.getElementById('cidade').value = data.localidade;
         document.getElementById('estado').value = data.uf;
       }

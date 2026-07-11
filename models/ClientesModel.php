@@ -379,11 +379,45 @@ class ClientesModel extends Model
             $stmt = $this->db->query("SELECT 
                         id, nome, sigla, email, contato_principal, 
                         endereco, telefone, cnpj_cpf, nome_fantasia, 
-                        financeiro_json, comercial_json 
+                        financeiro_json, comercial_json, enderecos_json 
                     FROM clientes 
                     WHERE status = 'Ativo' 
                     ORDER BY nome ASC");
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($clientes as &$cliente) {
+                $cliente['bairro'] = '';
+                $cliente['municipio'] = '';
+                $cliente['logradouro'] = '';
+                $cliente['numero'] = '';
+                $cliente['complemento'] = '';
+                $cliente['estado'] = '';
+
+                $enderecos = [];
+                if (!empty($cliente['enderecos_json'])) {
+                    $json = json_decode($cliente['enderecos_json'], true);
+                    if (is_array($json)) {
+                        $enderecos = $json;
+                    }
+                }
+
+                $principal = $enderecos['principal'] ?? [];
+                if (is_array($principal)) {
+                    $cliente['bairro'] = $principal['bairro'] ?? '';
+                    $cliente['municipio'] = $principal['cidade'] ?? '';
+                    $cliente['logradouro'] = $principal['logradouro'] ?? '';
+                    $cliente['numero'] = $principal['numero'] ?? '';
+                    $cliente['complemento'] = $principal['complemento'] ?? '';
+                    $cliente['estado'] = $principal['estado'] ?? '';
+
+                    if (empty($cliente['endereco'])) {
+                        $cliente['endereco'] = $this->formatarEndereco($principal);
+                    }
+                }
+            }
+            unset($cliente);
+
+            return $clientes;
         } catch (PDOException $e) {
             error_log("Erro ao buscar todos os clientes: " . $e->getMessage());
             return [];

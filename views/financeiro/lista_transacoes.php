@@ -176,7 +176,18 @@ $urlNovo = BASE_URL . '/financeiro/novo?tipo=' . $tipo;
                                     ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-white">
-                                    R$ <?php echo number_format($t['valor'], 2, ',', '.'); ?>
+                                    <?php if ($t['status'] === 'Pago'): ?>
+                                        R$ <?php echo number_format($t['valor_pago'] ?? $t['valor'], 2, ',', '.'); ?>
+                                    <?php elseif ($t['status'] === 'Pago Parcial'): ?>
+                                        <span class="text-gray-500">R$ <?php echo number_format($t['valor'], 2, ',', '.'); ?></span>
+                                        <br>
+                                        <span class="text-xs text-blue-600 dark:text-blue-400">
+                                            Pago: R$ <?php echo number_format($t['valor_pago'] ?? 0, 2, ',', '.'); ?>
+                                            | Resta: R$ <?php echo number_format(($t['valor'] + ($t['juros'] ?? 0) - ($t['desconto'] ?? 0)) - ($t['valor_pago'] ?? 0), 2, ',', '.'); ?>
+                                        </span>
+                                    <?php else: ?>
+                                        R$ <?php echo number_format($t['valor'], 2, ',', '.'); ?>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
                                     <?php
@@ -185,11 +196,13 @@ $urlNovo = BASE_URL . '/financeiro/novo?tipo=' . $tipo;
                                         'Pago' => 'bg-emerald-50 text-emerald-700 border border-emerald-200',
                                         'Atrasado' => 'bg-red-50 text-red-700 border border-red-200',
                                         'Cancelado' => 'bg-gray-50 text-gray-600 border border-gray-200',
+                                        'Pago Parcial' => 'bg-blue-50 text-blue-700 border border-blue-200',
                                     ];
                                     $classe = $statusClasses[$t['status']] ?? 'bg-gray-50 text-gray-600 border border-gray-200';
+                                    $statusTexto = $t['status'] === 'Pago Parcial' ? ($isPagar ? 'Pago Parcial' : 'Parcialmente Recebido') : ($t['status'] ?? '');
                                     ?>
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full <?php echo $classe; ?>">
-                                        <?php echo htmlspecialchars($t['status'] ?? ''); ?>
+                                        <?php echo htmlspecialchars($statusTexto); ?>
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">

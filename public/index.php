@@ -106,7 +106,15 @@ if (empty($segment)) {
     $controllerMap = [
         'licencasoperacao' => 'LicencasOperacao',
         'notafiscal'       => 'NotaFiscal',
+        'nfse'             => 'Nfse',
+        'cte'              => 'Cte',
         'centrocusto'      => 'CentroCusto',
+        'contabil'         => 'Contabil',
+        'estoque'          => 'Estoque',
+        'regrasfiscais'    => 'RegraFiscal',
+        'relatorios'       => 'Relatorio',
+        'obrigacoesfiscais' => 'ObrigacaoFiscal',
+        'legislacao'       => 'Legislacao',
         'login'            => 'Auth', // Redireciona /login para AuthController
         'auth'             => 'Auth', // Garante que /auth também mapeie corretamente
         'bensativos'       => 'BensAtivos',

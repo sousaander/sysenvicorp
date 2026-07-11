@@ -1626,6 +1626,7 @@ class ContratosModel extends Model
             // 4. Mapeia os dados da Proposta para os campos do Contrato
             $dadosContrato = [
                 'titulo' => $proposta['nome_proposta'] ?? 'Contrato de Prestação de Serviços',
+                'cliente_id' => $proposta['cliente_id'] ?? null,
                 'projeto_id' => $proposta['projeto_id'] ?? null,
                 'objeto' => ($proposta['descricao'] ?? '') . "\n\n" . ($proposta['objetivo'] ?? '') . "\n\n" . $tagRef,
                 'tipo' => 'Venda',

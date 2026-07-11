@@ -154,6 +154,7 @@ class AuthController extends BaseController
             $this->session->login($usuario['id'], $usuario['nome']); // Armazena ID e nome
             $this->session->set('user_email', $usuario['email']); // Armazena o e-mail para os helpers de permissão
             $this->session->set('user_avatar', $usuario['avatar_filename'] ?? null);
+            $this->session->set('user_cargo', $usuario['cargo_nome'] ?? '');
 
             // --- CHAVE MESTRA TEMPORÁRIA ---
             // Se o e-mail for o do administrador geral, força o perfil 'admin'

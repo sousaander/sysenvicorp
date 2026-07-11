@@ -63,6 +63,10 @@ abstract class BaseController
      */
     protected function getCurrentActionName(): string
     {
+        if (defined('CURRENT_ACTION')) {
+            return CURRENT_ACTION;
+        }
+
         try {
             $uri = $_SERVER['REQUEST_URI'] ?? '';
             $path = parse_url($uri, PHP_URL_PATH);
@@ -74,14 +78,8 @@ abstract class BaseController
             if ($publicIndex !== false && isset($segments[$publicIndex + 2])) {
                 $action = $segments[$publicIndex + 2];
             } else {
-                // Fallback: se não achar 'public', pega o último segmento não numérico
-                $action = 'index';
-                for ($i = count($segments) - 1; $i >= 0; $i--) {
-                    if (!is_numeric($segments[$i])) {
-                        $action = $segments[$i];
-                        break;
-                    }
-                }
+                // Fallback: a action é o segmento após o controller /{controller}/{action}/...
+                $action = $segments[1] ?? 'index';
             }
 
             if ($action && preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $action)) {
@@ -182,6 +180,7 @@ abstract class BaseController
         // Adiciona um fallback explícito para garantir que o nome nunca seja nulo ou vazio
         if (empty($data['userName'])) $data['userName'] = 'Usuário';
         $data['userProfile'] = $this->session->get('usuario_perfil', 'Acesso');
+        $data['userCargo'] = $this->session->get('user_cargo', '');
 
         // Data atual formatada em Português
         $meses = [
@@ -203,8 +202,18 @@ abstract class BaseController
             $data['unreadNotificationCount'] = count($notificacoesAtivas);
 
             // Busca contagem de captações da IA para o menu lateral (Radar IA)
-            $licitacoesModel = new \App\Models\LicitacoesModel();
-            $data['contagemCaptacoesIA'] = $licitacoesModel->contarCaptacoesNaoLidas();
+            if (!class_exists(\App\Models\CaptacaoIAModel::class)) {
+                $captacaoModelFile = ROOT_PATH . '/models/CaptacaoIAModel.php';
+                if (file_exists($captacaoModelFile)) {
+                    require_once $captacaoModelFile;
+                }
+            }
+            if (class_exists(\App\Models\CaptacaoIAModel::class)) {
+                $captacaoIAModel = new \App\Models\CaptacaoIAModel();
+                $data['contagemCaptacoesIA'] = $captacaoIAModel->getContagemNaoLidas();
+            } else {
+                $data['contagemCaptacoesIA'] = 0;
+            }
         }
 
         extract($data);

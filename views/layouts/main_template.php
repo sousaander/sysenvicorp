@@ -74,8 +74,8 @@ $dayName = $portugueseDays[$dayOfWeekNum];
             --db-purple: #a855f7;
 
             /* Variáveis específicas para Sidebar (herdadas do global.css se possível) */
-            --sys-navy: #0f172a;
-            --sys-blue-marinho: #0f172a;
+            --sys-navy: #2563eb;
+            --sys-blue-marinho: #2563eb;
             --sys-blue-soft: #dbeafe;
             --sys-text-light: #94a3b8;
             --sys-blue: #2563eb;
@@ -194,7 +194,7 @@ $dayName = $portugueseDays[$dayOfWeekNum];
             left: 0;
             height: 100vh;
             width: var(--sys-sidebar-width);
-            background-color: var(--sys-navy, #0f172a);
+            background-color: var(--sys-navy, #2563eb);
             color: white;
             z-index: 50;
             display: flex;
@@ -207,8 +207,23 @@ $dayName = $portugueseDays[$dayOfWeekNum];
         }
 
         /* Ajustes para o estado recolhido */
-        #sidebar.collapsed .sidebar-text {
+        #sidebar.collapsed .sidebar-text,
+        #sidebar.collapsed .sidebar-brand-text {
             display: none;
+        }
+
+        #sidebar.collapsed #sidebar-header {
+            justify-content: center;
+            padding: 0 4px;
+        }
+
+        #sidebar.collapsed .sidebar-logo-icon {
+            width: 36px;
+            height: 36px;
+        }
+
+        #sidebar.collapsed .sidebar-logo-wrap {
+            flex: 0;
         }
 
         #sidebar.collapsed .sys-sidebar-item {
@@ -422,7 +437,7 @@ $dayName = $portugueseDays[$dayOfWeekNum];
     </script>
 
     <!-- Radar de Inteligência Artificial - Server-Sent Events -->
-    <script src="<?= BASE_URL ?>/assets/js/ia_events.js"></script>
+    <script src="<?= BASE_URL ?>/public/assets/js/ia_events.js"></script>
 
     <!-- Scripts da Página -->
     <script>

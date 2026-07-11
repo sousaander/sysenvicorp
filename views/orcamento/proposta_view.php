@@ -28,25 +28,25 @@
 </div>
 
 <!-- Modal de Envio de E-mail -->
-<div id="emailModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+<div id="emailModal" class="fixed inset-0 bg-gray-800 dark:bg-black bg-opacity-75 dark:bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl">
         <form action="<?php echo BASE_URL; ?>/orcamento/enviarEmail/<?php echo $proposta['id']; ?>" method="POST" class="p-6">
             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token ?? ''); ?>" />
-            <h3 class="text-xl font-bold mb-4">Enviar Proposta por E-mail</h3>
+            <h3 class="text-xl font-bold mb-4 dark:text-white">Enviar Proposta por E-mail</h3>
 
             <div class="mb-4">
-                <label for="email_destinatario" class="block text-sm font-medium text-gray-700">Para:</label>
-                <input type="email" name="email_destinatario" id="email_destinatario" required class="w-full border rounded p-2 mt-1" placeholder="email@cliente.com">
+                <label for="email_destinatario" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Para:</label>
+                <input type="email" name="email_destinatario" id="email_destinatario" required class="w-full border dark:border-gray-700 dark:bg-gray-700 dark:text-white rounded p-2 mt-1" placeholder="email@cliente.com">
             </div>
 
             <div class="mb-4">
-                <label for="email_assunto" class="block text-sm font-medium text-gray-700">Assunto:</label>
-                <input type="text" name="email_assunto" id="email_assunto" required class="w-full border rounded p-2 mt-1" value="Proposta Comercial: <?php echo htmlspecialchars($proposta['titulo']); ?>">
+                <label for="email_assunto" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Assunto:</label>
+                <input type="text" name="email_assunto" id="email_assunto" required class="w-full border dark:border-gray-700 dark:bg-gray-700 dark:text-white rounded p-2 mt-1" value="Proposta Comercial: <?php echo htmlspecialchars($proposta['titulo']); ?>">
             </div>
 
             <div class="mb-4">
-                <label for="email_corpo" class="block text-sm font-medium text-gray-700">Mensagem:</label>
-                <textarea name="email_corpo" id="email_corpo" rows="6" class="w-full border rounded p-2 mt-1">Prezado(a),
+                <label for="email_corpo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Mensagem:</label>
+                <textarea name="email_corpo" id="email_corpo" rows="6" class="w-full border dark:border-gray-700 dark:bg-gray-700 dark:text-white rounded p-2 mt-1">Prezado(a),
 
 Segue em anexo nossa proposta comercial referente a "<?php echo htmlspecialchars($proposta['titulo']); ?>".
 
@@ -57,17 +57,16 @@ Sua Empresa.</textarea>
             </div>
 
             <div class="flex justify-end gap-2">
-                <button type="button" onclick="closeEmailModal()" class="px-4 py-2 bg-gray-300 rounded">Cancelar</button>
-                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded">Enviar</button>
+                <button type="button" onclick="closeEmailModal()" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 dark:text-white rounded font-bold">Cancelar</button>
+                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded font-bold">Enviar</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Modal de Link Público -->
-<div id="linkModal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-        <h3 class="text-xl font-bold mb-4 tracking-tight text-gray-800">Link de Aprovação Pública</h3>
+<div id="linkModal" class="fixed inset-0 bg-gray-800 dark:bg-black bg-opacity-75 dark:bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg p-6">
+        <h3 class="text-xl font-bold mb-4 tracking-tight text-gray-800 dark:text-white">Link de Aprovação Pública</h3>
         <p class="text-sm text-gray-500 mb-4">Envie este link para o cliente. Ele permite visualizar os detalhes básicos e aprovar/rejeitar a proposta sem necessidade de login no sistema.</p>
         
         <div class="flex gap-2 mb-6">
@@ -105,7 +104,7 @@ Sua Empresa.</textarea>
     }
 
     function obterLinkPublico(id) {
-        fetch(`<?php echo BASE_URL; ?>/orcamento/gerarLinkPublico/${id}`)
+        fetch(`<?php echo BASE_URL; ?>/orcamento/gerarLinkPublico/${id}?origem=link`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -159,7 +158,7 @@ Sua Empresa.</textarea>
         const originalCursor = document.body.style.cursor;
         document.body.style.cursor = 'wait';
 
-        fetch(`<?php echo BASE_URL; ?>/orcamento/gerarLinkPublico/${id}`)
+        fetch(`<?php echo BASE_URL; ?>/orcamento/gerarLinkPublico/${id}?origem=whatsapp`)
             .then(res => res.json())
             .then(data => {
                 document.body.style.cursor = originalCursor;

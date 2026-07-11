@@ -150,10 +150,24 @@ class ProjetosModel extends Model
             $params = [];
 
             // Se foi passado um filtro de status, aplica-o
-            if (!empty($filtros['status']) && !in_array($filtros['status'], ['Todos', 'Todos Ativos'])) {
-                $where[] = "p.status = :status";
-                $params[':status'] = $filtros['status'];
-            } elseif (empty($filtros['status']) || $filtros['status'] === 'Todos Ativos') {
+            if (!empty($filtros['status'])) {
+                $isAllFilter = is_string($filtros['status']) && in_array($filtros['status'], ['Todos', 'Todos Ativos']);
+                if (!$isAllFilter) {
+                    if (is_array($filtros['status'])) {
+                        $placeholders = [];
+                        foreach ($filtros['status'] as $i => $s) {
+                            $key = ":status_{$i}";
+                            $placeholders[] = $key;
+                            $params[$key] = $s;
+                        }
+                        $where[] = "p.status IN (" . implode(',', $placeholders) . ")";
+                    } else {
+                        $where[] = "p.status = :status";
+                        $params[':status'] = $filtros['status'];
+                    }
+                }
+            }
+            if (empty($filtros['status']) || (is_string($filtros['status']) && $filtros['status'] === 'Todos Ativos')) {
                 // Comportamento padrão ou quando "Todos Ativos" é selecionado:
                 // Mostra todos os projetos, exceto os arquivados.
                 $where[] = "p.status NOT IN ('Concluído', 'Cancelado')";
@@ -214,10 +228,24 @@ class ProjetosModel extends Model
         $params = [];
 
         // A lógica de filtro deve ser idêntica à de getProjetos()
-        if (!empty($filtros['status']) && !in_array($filtros['status'], ['Todos', 'Todos Ativos'])) {
-            $where[] = "p.status = :status";
-            $params[':status'] = $filtros['status'];
-        } elseif (empty($filtros['status']) || $filtros['status'] === 'Todos Ativos') {
+        if (!empty($filtros['status'])) {
+            $isAllFilter = is_string($filtros['status']) && in_array($filtros['status'], ['Todos', 'Todos Ativos']);
+            if (!$isAllFilter) {
+                if (is_array($filtros['status'])) {
+                    $placeholders = [];
+                    foreach ($filtros['status'] as $i => $s) {
+                        $key = ":status_{$i}";
+                        $placeholders[] = $key;
+                        $params[$key] = $s;
+                    }
+                    $where[] = "p.status IN (" . implode(',', $placeholders) . ")";
+                } else {
+                    $where[] = "p.status = :status";
+                    $params[':status'] = $filtros['status'];
+                }
+            }
+        }
+        if (empty($filtros['status']) || (is_string($filtros['status']) && $filtros['status'] === 'Todos Ativos')) {
             // Comportamento padrão ou quando "Todos Ativos" é selecionado.
             $where[] = "p.status NOT IN ('Concluído', 'Cancelado')";
         }
@@ -549,7 +577,7 @@ class ProjetosModel extends Model
                 $empreendimento = trim($dados['empreendimento'] ?? '');
                 $data_inicial = !empty($dados['data_inicial']) ? $dados['data_inicial'] : null;
                 $data_fim_prevista = !empty($dados['data_fim_prevista']) ? $dados['data_fim_prevista'] : null;
-                $orcamento = !empty($dados['orcamento']) ? (float) $dados['orcamento'] : null;
+                $orcamento = !empty($dados['orcamento']) ? self::parseDecimal($dados['orcamento']) : null;
                 $orcamento_id = trim($dados['orcamento_id'] ?? '');
                 $area_id = trim($dados['area_id'] ?? '');
                 $tamanho_ha = !empty($dados['tamanho_ha']) ? (float) $dados['tamanho_ha'] : null;
@@ -623,7 +651,7 @@ class ProjetosModel extends Model
                                      ->execute([$projeto_id]);
 
                             // Suspende financeiro: Transações pendentes vinculadas ao projeto são canceladas
-                            $this->db->prepare("UPDATE transacoes SET status = 'Cancelado' WHERE observacoes LIKE ? AND status IN ('Pendente', 'Atrasado')")
+                            $this->db->prepare("UPDATE transacoes SET status = 'Cancelado' WHERE observacoes LIKE ? AND status IN ('Pendente', 'Atrasado', 'Pago Parcial')")
                                      ->execute([$projeto_id]);
                         }
                     }
@@ -687,7 +715,7 @@ class ProjetosModel extends Model
                              ->execute([$id]);
 
                     // Suspende financeiro: Transações pendentes vinculadas ao projeto são canceladas
-                    $this->db->prepare("UPDATE transacoes SET status = 'Cancelado' WHERE observacoes LIKE ? AND status IN ('Pendente', 'Atrasado')")
+                    $this->db->prepare("UPDATE transacoes SET status = 'Cancelado' WHERE observacoes LIKE ? AND status IN ('Pendente', 'Atrasado', 'Pago Parcial')")
                              ->execute(["%Projeto ID: $id%"]);
 
                     $this->addTimelineEvent($id, 'PROJETO_ARQUIVADO', "Projeto arquivado (status alterado para Cancelado) devido a dependências existentes.");
@@ -1359,5 +1387,135 @@ class ProjetosModel extends Model
             if (file_exists($filePath)) unlink($filePath);
         }
         return true;
+    }
+
+    // --- SINCORNIAÇÃO DE ITENS DE PROPOSTA APROVADA PARA ORÇAMENTO DO PROJETO ---
+
+    /**
+     * Sincroniza os itens de uma proposta aprovada para a tabela projetos_orcamento.
+     * Remove itens sincronizados anteriormente e reinsere com os dados atuais.
+     * 
+     * @param int $projetoId
+     * @param array $servicos Itens de serviço (viram Receita)
+     * @param array $materiais Itens de material (viram Despesa)
+     * @param array $custosExtras Itens de custos extras (viram Despesa)
+     * @param int $propostaId ID da proposta (para tagging)
+     * @param string|null $dataPrevista Data de referência (usa data atual se null)
+     * @return bool
+     */
+    public function syncOrcamentoFromProposta(int $projetoId, array $servicos, array $materiais, array $custosExtras, int $propostaId, ?string $dataPrevista = null): bool
+    {
+        try {
+            $catMap = [
+                'Planejamento / Coordenação' => 'Serviços',
+                'Serviços de Campo'          => 'Serviços',
+                'Custos Reembolsáveis'       => 'Outros',
+                'Elaboração de Peças Técnicas' => 'Serviços',
+                'Equipamentos'               => 'Equipamentos',
+                'Mão de obra'                => 'Mão de obra',
+                'Mão de Obra'                => 'Mão de obra',
+                'Insumos'                    => 'Insumos',
+                'Taxas'                      => 'Taxas',
+                'Outros'                     => 'Outros',
+            ];
+
+            $tag = "[Sincronizado da Proposta ID: {$propostaId}]";
+            $dataRef = $dataPrevista ?: date('Y-m-d');
+
+            $this->db->beginTransaction();
+
+            $stmtDel = $this->db->prepare("DELETE FROM projetos_orcamento WHERE projeto_id = ? AND observacoes LIKE ?");
+            $stmtDel->execute([$projetoId, "%{$tag}%"]);
+
+            $stmtIns = $this->db->prepare(
+                "INSERT INTO projetos_orcamento 
+                    (projeto_id, descricao, tipo, categoria, valor_previsto, data_prevista, status, observacoes) 
+                 VALUES 
+                    (:projeto_id, :descricao, :tipo, :categoria, :valor_previsto, :data_prevista, 'Pendente', :observacoes)"
+            );
+
+            foreach ($servicos as $item) {
+                $cat = $item['categoria'] ?? '';
+                if (in_array($cat, ['Titulo', 'Subtitulo', ''])) continue;
+                $valor = floatval($item['subtotal'] ?? 0);
+                if ($valor <= 0) continue;
+                $mappedCat = $catMap[$cat] ?? 'Serviços';
+                $descricao = $item['nome'] ?? 'Item sem descrição';
+                if (!empty($item['descricao'])) {
+                    $descricao .= ' - ' . $item['descricao'];
+                }
+                $stmtIns->bindValue(':projeto_id', $projetoId, \PDO::PARAM_INT);
+                $stmtIns->bindValue(':descricao', $descricao);
+                $stmtIns->bindValue(':tipo', 'Receita');
+                $stmtIns->bindValue(':categoria', $mappedCat);
+                $stmtIns->bindValue(':valor_previsto', $valor);
+                $stmtIns->bindValue(':data_prevista', $dataRef);
+                $stmtIns->bindValue(':observacoes', "Receita sincronizada da proposta. {$tag}");
+                $stmtIns->execute();
+            }
+
+            foreach ($materiais as $item) {
+                $valor = floatval($item['subtotal'] ?? 0);
+                if ($valor <= 0) continue;
+                $descricao = $item['nome'] ?? 'Material sem descrição';
+                if (!empty($item['descricao'])) {
+                    $descricao .= ' - ' . $item['descricao'];
+                }
+                $mappedCat = $catMap[$item['categoria'] ?? ''] ?? 'Insumos';
+                $stmtIns->bindValue(':projeto_id', $projetoId, \PDO::PARAM_INT);
+                $stmtIns->bindValue(':descricao', $descricao);
+                $stmtIns->bindValue(':tipo', 'Despesa');
+                $stmtIns->bindValue(':categoria', $mappedCat);
+                $stmtIns->bindValue(':valor_previsto', $valor);
+                $stmtIns->bindValue(':data_prevista', $dataRef);
+                $stmtIns->bindValue(':observacoes', "Material sincronizado da proposta. {$tag}");
+                $stmtIns->execute();
+            }
+
+            foreach ($custosExtras as $item) {
+                $valor = floatval($item['subtotal'] ?? 0);
+                if ($valor <= 0) continue;
+                $descricao = $item['nome'] ?? 'Custo extra sem descrição';
+                if (!empty($item['descricao'])) {
+                    $descricao .= ' - ' . $item['descricao'];
+                }
+                $stmtIns->bindValue(':projeto_id', $projetoId, \PDO::PARAM_INT);
+                $stmtIns->bindValue(':descricao', $descricao);
+                $stmtIns->bindValue(':tipo', 'Despesa');
+                $stmtIns->bindValue(':categoria', 'Outros');
+                $stmtIns->bindValue(':valor_previsto', $valor);
+                $stmtIns->bindValue(':data_prevista', $dataRef);
+                $stmtIns->bindValue(':observacoes', "Custo extra sincronizado da proposta. {$tag}");
+                $stmtIns->execute();
+            }
+
+            $this->db->commit();
+            return true;
+
+        } catch (\PDOException $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log("Erro ao sincronizar orçamento da proposta #{$propostaId} para projeto #{$projetoId}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private static function parseDecimal($valor): float
+    {
+        if (empty($valor)) return 0.0;
+        if (is_numeric($valor)) return (float)$valor;
+
+        $str = trim((string)$valor);
+        $str = preg_replace('/[^\d\-,.]/', '', $str);
+
+        if (strpos($str, '.') !== false && strpos($str, ',') !== false) {
+            $str = str_replace('.', '', $str);
+            $str = str_replace(',', '.', $str);
+        } elseif (strpos($str, ',') !== false) {
+            $str = str_replace(',', '.', $str);
+        }
+
+        return (float) $str;
     }
 }

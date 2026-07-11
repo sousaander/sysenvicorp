@@ -49,7 +49,6 @@ class PerfilController extends BaseController
         // Comercial
         'comercial_propostas_view' => 'Visualizar Propostas e Orçamentos',
         'orcamento_send' => 'Enviar Propostas por E-mail',
-        'orcamento_view' => 'Acessar Menu Comercial / Propostas',
         'comercial_licitacoes_view' => 'Visualizar Licitações',
         'comercial_reports_view' => 'Visualizar Relatórios Comerciais',
 
@@ -113,6 +112,55 @@ class PerfilController extends BaseController
         'juridico_processos_manage' => 'Gerenciar Processos Judiciais/Administrativos',
         'juridico_documentos_manage' => 'Gerenciar Documentos Jurídicos',
         'juridico_agenda_manage' => 'Gerenciar Agenda e Prazos Jurídicos',
+
+        // Fiscal e Contábil
+        'fiscal_dashboard_view' => 'Visualizar Dashboard Fiscal',
+        'fiscal_lancamentos_view' => 'Visualizar Lançamentos Contábeis',
+        'fiscal_lancamentos_create' => 'Criar Lançamentos Contábeis',
+        'fiscal_lancamentos_edit' => 'Editar Lançamentos Contábeis',
+        'fiscal_lancamentos_delete' => 'Excluir Lançamentos Contábeis',
+        'fiscal_notas_view' => 'Visualizar Notas Fiscais',
+        'fiscal_notas_manage' => 'Gerenciar Notas Fiscais (Emitir, Cancelar, Editar)',
+        'fiscal_relatorios_view' => 'Visualizar Relatórios Fiscais (SPED, Retenções, Parâmetros)',
+
+        // Contábil (Parâmetros Contábeis)
+        'contabil_dashboard_view' => 'Visualizar Dashboard Contábil',
+        'contabil_planocontas_view' => 'Visualizar Plano de Contas',
+        'contabil_planocontas_manage' => 'Gerenciar Plano de Contas',
+        'contabil_lancamentos_view' => 'Visualizar Lançamentos Contábeis',
+        'contabil_lancamentos_create' => 'Criar Lançamentos Contábeis',
+        'contabil_lancamentos_edit' => 'Editar Lançamentos Contábeis',
+        'contabil_lancamentos_delete' => 'Excluir Lançamentos Contábeis',
+        'contabil_integrar' => 'Integrar Lançamentos Automáticos',
+        'contabil_demonstracoes_view' => 'Visualizar Demonstrações Contábeis',
+        'contabil_conciliacao_view' => 'Visualizar Conciliação Bancária',
+        'contabil_conciliacao_manage' => 'Gerenciar Conciliação Bancária',
+        'contabil_parametros_view' => 'Visualizar Parâmetros Contábeis',
+        'contabil_parametros_manage' => 'Gerenciar Parâmetros Contábeis',
+
+        // Estoque e Inventário
+        'estoque_view' => 'Visualizar Estoque',
+        'estoque_manage' => 'Gerenciar Produtos (Criar, Editar, Excluir)',
+        'estoque_movimentar' => 'Registrar Entradas e Saídas',
+        'estoque_inventario' => 'Gerenciar Inventário Físico',
+        'estoque_integrar' => 'Integrar Estoque com Contabilidade',
+
+        // Regras Fiscais
+        'regras_fiscais_view' => 'Visualizar Regras Fiscais',
+        'regras_fiscais_manage' => 'Gerenciar Regras Fiscais (Criar, Editar, Excluir)',
+
+        // Relatórios Personalizados
+        'relatorios_view' => 'Visualizar Modelos de Relatórios',
+        'relatorios_manage' => 'Gerenciar Modelos de Relatórios',
+        'relatorios_export' => 'Exportar Relatórios (CSV, PDF, XLSX)',
+
+        // Obrigações Fiscais
+        'obrigacoes_fiscais_view' => 'Visualizar Obrigações Fiscais e Calendário',
+        'obrigacoes_fiscais_manage' => 'Gerenciar Obrigações e Status de Entrega',
+
+        // Legislação
+        'legislacao_view' => 'Visualizar Legislação e Versões',
+        'legislacao_manage' => 'Gerenciar Legislação e Importar Versões',
 
         // Organograma
         'organograma_view' => 'Visualizar Organograma e KPIs',

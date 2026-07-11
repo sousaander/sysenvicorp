@@ -378,9 +378,7 @@ class RhModel extends Model
     }
 
     /**
-     * Simula o cálculo da folha de pagamento para um determinado mês/ano.
-     * Em um cenário real, esta função buscaria os funcionários, seus salários,
-     * buscaria os eventos (horas extras, faltas) e aplicaria as regras de cálculo.
+     * Calcula a folha de pagamento e persiste os resultados.
      *
      * @param int $mes
      * @param int $ano
@@ -388,10 +386,231 @@ class RhModel extends Model
      */
     public function calcularFolhaDePagamento(int $mes, int $ano): bool
     {
-        // Apenas simula que o cálculo foi feito.
-        // Em um sistema real, aqui ocorreria a inserção dos resultados em uma tabela `folha_pagamento_resultados`.
-        error_log("Simulação: Calculando folha de pagamento para $mes/$ano.");
-        return true;
+        try {
+            $this->ensureFolhaResultadosTable();
+            $lancamentos = $this->getLancamentos($mes, $ano);
+            $resultados = $this->getFolhaCalculada($mes, $ano, $lancamentos);
+
+            if (empty($resultados)) {
+                error_log("Nenhum resultado de folha para $mes/$ano.");
+                return false;
+            }
+
+            $this->db->beginTransaction();
+
+            $sql = "INSERT INTO folha_pagamento_resultados
+                    (colaborador_id, mes, ano, salario_bruto, inss, irrf, salario_familia,
+                     outros_descontos, valor_liquido, fgts, base_calculo_inss, base_calculo_irrf, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'calculado')
+                    ON DUPLICATE KEY UPDATE
+                        salario_bruto = VALUES(salario_bruto),
+                        inss = VALUES(inss),
+                        irrf = VALUES(irrf),
+                        salario_familia = VALUES(salario_familia),
+                        outros_descontos = VALUES(outros_descontos),
+                        valor_liquido = VALUES(valor_liquido),
+                        fgts = VALUES(fgts),
+                        base_calculo_inss = VALUES(base_calculo_inss),
+                        base_calculo_irrf = VALUES(base_calculo_irrf),
+                        status = 'calculado'";
+
+            $stmt = $this->db->prepare($sql);
+
+            foreach ($resultados as $r) {
+                $fgts = $r['salario_bruto'] * 0.08;
+                $baseIrrf = ($r['componentes']['base_inss'] ?? $r['salario_bruto']) - $r['inss'];
+                $stmt->execute([
+                    $r['id'], $mes, $ano,
+                    $r['salario_bruto'], $r['inss'], $r['irrf'], $r['salario_familia'],
+                    $r['outros_descontos'], $r['salario_liquido'],
+                    $fgts,
+                    $r['componentes']['base_inss'] ?? $r['salario_bruto'],
+                    $baseIrrf > 0 ? $baseIrrf : 0
+                ]);
+            }
+
+            // Gera as provisões contábeis
+            $this->gerarProvisoesContabeis($mes, $ano, $resultados);
+
+            $this->db->commit();
+            error_log("Folha de pagamento $mes/$ano calculada e persistida com sucesso.");
+            return true;
+        } catch (PDOException $e) {
+            if ($this->db->inTransaction()) $this->db->rollBack();
+            error_log("Erro ao calcular folha: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Garante que a tabela folha_pagamento_resultados existe.
+     */
+    private function ensureFolhaResultadosTable(): void
+    {
+        $sql = "CREATE TABLE IF NOT EXISTS folha_pagamento_resultados (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            colaborador_id INT,
+            mes INT NOT NULL,
+            ano INT NOT NULL,
+            salario_bruto DECIMAL(15,2) DEFAULT 0,
+            inss DECIMAL(15,2) DEFAULT 0,
+            irrf DECIMAL(15,2) DEFAULT 0,
+            salario_familia DECIMAL(15,2) DEFAULT 0,
+            outros_descontos DECIMAL(15,2) DEFAULT 0,
+            valor_liquido DECIMAL(15,2) DEFAULT 0,
+            fgts DECIMAL(15,2) DEFAULT 0,
+            base_calculo_inss DECIMAL(15,2) DEFAULT 0,
+            base_calculo_irrf DECIMAL(15,2) DEFAULT 0,
+            data_pagamento DATE,
+            status VARCHAR(20) DEFAULT 'calculado',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (colaborador_id) REFERENCES colaboradores(colaborador_id) ON DELETE SET NULL,
+            UNIQUE KEY uk_folha_mes_ano (colaborador_id, mes, ano)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        try {
+            $this->db->exec($sql);
+        } catch (PDOException $e) {
+            error_log("Erro ao criar folha_pagamento_resultados: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Gera provisões contábeis (13º, férias, FGTS, INSS, IRRF) baseadas na folha calculada.
+     */
+    public function gerarProvisoesContabeis(int $mes, int $ano, array $resultados = []): bool
+    {
+        try {
+            if (empty($resultados)) {
+                $resultados = $this->getFolhaCalculada($mes, $ano, $this->getLancamentos($mes, $ano));
+            }
+
+            $this->ensureProvisoesTable();
+
+            $totalBruto = array_sum(array_column($resultados, 'salario_bruto'));
+            $totalINSS = array_sum(array_column($resultados, 'inss'));
+            $totalIRRF = array_sum(array_column($resultados, 'irrf'));
+            $totalFGTS = $totalBruto * 0.08;
+            $totalLiquido = array_sum(array_column($resultados, 'salario_liquido'));
+
+            $this->db->beginTransaction();
+
+            $sql = "INSERT INTO provisoes_contabeis
+                    (tipo_provisao, mes_competencia, ano_competencia, valor_provisionado, status, data_contabilizacao)
+                    VALUES (?, ?, ?, ?, 'provisionado', ?)
+                    ON DUPLICATE KEY UPDATE
+                        valor_provisionado = VALUES(valor_provisionado),
+                        status = 'provisionado'";
+
+            $stmt = $this->db->prepare($sql);
+            $dataContabil = sprintf('%04d-%02d-01', $ano, $mes);
+
+            $provisoes = [
+                ['fgts', $totalFGTS],
+                ['inss', $totalINSS],
+                ['irrf', $totalIRRF],
+                ['13_salario', $totalBruto / 12],
+                ['ferias', ($totalBruto + $totalBruto / 3) / 12],
+            ];
+
+            foreach ($provisoes as [$tipo, $valor]) {
+                if ($valor > 0) {
+                    $stmt->execute([$tipo, $mes, $ano, round($valor, 2), $dataContabil]);
+                }
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (PDOException $e) {
+            if ($this->db->inTransaction()) $this->db->rollBack();
+            error_log("Erro ao gerar provisões: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Garante que a tabela provisoes_contabeis existe.
+     */
+    private function ensureProvisoesTable(): void
+    {
+        $sql = "CREATE TABLE IF NOT EXISTS provisoes_contabeis (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            tipo_provisao ENUM('13_salario','ferias','fgts','inss','irrf','rescisao') NOT NULL,
+            colaborador_id INT,
+            mes_competencia INT NOT NULL,
+            ano_competencia INT NOT NULL,
+            valor_provisionado DECIMAL(15,2) DEFAULT 0,
+            valor_pago DECIMAL(15,2) DEFAULT 0,
+            data_contabilizacao DATE,
+            status VARCHAR(20) DEFAULT 'provisionado',
+            observacoes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (colaborador_id) REFERENCES colaboradores(colaborador_id) ON DELETE SET NULL,
+            UNIQUE KEY uk_provisao (tipo_provisao, mes_competencia, ano_competencia, colaborador_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        try {
+            $this->db->exec($sql);
+        } catch (PDOException $e) {
+            error_log("Erro ao criar provisoes_contabeis: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Retorna as provisões contábeis para integração.
+     */
+    public function getProvisoesContabeis(int $mes, int $ano): array
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT * FROM provisoes_contabeis
+                WHERE mes_competencia = ? AND ano_competencia = ?
+                ORDER BY tipo_provisao ASC
+            ");
+            $stmt->execute([$mes, $ano]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (PDOException) {
+            return [];
+        }
+    }
+
+    /**
+     * Retorna os resultados persistidos da folha de pagamento.
+     */
+    public function getResultadosFolha(int $mes, int $ano): array
+    {
+        try {
+            $this->ensureFolhaResultadosTable();
+            $stmt = $this->db->prepare("
+                SELECT f.*, c.nome as colaborador_nome
+                FROM folha_pagamento_resultados f
+                LEFT JOIN colaboradores c ON f.colaborador_id = c.colaborador_id
+                WHERE f.mes = ? AND f.ano = ?
+                ORDER BY c.nome ASC
+            ");
+            $stmt->execute([$mes, $ano]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (PDOException) {
+            return [];
+        }
+    }
+
+    /**
+     * Atualiza o status de pagamento da folha.
+     */
+    public function confirmarPagamentoFolha(int $mes, int $ano, string $dataPagamento): bool
+    {
+        try {
+            $this->ensureFolhaResultadosTable();
+            $stmt = $this->db->prepare("
+                UPDATE folha_pagamento_resultados
+                SET status = 'pago', data_pagamento = ?
+                WHERE mes = ? AND ano = ?
+            ");
+            return $stmt->execute([$dataPagamento, $mes, $ano]);
+        } catch (PDOException) {
+            return false;
+        }
     }
 
     /**

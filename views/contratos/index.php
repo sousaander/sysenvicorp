@@ -11,7 +11,8 @@
 ?>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
@@ -19,62 +20,74 @@
    DESIGN SYSTEM — DASHBOARD CONTRATOS
 ================================================================ */
 :root {
-    --c-bg:           #F4F6FA;
+    /* Superfícies */
+    --c-bg:           #F2F4F8;
     --c-surface:      #FFFFFF;
-    --c-border:       #E4E9F0;
-    --c-border-md:    #C8D4E3;
+    --c-surface-2:    #FAFBFD;
+    --c-border:       #E2E7F0;
+    --c-border-md:    #C7CFDE;
 
-    --c-text:         #18243A;
-    --c-text-2:       #4A5878;
-    --c-text-3:       #8A97AE;
+    /* Tipografia */
+    --c-text:         #0F1D33;
+    --c-text-2:       #47536B;
+    --c-text-3:       #8A93A8;
 
-    --c-blue:         #1B4F8C;
-    --c-blue-mid:     #2E6EC5;
-    --c-blue-light:   #EBF2FB;
-    --c-blue-hover:   #153D70;
+    /* Accent — azul padrão da empresa */
+    --c-accent:       #2563eb;
+    --c-accent-deep:  #1d4ed8;
+    --c-accent-soft:  #dbeafe;
+    --c-accent-hover: #1e40af;
 
-    --c-green:        #17673E;
-    --c-green-light:  #E6F5EE;
-    --c-green-border: #5BBF8A;
+    /* Cabeçalho */
+    --c-header-top:   #0f172a;
+    --c-header-mid:   #1e293b;
+    --c-header-bot:   #334155;
 
-    --c-gold:         #916A00;
-    --c-gold-light:   #FFF7E0;
-    --c-gold-border:  #E2B94A;
+    /* Estados semânticos */
+    --c-green:        #146143;
+    --c-green-light:  #E7F3EC;
+    --c-green-border: #5FAE85;
 
-    --c-red:          #921C1C;
-    --c-red-light:    #FDF0F0;
-    --c-red-border:   #E88080;
+    --c-red:          #8C2A24;
+    --c-red-light:    #FBECEA;
+    --c-red-border:   #D89791;
 
-    --c-purple:       #4A35A8;
-    --c-purple-light: #EEEDFB;
-    --c-purple-border:#A098E6;
+    --c-amber:        #d97706;
+    --c-amber-light:  #fef3c7;
+    --c-amber-border: #fcd34d;
 
-    --c-gray-light:   #F0F3F8;
+    --c-purple:       #473C74;
+    --c-purple-light: #EEECF7;
+    --c-purple-border:#A79CD1;
+
+    --c-gray-light:   #EEF1F6;
 
     --radius:         8px;
-    --radius-lg:      14px;
+    --radius-lg:      12px;
     --radius-xl:      18px;
-    --shadow:         0 1px 4px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
-    --shadow-md:      0 4px 16px rgba(0,0,0,.09), 0 2px 4px rgba(0,0,0,.05);
+    --shadow:         0 1px 3px rgba(11,27,45,.06), 0 1px 2px rgba(11,27,45,.05);
+    --shadow-md:      0 10px 26px rgba(11,27,45,.12), 0 2px 6px rgba(11,27,45,.06);
 
-    --font-display:   'Lora', Georgia, serif;
-    --font-body:      'DM Sans', system-ui, sans-serif;
+    --font-display:   'Inter', system-ui, sans-serif;
+    --font-body:      'Inter', system-ui, sans-serif;
+    --font-mono:      'IBM Plex Mono', ui-monospace, monospace;
 }
 
 /* Ajustes para Modo Escuro (Dark Mode) */
 .dark-theme .dash {
-    --c-bg:           var(--db-bg, #0F172A);
-    --c-surface:      var(--db-surface, #1E293B);
-    --c-border:       var(--db-border, #334155);
-    --c-border-md:    #475569;
-    --c-text:         var(--db-text, #F8FAFC);
-    --c-text-2:       var(--db-text2, #CBD5E1);
-    --c-text-3:       var(--db-text3, #94A3B8);
-    --c-blue-light:   #1E293B;
-    --c-gray-light:   rgba(255, 255, 255, 0.05);
-    --c-green-light:  rgba(22, 163, 74, 0.1);
-    --c-gold-light:   rgba(234, 179, 8, 0.1);
-    --c-red-light:    rgba(220, 38, 38, 0.15);
+    --c-bg:           var(--db-bg, #0A1628);
+    --c-surface:      var(--db-surface, #101F35);
+    --c-surface-2:    #0D1A2E;
+    --c-border:       var(--db-border, #253B58);
+    --c-border-md:    #34527A;
+    --c-text:         var(--db-text, #F4F1EA);
+    --c-text-2:       var(--db-text2, #C4CEDD);
+    --c-text-3:       var(--db-text3, #8896AC);
+    --c-accent-soft:  rgba(37, 99, 235, 0.15);
+    --c-gray-light:   rgba(255, 255, 255, 0.045);
+    --c-green-light:  rgba(95, 174, 133, 0.14);
+    --c-amber-light:  rgba(217, 119, 6, 0.14);
+    --c-red-light:    rgba(216, 151, 145, 0.14);
 }
 
 /* Overrides para classes utilitárias e estados no Modo Escuro */
@@ -87,7 +100,7 @@
 
 .dark-theme .contracts-table tbody tr:hover { background: rgba(255,255,255,0.02); }
 .dark-theme .pg-btn, .dark-theme .btn-action { background-color: var(--c-surface); color: var(--c-text-2); border-color: var(--c-border); }
-.dark-theme .pg-btn:hover, .dark-theme .btn-action:hover { background-color: var(--c-blue-light); color: var(--c-blue-mid); }
+.dark-theme .pg-btn:hover, .dark-theme .btn-action:hover { background-color: var(--c-accent-soft); color: var(--c-accent-deep); }
 .dark-theme .qa-btn { background-color: var(--c-surface); color: var(--c-text-2); border-color: var(--c-border); }
 .dark-theme .qa-btn:hover { background-color: var(--c-gray-light); }
 .dark-theme .search-input:focus { background-color: var(--c-surface); color: var(--c-text); }
@@ -95,64 +108,86 @@
 .dash * { box-sizing: border-box; margin: 0; padding: 0; }
 .dash { font-family: var(--font-body); color: var(--c-text); }
 
-/* ---- Cabeçalho da página ---- */
+/* ---- Cabeçalho executivo ---- */
 .dash-header {
-    display: flex; align-items: flex-end; justify-content: space-between;
+    position: relative;
+    display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 22px; gap: 16px; flex-wrap: wrap;
+    background: linear-gradient(128deg, var(--c-header-top) 0%, var(--c-header-mid) 52%, var(--c-header-bot) 100%);
+    border-radius: var(--radius-lg);
+    padding: 26px 28px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
 }
-.dash-title { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--c-text); }
-.dash-subtitle { font-size: 13px; color: var(--c-text-3); margin-top: 4px; }
-.dash-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.dash-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(115deg, rgba(217,182,91,.05) 0 1px, transparent 1px 90px);
+    pointer-events: none;
+}
+.dash-header::after {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, var(--c-accent), transparent 85%);
+}
+.dash-eyebrow {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--c-accent);
+    margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+.dash-eyebrow::before { content: ''; width: 16px; height: 1px; background: var(--c-accent); display: inline-block; }
+.dash-title { position: relative; font-family: var(--font-display); font-size: 25px; font-weight: 600; color: #FBFAF7; letter-spacing: -.01em; }
+.dash-subtitle { position: relative; font-size: 13px; color: #A9B8CE; margin-top: 6px; max-width: 480px; }
+.dash-header-actions { position: relative; display: flex; gap: 10px; flex-shrink: 0; }
 
-/* ---- KPI Cards ---- */
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+/* ---- KPI Cards (Compactos) ---- */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
 
 .kpi-card {
     background: var(--c-surface);
     border: 1px solid var(--c-border);
-    border-radius: var(--radius-lg);
-    padding: 20px 22px;
-    box-shadow: var(--shadow);
-    display: flex; align-items: flex-start; gap: 14px;
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
     position: relative; overflow: hidden;
-    transition: box-shadow .2s, transform .2s;
+    transition: box-shadow .15s;
 }
-.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.kpi-card:hover { box-shadow: var(--shadow); }
 .kpi-card::before {
-    content: ''; position: absolute; top: 0; left: 0;
-    width: 4px; height: 100%;
+    content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+    width: 2px; border-radius: 1px;
 }
-.kpi-card.blue::before   { background: var(--c-blue-mid); }
-.kpi-card.red::before    { background: #D94040; }
-.kpi-card.gold::before   { background: #D4A017; }
-.kpi-card.green::before  { background: #22A05B; }
+.kpi-card.blue::before   { background: var(--c-accent-deep); }
+.kpi-card.red::before    { background: var(--c-red); }
+.kpi-card.gold::before   { background: var(--c-amber); }
+.kpi-card.green::before  { background: var(--c-green); }
 
 .kpi-icon {
-    width: 44px; height: 44px; border-radius: var(--radius);
+    width: 30px; height: 30px; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; flex-shrink: 0;
+    font-size: 12px; flex-shrink: 0;
 }
-.kpi-icon.blue   { background: var(--c-blue-light); color: var(--c-blue-mid); }
+.kpi-icon.blue   { background: var(--c-accent-soft); color: var(--c-accent-deep); }
 .kpi-icon.red    { background: var(--c-red-light);  color: var(--c-red); }
-.kpi-icon.gold   { background: var(--c-gold-light); color: var(--c-gold); }
+.kpi-icon.gold   { background: var(--c-amber-light); color: var(--c-amber); }
 .kpi-icon.green  { background: var(--c-green-light); color: var(--c-green); }
 
-.kpi-body { flex: 1; min-width: 0; }
-.kpi-label { font-size: 12px; font-weight: 500; color: var(--c-text-3); letter-spacing: .02em; }
-.kpi-value { font-size: 28px; font-weight: 600; color: var(--c-text); line-height: 1.1; margin: 4px 0; }
-.kpi-value.small { font-size: 20px; }
-.kpi-sub   { font-size: 11px; color: var(--c-text-3); }
+.kpi-body { min-width: 0; }
+.kpi-label { font-size: 9.5px; font-weight: 600; color: var(--c-text-3); letter-spacing: .06em; text-transform: uppercase; }
+.kpi-value { font-family: var(--font-mono); font-size: 17px; font-weight: 600; color: var(--c-text); line-height: 1.2; }
+.kpi-value.small { font-size: 14px; }
+.kpi-sub   { display: none; }
 .kpi-badge {
-    position: absolute; top: 16px; right: 16px;
-    font-size: 10px; font-weight: 600; padding: 2px 8px;
-    border-radius: 20px; letter-spacing: .03em;
+    position: absolute; top: 8px; right: 8px;
+    font-family: var(--font-mono); font-size: 8px; font-weight: 600; padding: 2px 6px;
+    border-radius: 10px; letter-spacing: .04em; text-transform: uppercase;
 }
 .kpi-badge.up   { background: var(--c-green-light); color: var(--c-green); }
 .kpi-badge.warn { background: var(--c-red-light); color: var(--c-red); }
-.kpi-badge.info { background: var(--c-blue-light); color: var(--c-blue-mid); }
+.kpi-badge.info { background: var(--c-accent-soft); color: var(--c-accent-deep); border: 1px solid var(--c-accent-soft); }
 
 /* ---- Layout Principal ---- */
-.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 
 /* ---- Card Genérico ---- */
 .card {
@@ -164,9 +199,13 @@
 .card-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 16px 22px; border-bottom: 1px solid var(--c-border);
-    gap: 12px;
+    gap: 12px; position: relative;
 }
-.card-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--c-text); }
+.card-header::before {
+    content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px;
+    background: var(--c-accent); border-radius: 0 2px 2px 0;
+}
+.card-title { font-family: var(--font-display); font-size: 15.5px; font-weight: 600; color: var(--c-text); padding-left: 12px; }
 .card-body  { padding: 0; }
 
 /* ---- Barra de Pesquisa + Filtros ---- */
@@ -184,7 +223,7 @@
     background: var(--c-gray-light); color: var(--c-text); outline: none;
     transition: border-color .15s, background .15s;
 }
-.search-input:focus { border-color: var(--c-blue-mid); background: #fff; box-shadow: 0 0 0 3px rgba(46,110,197,.1); }
+.search-input:focus { border-color: var(--c-accent); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.14); }
 .filter-select {
     padding: 8px 28px 8px 10px; font-family: var(--font-body); font-size: 13px;
     border: 1px solid var(--c-border); border-radius: var(--radius);
@@ -192,15 +231,15 @@
     color: var(--c-text-2); outline: none; cursor: pointer; appearance: none;
     transition: border-color .15s;
 }
-.filter-select:focus { border-color: var(--c-blue-mid); }
+.filter-select:focus { border-color: var(--c-accent); }
 
 /* ---- Tabela ---- */
-.contracts-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.contracts-table { width: 100%; border-collapse: collapse; font-size: 10px; }
 .contracts-table thead th {
-    padding: 10px 16px; text-align: left;
-    font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
-    color: var(--c-text-3); background: var(--c-gray-light);
-    border-bottom: 1px solid var(--c-border);
+    padding: 8px 12px; text-align: left;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+    color: #E4EAF3; background: var(--c-accent);
+    border-bottom: 1px solid var(--c-accent);
     white-space: nowrap;
 }
 .contracts-table thead th:last-child { text-align: right; }
@@ -209,23 +248,24 @@
     transition: background .12s;
 }
 .contracts-table tbody tr:last-child { border-bottom: none; }
-.contracts-table tbody tr:hover { background: #F7F9FD; }
-.contracts-table td { padding: 13px 16px; vertical-align: middle; }
+.contracts-table tbody tr:hover { background: var(--c-surface-2); }
+.contracts-table td { padding: 9px 12px; vertical-align: middle; }
 .contracts-table td:last-child { text-align: right; }
 
 /* Célula de parte (avatar + nome) */
-.td-parte { display: flex; align-items: center; gap: 10px; }
+.td-parte { display: flex; align-items: center; gap: 8px; }
 .td-avatar {
-    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 600;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    border: 1px solid rgba(0,0,0,.04);
 }
-.td-nome { font-weight: 500; color: var(--c-text); line-height: 1.3; }
-.td-tipo { font-size: 11px; color: var(--c-text-3); margin-top: 1px; }
+.td-nome { font-weight: 500; color: var(--c-text); line-height: 1.3; font-size: 10px; }
+.td-tipo { font-size: 10px; color: var(--c-text-3); margin-top: 1px; }
 
 /* Tipo badge */
 .tipo-badge {
-    display: inline-block; font-size: 11px; font-weight: 500;
+    display: inline-block; font-size: 10px; font-weight: 500;
     padding: 2px 8px; border-radius: 4px;
     background: var(--c-gray-light); color: var(--c-text-2);
     white-space: nowrap;
@@ -233,48 +273,43 @@
 
 /* Status pill */
 .status-pill {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px; font-weight: 600;
-    padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600;
+    padding: 2px 8px; border-radius: 20px; white-space: nowrap;
 }
-.status-pill::before { content: '●'; font-size: 7px; line-height: 1; }
-.status-vigente     { background: var(--c-green-light); color: var(--c-green); border: 1px solid var(--c-green-border); }
-.status-pendente    { background: var(--c-gold-light);  color: var(--c-gold);  border: 1px solid var(--c-gold-border); }
-.status-finalizado  { background: var(--c-blue-light);  color: var(--c-blue);  border: 1px solid var(--c-border-md); }
-.status-cancelado   { background: var(--c-red-light);   color: var(--c-red);   border: 1px solid var(--c-red-border); }
-.status-rascunho    { background: var(--c-gray-light);  color: var(--c-text-3); border: 1px solid var(--c-border); }
+.status-pill::before { content: '●'; font-size: 6px; line-height: 1; }
 
 /* Vencimento com alerta */
-.td-venc { display: flex; align-items: center; gap: 6px; }
-.venc-alert { font-size: 11px; color: var(--c-red); font-weight: 600; background: var(--c-red-light); padding: 1px 6px; border-radius: 4px; }
+.td-venc { display: flex; align-items: center; gap: 4px; }
+.venc-alert { font-size: 10px; color: var(--c-red); font-weight: 600; background: var(--c-red-light); padding: 1px 6px; border-radius: 4px; }
 
 /* Ações na tabela */
-.td-acoes { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.td-acoes { display: flex; align-items: center; justify-content: flex-end; gap: 3px; }
 .btn-action {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 30px; height: 30px; border-radius: var(--radius);
+    width: 26px; height: 26px; border-radius: var(--radius);
     border: 1px solid var(--c-border); background: var(--c-surface);
-    color: var(--c-text-2); font-size: 12px; cursor: pointer;
+    color: var(--c-text-2); font-size: 10px; cursor: pointer;
     transition: background .12s, color .12s, border-color .12s;
     text-decoration: none;
 }
-.btn-action:hover { background: var(--c-blue-light); color: var(--c-blue-mid); border-color: var(--c-border-md); }
+.btn-action:hover { background: var(--c-accent-soft); color: var(--c-accent-deep); border-color: var(--c-border-md); }
 .btn-action.danger:hover { background: var(--c-red-light); color: var(--c-red); }
 .btn-action.disabled { opacity: .35; pointer-events: none; }
 
 /* Paginação */
-.pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; border-top: 1px solid var(--c-border); }
-.pagination-info { font-size: 12px; color: var(--c-text-3); }
-.pagination-nav { display: flex; gap: 4px; }
+.pagination { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--c-border); }
+.pagination-info { font-size: 10px; color: var(--c-text-3); }
+.pagination-nav { display: flex; gap: 3px; }
 .pg-btn {
     display: inline-flex; align-items: center; justify-content: center;
-    min-width: 30px; height: 30px; padding: 0 6px;
+    min-width: 26px; height: 26px; padding: 0 5px;
     border: 1px solid var(--c-border); border-radius: var(--radius);
-    font-size: 12px; font-weight: 500; color: var(--c-text-2); text-decoration: none;
+    font-size: 10px; font-weight: 500; color: var(--c-text-2); text-decoration: none;
     background: var(--c-surface); transition: background .12s;
 }
-.pg-btn:hover { background: var(--c-blue-light); color: var(--c-blue-mid); border-color: var(--c-border-md); }
-.pg-btn.active { background: var(--c-blue); color: #fff; border-color: var(--c-blue); }
+.pg-btn:hover { background: var(--c-accent-soft); color: var(--c-accent-deep); border-color: var(--c-border-md); }
+.pg-btn.active { background: var(--c-accent); color: #fff; border-color: var(--c-accent); }
 .pg-btn.disabled { opacity: .4; pointer-events: none; }
 
 /* Estado vazio */
@@ -282,24 +317,65 @@
 .empty-state i { font-size: 36px; color: var(--c-text-3); opacity: .4; margin-bottom: 12px; display: block; }
 .empty-state p { font-size: 14px; color: var(--c-text-3); }
 
-/* ---- Painel Lateral ---- */
-.side-panel { display: flex; flex-direction: column; gap: 14px; }
+/* ---- Linha Executiva (Ações Rápidas + Distribuição) ---- */
+.executive-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+@media (max-width: 768px) {
+  .executive-row { grid-template-columns: 1fr; }
+}
+.executive-card .card-header {
+  padding: 8px 12px;
+  border-bottom: none;
+}
+.executive-card .card-header::before { display: none; }
+.executive-card .card-title {
+  font-size: 11px;
+  padding-left: 0;
+}
+.executive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 6px 12px 10px;
+}
+.executive-actions .qa-btn {
+  flex: 1;
+  min-width: 110px;
+  justify-content: center;
+  padding: 6px 10px;
+  font-size: 11px;
+  gap: 5px;
+  border-radius: 5px;
+}
+.executive-actions .qa-btn i { font-size: 10px; }
+.executive-dist {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px 16px;
+  padding: 4px 12px 10px;
+}
+.executive-dist .dist-item { min-width: 0; }
+.executive-dist .dist-item-label { font-size: 10px; margin-bottom: 1px; }
+.executive-dist .dist-bar-track { height: 3px; }
 
-/* Ações rápidas */
-.quick-actions { display: flex; flex-direction: column; gap: 6px; padding: 16px; }
+
 .qa-btn {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px; border-radius: var(--radius);
-    font-size: 13px; font-weight: 500; font-family: var(--font-body);
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 6px;
+    font-size: 12px; font-weight: 500; font-family: var(--font-body);
     border: 1px solid var(--c-border); cursor: pointer;
     transition: background .12s, color .12s; text-decoration: none;
     background: var(--c-surface); color: var(--c-text-2);
 }
 .qa-btn:hover { background: var(--c-gray-light); }
-.qa-btn.primary { background: var(--c-blue); color: #fff; border-color: var(--c-blue); }
-.qa-btn.primary:hover { background: var(--c-blue-hover); }
-.qa-btn.warn-btn { border-color: var(--c-gold-border); background: var(--c-gold-light); color: var(--c-gold); }
-.qa-btn.warn-btn:hover { background: #FFF0B0; }
+.qa-btn.primary { background: var(--c-accent); color: #fff; border-color: var(--c-accent); }
+.qa-btn.primary:hover { background: var(--c-accent-hover); }
+.qa-btn.warn-btn { border-color: var(--c-amber-border); background: var(--c-amber-light); color: var(--c-amber); }
+.qa-btn.warn-btn:hover { background: #F4E4B8; }
 .qa-btn i { width: 16px; text-align: center; flex-shrink: 0; }
 
 /* Alertas críticos */
@@ -310,9 +386,9 @@
 }
 .alert-item:last-child { border-bottom: none; }
 .alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
-.alert-dot.red  { background: #D94040; }
-.alert-dot.gold { background: #D4A017; }
-.alert-dot.blue { background: var(--c-blue-mid); }
+.alert-dot.red  { background: var(--c-red); }
+.alert-dot.gold { background: var(--c-amber); }
+.alert-dot.blue { background: var(--c-accent-deep); }
 .alert-text { font-size: 12px; color: var(--c-text-2); line-height: 1.5; }
 .alert-text strong { color: var(--c-text); font-weight: 600; }
 .alert-time { font-size: 11px; color: var(--c-text-3); margin-top: 2px; display: block; }
@@ -327,32 +403,31 @@
 
 /* Nota informativa */
 .info-note {
-    margin: 0 16px 16px;
-    padding: 10px 14px;
-    background: var(--c-blue-light); border: 1px solid #C0D4EE;
-    border-radius: var(--radius); font-size: 11.5px; color: var(--c-blue);
-    line-height: 1.55; display: flex; gap: 8px;
+    padding: 10px 16px;
+    background: var(--c-accent-soft); border: 1px solid var(--c-accent-soft);
+    border-radius: var(--radius); font-size: 11.5px; color: var(--c-accent-deep);
+    line-height: 1.55; text-align: center;
 }
 
 /* ---- Botões de cabeçalho ---- */
 .btn-primary {
     display: inline-flex; align-items: center; gap: 7px;
-    padding: 8px 18px; border-radius: var(--radius);
+    padding: 9px 20px; border-radius: var(--radius);
     font-size: 13px; font-weight: 600; font-family: var(--font-body);
-    background: var(--c-blue); color: #fff; border: none; cursor: pointer;
-    box-shadow: 0 2px 8px rgba(27,79,140,.22);
-    text-decoration: none; transition: background .12s;
+    background: var(--c-accent);
+    color: #fff; border: none; cursor: pointer;
+    text-decoration: none; transition: filter .12s, transform .12s;
 }
-.btn-primary:hover { background: var(--c-blue-hover); }
+.btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .btn-outline {
     display: inline-flex; align-items: center; gap: 7px;
-    padding: 8px 14px; border-radius: var(--radius);
+    padding: 9px 16px; border-radius: var(--radius);
     font-size: 13px; font-weight: 500; font-family: var(--font-body);
-    background: var(--c-surface); color: var(--c-text-2);
-    border: 1px solid var(--c-border); cursor: pointer; text-decoration: none;
+    background: rgba(255,255,255,.04); color: #DCE4F0;
+    border: 1px solid rgba(255,255,255,.16); cursor: pointer; text-decoration: none;
     transition: background .12s;
 }
-.btn-outline:hover { background: var(--c-gray-light); }
+.btn-outline:hover { background: rgba(255,255,255,.1); }
 
 /* ---- Modal aprimorado ---- */
 .ctr-modal-overlay {
@@ -398,6 +473,7 @@
 <!-- ════════ CABEÇALHO ════════ -->
 <div class="dash-header">
     <div>
+        <div class="dash-eyebrow">Módulo Jurídico &middot; Contratos</div>
         <h2 class="dash-title">Gestão de Contratos</h2>
         <p class="dash-subtitle">Acompanhamento centralizado de contratos ativos, prazos e pendências</p>
     </div>
@@ -459,10 +535,107 @@
     </div>
 </div>
 
+<!-- ════════ LINHA EXECUTIVA: AÇÕES RÁPIDAS + DISTRIBUIÇÃO ════════ -->
+<?php
+$statusDist = ['Em Vigência' => 0, 'Pendente Assinatura' => 0, 'Rascunho' => 0, 'Finalizado' => 0, 'Cancelado' => 0];
+foreach ($contratos ?? [] as $c) {
+    $st = $c['status'] ?? 'Rascunho';
+    if (isset($statusDist[$st])) $statusDist[$st]++;
+}
+$totalDist = array_sum($statusDist);
+$distColors = ['Em Vigência' => '#146143', 'Pendente Assinatura' => '#B4903F', 'Rascunho' => '#8A93A8', 'Finalizado' => '#1D4E82', 'Cancelado' => '#8C2A24'];
+?>
+<div class="executive-row">
+  <!-- Ações Rápidas -->
+  <div class="card executive-card">
+    <div class="card-header">
+      <div class="card-title">Ações Rápidas</div>
+    </div>
+    <div class="executive-actions">
+      <button id="open-alerta-modal-btn" class="qa-btn warn-btn">
+        <i class="fas fa-bell"></i> Alerta
+      </button>
+      <a href="<?= BASE_URL ?>/contratos/configuracoes" class="qa-btn">
+        <i class="fas fa-cog"></i> Modelos
+      </a>
+      <a href="<?= BASE_URL ?>/contratos/exportar" class="qa-btn">
+        <i class="fas fa-file-export"></i> Exportar
+      </a>
+    </div>
+  </div>
+  <!-- Distribuição por Status -->
+  <div class="card executive-card">
+    <div class="card-header">
+      <div class="card-title">Distribuição por Status</div>
+    </div>
+    <div class="executive-dist">
+      <?php foreach ($statusDist as $status => $qtd):
+        $pct = $totalDist > 0 ? round($qtd / $totalDist * 100) : 0;
+        $cor = $distColors[$status] ?? '#8A93A8';
+      ?>
+      <div class="dist-item">
+        <div class="dist-item-label">
+          <span><?= $status ?></span>
+          <span><?= $qtd ?> (<?= $pct ?>%)</span>
+        </div>
+        <div class="dist-bar-track">
+          <div class="dist-bar-fill" style="width:<?= $pct ?>%;background:<?= $cor ?>"></div>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+</div>
+
 <!-- ════════ LAYOUT PRINCIPAL ════════ -->
+
+<!-- Alertas Críticos -->
+<?php
+$alertasVencimento = array_filter($contratos ?? [], function($c) {
+    if (empty($c['vencimento'])) return false;
+    $dias = (int)(new DateTime())->diff(new DateTime($c['vencimento']))->format('%r%a');
+    return $dias >= 0 && $dias <= 30;
+});
+$alertasVencimento = array_slice($alertasVencimento, 0, 4);
+?>
+<?php if (!empty($alertasVencimento) || ($comPendenciaDocs ?? 0) > 0): ?>
+<div class="card" style="margin-bottom:0">
+    <div class="card-header" style="padding:12px 16px">
+        <div class="card-title" style="font-size:13px;padding-left:9px">
+            <i class="fas fa-triangle-exclamation" style="color:var(--c-red);margin-right:6px;font-size:12px"></i>
+            Alertas Críticos
+        </div>
+    </div>
+    <div class="alerts-list" style="flex-direction:row;flex-wrap:wrap;padding:8px 12px">
+        <?php foreach ($alertasVencimento as $ac):
+            $dias = (int)(new DateTime())->diff(new DateTime($ac['vencimento']))->format('%r%a');
+            $dotClass = $dias <= 7 ? 'red' : 'gold';
+        ?>
+        <div class="alert-item" style="border:none;padding:6px 10px;flex:1;min-width:180px">
+            <div class="alert-dot <?= $dotClass ?>"></div>
+            <div class="alert-text">
+                <strong><?= htmlspecialchars($ac['parteContratada'] ?? 'Contrato') ?></strong>
+                vence em <?= $dias ?> dia<?= $dias != 1 ? 's' : '' ?>
+                <span class="alert-time"><?= date('d/m/Y', strtotime($ac['vencimento'])) ?></span>
+            </div>
+        </div>
+        <?php endforeach; ?>
+        <?php if (($comPendenciaDocs ?? 0) > 0): ?>
+        <div class="alert-item" style="border:none;padding:6px 10px;flex:1;min-width:180px">
+            <div class="alert-dot blue"></div>
+            <div class="alert-text">
+                <strong><?= $comPendenciaDocs ?> contrato<?= $comPendenciaDocs > 1 ? 's' : '' ?></strong>
+                aguardando assinatura/documentação
+                <span class="alert-time">Regularização pendente</span>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="dash-grid">
 
-    <!-- ── COLUNA ESQUERDA: TABELA ── -->
     <div class="card">
         <div class="card-header">
             <div class="card-title">Lista de Contratos</div>
@@ -516,9 +689,9 @@
                 <?php
                 // Paleta de cores para avatares (rotacional)
                 $avatarColors = [
-                    ['#EBF2FB','#1B4F8C'],['#E6F5EE','#17673E'],
-                    ['#EEEDFB','#4A35A8'],['#FFF7E0','#916A00'],
-                    ['#FDF0F0','#921C1C'],['#F0F3F8','#4A5878'],
+                    ['#EAF0F8','#0C2C4E'],['#E7F3EC','#146143'],
+                    ['#EEECF7','#473C74'],['#FBF3DE','#96721E'],
+                    ['#FBECEA','#8C2A24'],['#EEF1F6','#47536B'],
                 ];
                 $colorIdx = 0;
 
@@ -549,13 +722,13 @@
                 ?>
                 <tr <?= ($diasVenc !== null && $diasVenc < 0) ? 'style="background-color: var(--c-red-light);"' : '' ?>>
                     <!-- ID / Número do Contrato -->
-                    <td style="font-weight:600;color:var(--c-blue-mid);white-space:nowrap">
+                    <td style="font-family:var(--font-mono);font-weight:600;font-size:10px;color:var(--c-accent-deep);white-space:nowrap">
                         <?= htmlspecialchars($contrato['numero_contrato'] ?? $contrato['id']) ?>
                     </td>
-                    <td>
+                    <td style="font-size:10px">
                         <?= htmlspecialchars($contrato['base_referencia'] ?? 'N/A') ?>
                     </td>
-                    <td>
+                    <td style="font-size:10px">
                         <?= htmlspecialchars($contrato['numero_contrato_cliente'] ?? 'N/A') ?>
                     </td>
                     <!-- Parte -->
@@ -571,7 +744,7 @@
                     <!-- Tipo -->
                     <td><span class="tipo-badge"><?= htmlspecialchars($contrato['tipo']) ?></span></td>
                     <!-- Valor -->
-                    <td style="font-weight:500;white-space:nowrap">R$ <?= number_format($contrato['valor'] ?? 0, 2, ',', '.') ?></td>
+                    <td style="font-family:var(--font-mono);font-weight:500;font-size:10px;white-space:nowrap">R$ <?= number_format($contrato['valor'] ?? 0, 2, ',', '.') ?></td>
                     <!-- Vencimento -->
                     <td>
                         <div class="td-venc" <?= ($diasVenc !== null && $diasVenc < 0) ? 'style="color: var(--c-red); font-weight: 600;"' : '' ?>>
@@ -593,7 +766,7 @@
                                class="btn-action" 
                                title="Enviar para assinatura digital"
                                onclick="return confirm('Deseja enviar o link de assinatura eletrônica para <?= htmlspecialchars($contrato['contratante_email'] ?? 'o cliente') ?>?')">
-                                <i class="fas fa-paper-plane" style="color: var(--c-blue-mid)"></i>
+                                <i class="fas fa-paper-plane" style="color: var(--c-accent-deep)"></i>
                             </a>
                             <?php endif; ?>
                             <a href="<?= BASE_URL ?>/contratos/detalhe/<?= $contrato['id'] ?>" class="btn-action" title="Ver detalhes">
@@ -671,113 +844,16 @@
         <?php endif; ?>
     </div>
 
-    <!-- ── COLUNA DIREITA: PAINEL LATERAL ── -->
-    <div class="side-panel">
 
-        <!-- Ações Rápidas -->
-        <div class="card">
-            <div class="card-header" style="padding:14px 16px">
-                <div class="card-title" style="font-size:14px">Ações Rápidas</div>
-            </div>
-            <div class="quick-actions">
-                <button id="open-alerta-modal-btn" class="qa-btn warn-btn">
-                    <i class="fas fa-bell"></i> Enviar Alerta de Renovação
-                </button>
-                <a href="<?= BASE_URL ?>/contratos/configuracoes" class="qa-btn">
-                    <i class="fas fa-cog"></i> Modelos de Contrato
-                </a>
-                <a href="<?= BASE_URL ?>/contratos/exportar" class="qa-btn">
-                    <i class="fas fa-file-export"></i> Exportar Relatório
-                </a>
-            </div>
-        </div>
-
-        <!-- Alertas Críticos -->
-        <?php
-        $alertasVencimento = array_filter($contratos ?? [], function($c) {
-            if (empty($c['vencimento'])) return false;
-            $dias = (int)(new DateTime())->diff(new DateTime($c['vencimento']))->format('%r%a');
-            return $dias >= 0 && $dias <= 30;
-        });
-        $alertasVencimento = array_slice($alertasVencimento, 0, 4);
-        ?>
-        <?php if (!empty($alertasVencimento) || ($comPendenciaDocs ?? 0) > 0): ?>
-        <div class="card">
-            <div class="card-header" style="padding:14px 16px">
-                <div class="card-title" style="font-size:14px">
-                    <i class="fas fa-triangle-exclamation" style="color:#D94040;margin-right:6px;font-size:13px"></i>
-                    Alertas Críticos
-                </div>
-            </div>
-            <div class="alerts-list">
-                <?php foreach ($alertasVencimento as $ac):
-                    $dias = (int)(new DateTime())->diff(new DateTime($ac['vencimento']))->format('%r%a');
-                    $dotClass = $dias <= 7 ? 'red' : 'gold';
-                ?>
-                <div class="alert-item">
-                    <div class="alert-dot <?= $dotClass ?>"></div>
-                    <div class="alert-text">
-                        <strong><?= htmlspecialchars($ac['parteContratada'] ?? 'Contrato') ?></strong>
-                        vence em <?= $dias ?> dia<?= $dias != 1 ? 's' : '' ?>
-                        <span class="alert-time"><?= date('d/m/Y', strtotime($ac['vencimento'])) ?></span>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-                <?php if (($comPendenciaDocs ?? 0) > 0): ?>
-                <div class="alert-item">
-                    <div class="alert-dot blue"></div>
-                    <div class="alert-text">
-                        <strong><?= $comPendenciaDocs ?> contrato<?= $comPendenciaDocs > 1 ? 's' : '' ?></strong>
-                        aguardando assinatura/documentação
-                        <span class="alert-time">Regularização pendente</span>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <!-- Distribuição por Status -->
-        <?php
-        $statusDist = ['Em Vigência' => 0, 'Pendente Assinatura' => 0, 'Rascunho' => 0, 'Finalizado' => 0, 'Cancelado' => 0];
-        foreach ($contratos ?? [] as $c) {
-            $st = $c['status'] ?? 'Rascunho';
-            if (isset($statusDist[$st])) $statusDist[$st]++;
-        }
-        $totalDist = array_sum($statusDist);
-        $distColors = ['Em Vigência' => '#22A05B', 'Pendente Assinatura' => '#D4A017', 'Rascunho' => '#8A97AE', 'Finalizado' => '#2E6EC5', 'Cancelado' => '#D94040'];
-        ?>
-        <div class="card">
-            <div class="card-header" style="padding:14px 16px">
-                <div class="card-title" style="font-size:14px">Distribuição por Status</div>
-            </div>
-            <div class="dist-list">
-                <?php foreach ($statusDist as $status => $qtd):
-                    $pct = $totalDist > 0 ? round($qtd / $totalDist * 100) : 0;
-                    $cor = $distColors[$status] ?? '#8A97AE';
-                ?>
-                <div>
-                    <div class="dist-item-label">
-                        <span><?= $status ?></span>
-                        <span><?= $qtd ?> (<?= $pct ?>%)</span>
-                    </div>
-                    <div class="dist-bar-track">
-                        <div class="dist-bar-fill" style="width:<?= $pct ?>%;background:<?= $cor ?>"></div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <!-- Nota -->
-        <div class="info-note">
-            <i class="fas fa-shield-halved" style="flex-shrink:0;margin-top:1px"></i>
-            <span>A documentação completa deve ser arquivada digitalmente e estar em conformidade com as cláusulas legais vigentes — LGPD e CC/2002.</span>
-        </div>
-
-    </div><!-- /side-panel -->
 
 </div><!-- /dash-grid -->
+
+<!-- Nota -->
+<div class="info-note" style="margin-top:12px">
+    <i class="fas fa-shield-halved" style="margin-right:6px"></i>
+    <span>A documentação completa deve ser arquivada digitalmente e estar em conformidade com as cláusulas legais vigentes — LGPD e CC/2002.</span>
+</div>
+
 </div><!-- /dash -->
 
 

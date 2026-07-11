@@ -25,10 +25,150 @@ class FinancialModel extends Model
      */
     private $hasPrestacaoCategoriaColumn = null;
 
+    /**
+     * Cache interno para saber se a tabela 'transacoes' possui a coluna valor_pago.
+     * @var bool|null
+     */
+    private $hasValorPagoColumn = null;
+
     public function __construct()
     {
         parent::__construct();
         $this->ensureWebhookColumns();
+        $this->ensureValorPagoColumn();
+        $this->ensurePagamentosParciaisTable();
+    }
+
+    private function ensurePagamentosParciaisTable(): void
+    {
+        try {
+            $stmt = $this->db->query("SHOW TABLES LIKE 'pagamentos_parciais'");
+            if (!$stmt->fetch()) {
+                $this->db->exec("CREATE TABLE pagamentos_parciais (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    transacao_id INT NOT NULL,
+                    valor DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+                    data_pagamento DATE NOT NULL,
+                    forma_pagamento VARCHAR(50) NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (transacao_id) REFERENCES transacoes(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+                $this->db->exec("INSERT INTO pagamentos_parciais (transacao_id, valor, data_pagamento, forma_pagamento, created_at)
+                    SELECT id, valor_pago, COALESCE(data_pagamento, vencimento), forma_pagamento, created_at
+                    FROM transacoes WHERE valor_pago > 0");
+            }
+        } catch (PDOException $e) {
+            error_log("Erro ao criar tabela pagamentos_parciais: " . $e->getMessage());
+        }
+    }
+
+    public function inserirPagamentoParcial(int $transacaoId, float $valor, string $dataPagamento, ?string $formaPagamento = null): int|false
+    {
+        try {
+            $stmt = $this->db->prepare("INSERT INTO pagamentos_parciais (transacao_id, valor, data_pagamento, forma_pagamento) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$transacaoId, $valor, $dataPagamento, $formaPagamento]);
+            return (int)$this->db->lastInsertId();
+        } catch (PDOException $e) {
+            error_log("Erro ao inserir pagamento parcial: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getPagamentosParciais(int $transacaoId): array
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT id, valor, data_pagamento, forma_pagamento, created_at FROM pagamentos_parciais WHERE transacao_id = ? ORDER BY data_pagamento ASC, id ASC");
+            $stmt->execute([$transacaoId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erro ao buscar pagamentos parciais: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function editarPagamentoParcial(int $id, float $valor, string $dataPagamento, ?string $formaPagamento = null): array
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT transacao_id FROM pagamentos_parciais WHERE id = ?");
+            $stmt->execute([$id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) return ['success' => false, 'message' => 'Registro não encontrado.'];
+
+            $this->db->prepare("UPDATE pagamentos_parciais SET valor = ?, data_pagamento = ?, forma_pagamento = ? WHERE id = ?")
+                ->execute([$valor, $dataPagamento, $formaPagamento, $id]);
+
+            $novoTotal = $this->recalcularValorPago($row['transacao_id']);
+            $transacao = $this->getTransacaoPorId($row['transacao_id']);
+            $saldoRestante = ($transacao['valor'] ?? 0) - $novoTotal;
+
+            return [
+                'success' => true,
+                'message' => 'Pagamento atualizado.',
+                'valor_pago' => $novoTotal,
+                'saldo_restante' => round($saldoRestante, 2),
+                'status' => $transacao['status'] ?? 'Pago Parcial',
+            ];
+        } catch (PDOException $e) {
+            error_log("Erro ao editar pagamento parcial: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro ao salvar.'];
+        }
+    }
+
+    public function excluirPagamentoParcial(int $id): array
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT transacao_id FROM pagamentos_parciais WHERE id = ?");
+            $stmt->execute([$id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) return ['success' => false, 'message' => 'Registro não encontrado.'];
+
+            $this->db->prepare("DELETE FROM pagamentos_parciais WHERE id = ?")->execute([$id]);
+
+            $novoTotal = $this->recalcularValorPago($row['transacao_id']);
+            $transacao = $this->getTransacaoPorId($row['transacao_id']);
+            $saldoRestante = ($transacao['valor'] ?? 0) - $novoTotal;
+
+            return [
+                'success' => true,
+                'message' => 'Pagamento excluído.',
+                'valor_pago' => $novoTotal,
+                'saldo_restante' => round($saldoRestante, 2),
+                'status' => $transacao['status'] ?? 'Pendente',
+            ];
+        } catch (PDOException $e) {
+            error_log("Erro ao excluir pagamento parcial: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro ao excluir.'];
+        }
+    }
+
+    public function limparPagamentosParciais(int $transacaoId): void
+    {
+        try {
+            $this->db->prepare("DELETE FROM pagamentos_parciais WHERE transacao_id = ?")->execute([$transacaoId]);
+        } catch (PDOException $e) {
+            error_log("Erro ao limpar pagamentos parciais: " . $e->getMessage());
+        }
+    }
+
+    public function recalcularValorPago(int $transacaoId): float
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT COALESCE(SUM(valor), 0) FROM pagamentos_parciais WHERE transacao_id = ?");
+            $stmt->execute([$transacaoId]);
+            $total = (float)$stmt->fetchColumn();
+
+            $transacao = $this->getTransacaoPorId($transacaoId);
+            $valorOriginal = (float)($transacao['valor'] ?? 0);
+            $novoStatus = $total >= $valorOriginal ? 'Pago' : ($total > 0 ? 'Pago Parcial' : 'Pendente');
+
+            $stmtUpd = $this->db->prepare("UPDATE transacoes SET valor_pago = ?, status = ? WHERE id = ?");
+            $stmtUpd->execute([$total, $novoStatus, $transacaoId]);
+            return $total;
+        } catch (PDOException $e) {
+            error_log("Erro ao recalcular valor_pago: " . $e->getMessage());
+            return 0;
+        }
     }
 
     /**
@@ -96,6 +236,26 @@ class FinancialModel extends Model
     }
 
     /**
+     * Garante a existência da coluna valor_pago na tabela transacoes.
+     */
+    private function ensureValorPagoColumn(): void
+    {
+        if ($this->hasValorPagoColumn === null) {
+            try {
+                $stmt = $this->db->query("SHOW COLUMNS FROM transacoes LIKE 'valor_pago'");
+                if (!$stmt->fetch()) {
+                    $this->db->exec("ALTER TABLE transacoes ADD COLUMN valor_pago DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER valor");
+                    $this->db->exec("UPDATE transacoes SET valor_pago = valor WHERE status = 'Pago'");
+                }
+                $this->hasValorPagoColumn = true;
+            } catch (PDOException $e) {
+                error_log("Erro ao garantir coluna valor_pago: " . $e->getMessage());
+                $this->hasValorPagoColumn = false;
+            }
+        }
+    }
+
+    /**
      * Retorna a última mensagem de erro capturada.
      * @return string|null
      */
@@ -113,8 +273,8 @@ class FinancialModel extends Model
     public function getResumoFluxoCaixa(array $filtros = [], int $limit = 5, int $offset = 0): array
     {
         // Busca fluxos incluindo transferências (podem ser filtradas externamente)
-        $sql = "SELECT t.id, t.descricao, t.valor, t.tipo, t.status, t.vencimento as data, t.vencimento, t.data_pagamento, t.banco_id, t.centro_custo_id, t.documento_vinculado, t.observacoes,
-                       b.nome as banco_nome, cc.nome as nome_centro_custo
+        $sql = "SELECT t.id, t.descricao, t.valor, t.valor_pago, t.juros, t.desconto, t.tipo, t.status, t.vencimento as data, t.vencimento, t.data_pagamento, t.banco_id, t.centro_custo_id, t.documento_vinculado, t.observacoes,
+                       b.nome as banco_nome, b.cor as banco_color, cc.nome as nome_centro_custo
                 FROM transacoes t
                 LEFT JOIN bancos b ON t.banco_id = b.id
                 LEFT JOIN centros_custo cc ON t.centro_custo_id = cc.id
@@ -481,9 +641,9 @@ class FinancialModel extends Model
     public function getPrevisaoRecebimento(int $meses = 12): float
     {
         try {
-            $sql = "SELECT SUM(valor) FROM transacoes 
+            $sql = "SELECT SUM(valor - COALESCE(valor_pago, 0)) FROM transacoes 
                     WHERE tipo = 'R' 
-                    AND status IN ('Pendente', 'Atrasado', 'Em Análise') 
+                    AND status IN ('Pendente', 'Atrasado', 'Em Análise', 'Pago Parcial') 
                     AND status != 'Cancelado'
                     AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')
                     AND vencimento <= DATE_ADD(CURDATE(), INTERVAL :meses MONTH)";
@@ -505,9 +665,9 @@ class FinancialModel extends Model
     public function getPrevisaoPagamento(int $meses = 12): float
     {
         try {
-            $sql = "SELECT SUM(valor) FROM transacoes 
+            $sql = "SELECT SUM(valor - COALESCE(valor_pago, 0)) FROM transacoes 
                     WHERE tipo = 'P' 
-                    AND status IN ('Pendente', 'Atrasado', 'Em Análise') 
+                    AND status IN ('Pendente', 'Atrasado', 'Em Análise', 'Pago Parcial') 
                     AND status != 'Cancelado'
                     AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')
                     AND vencimento <= DATE_ADD(CURDATE(), INTERVAL :meses MONTH)";
@@ -549,9 +709,9 @@ class FinancialModel extends Model
     public function getTotalDespesasPagasAnoCorrente(): float
     {
         try {
-            $sql = "SELECT SUM(valor) FROM transacoes 
+            $sql = "SELECT SUM(CASE WHEN status = 'Pago Parcial' THEN COALESCE(valor_pago, 0) ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END) FROM transacoes 
                     WHERE tipo = 'P' 
-                    AND status = 'Pago' 
+                    AND status IN ('Pago', 'Pago Parcial')
                     AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')
                     AND YEAR(data_pagamento) = YEAR(CURDATE())";
             $stmt = $this->db->prepare($sql);
@@ -570,9 +730,9 @@ class FinancialModel extends Model
     public function getTotalReceitasAnoCorrente(): float
     {
         try {
-            $sql = "SELECT SUM(valor) FROM transacoes 
+            $sql = "SELECT SUM(CASE WHEN status = 'Pago Parcial' THEN COALESCE(valor_pago, 0) ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END) FROM transacoes 
                     WHERE tipo = 'R' 
-                    AND status = 'Pago' 
+                    AND status IN ('Pago', 'Pago Parcial')
                     AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')
                     AND YEAR(data_pagamento) = YEAR(CURDATE())";
             $stmt = $this->db->prepare($sql);
@@ -599,15 +759,15 @@ class FinancialModel extends Model
             $sql = "
                 SELECT 
                     DATE_FORMAT($dateRef, '%Y-%m') as mes,
-                    SUM(CASE WHEN tipo = 'R' THEN valor ELSE 0 END) as receitas, -- Apenas Receitas
-                    SUM(CASE WHEN tipo = 'P' THEN valor ELSE 0 END) as despesas  -- Apenas Despesas
+                    SUM(CASE WHEN tipo = 'R' THEN (CASE WHEN status = 'Pago Parcial' THEN COALESCE(valor_pago, 0) ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END) ELSE 0 END) as receitas,
+                    SUM(CASE WHEN tipo = 'P' THEN (CASE WHEN status = 'Pago Parcial' THEN COALESCE(valor_pago, 0) ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END) ELSE 0 END) as despesas
                 FROM transacoes
                 WHERE 
-                    UPPER(status) = 'PAGO' AND
+                    status IN ('Pago', 'Pago Parcial') AND
                     data_pagamento IS NOT NULL AND data_pagamento != '0000-00-00' AND
                     $dateRef <= LAST_DAY(:mes_ref) AND $dateRef >= DATE_SUB(:mes_ref_start, INTERVAL :meses MONTH) AND
                     (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') AND
-                    tipo IN ('R', 'P') -- Ignora 'Transferência'
+                    tipo IN ('R', 'P')
                 GROUP BY mes
                 ORDER BY mes ASC;
             ";
@@ -637,12 +797,12 @@ class FinancialModel extends Model
             $sql = "
                 SELECT 
                     COALESCE(NULLIF(TRIM(cc.nome), ''), 'Sem Centro de Custo') as label,
-                    SUM(COALESCE(t.valor, 0)) as total
+                    SUM(CASE WHEN t.status = 'Pago Parcial' THEN COALESCE(t.valor_pago, 0) ELSE COALESCE(t.valor, 0) + COALESCE(t.juros, 0) - COALESCE(t.desconto, 0) END) as total
                 FROM transacoes t
                 LEFT JOIN centros_custo cc ON t.centro_custo_id = cc.id
                 WHERE 
                     t.tipo = 'P' AND 
-                    UPPER(t.status) = 'PAGO' AND
+                    t.status IN ('Pago', 'Pago Parcial') AND
                     t.data_pagamento IS NOT NULL AND t.data_pagamento != '0000-00-00' AND
                     DATE_FORMAT($dateRef, '%Y-%m') = :mes AND
                     (t.documento_vinculado IS NULL OR t.documento_vinculado NOT LIKE 'transfer_%')
@@ -674,11 +834,11 @@ class FinancialModel extends Model
                         WHEN vencimento < DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN DATE_FORMAT(CURDATE(), '%Y-%m')
                         ELSE DATE_FORMAT(vencimento, '%Y-%m')
                     END as mes,
-                    SUM(CASE WHEN tipo = 'R' THEN valor ELSE 0 END) as receitas,
-                    SUM(CASE WHEN tipo = 'P' THEN valor ELSE 0 END) as despesas
+                    SUM(CASE WHEN tipo = 'R' THEN (valor - COALESCE(valor_pago, 0)) ELSE 0 END) as receitas,
+                    SUM(CASE WHEN tipo = 'P' THEN (valor - COALESCE(valor_pago, 0)) ELSE 0 END) as despesas
                 FROM transacoes
                 WHERE 
-                    status IN ('Pendente', 'Atrasado', 'Em Análise') AND
+                    status IN ('Pendente', 'Atrasado', 'Em Análise', 'Pago Parcial') AND
                     vencimento <= DATE_ADD(CURDATE(), INTERVAL :meses MONTH) AND
                     (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') AND
                     tipo IN ('R', 'P')
@@ -725,7 +885,7 @@ class FinancialModel extends Model
             $sql = "
                 SELECT 
                     $labelExpr as label,
-                    SUM(COALESCE(t.valor, 0)) as total
+                    SUM(CASE WHEN t.status = 'Pago Parcial' THEN COALESCE(t.valor_pago, 0) ELSE COALESCE(t.valor, 0) + COALESCE(t.juros, 0) - COALESCE(t.desconto, 0) END) as total
                 FROM transacoes t
                 LEFT JOIN transacao_classificacoes tc ON t.classificacao_id = tc.id";
             
@@ -735,7 +895,7 @@ class FinancialModel extends Model
 
             $sql .= " WHERE 
                     t.tipo = 'P' AND 
-                    UPPER(t.status) = 'PAGO' AND
+                    t.status IN ('Pago', 'Pago Parcial') AND
                     t.data_pagamento IS NOT NULL AND t.data_pagamento != '0000-00-00' AND
                     DATE_FORMAT($dateRef, '%Y-%m') = :mes AND
                     (t.documento_vinculado IS NULL OR t.documento_vinculado NOT LIKE 'transfer_%')
@@ -762,8 +922,8 @@ class FinancialModel extends Model
             $mesRef = $mesReferencia ?: date('Y-m');
             // Ignora transferências internas
             $stmt = $this->db->prepare(
-                "SELECT SUM(valor) as total FROM transacoes 
-                 WHERE tipo = 'P' AND status IN ('Pendente', 'Atrasado') 
+                "SELECT SUM((valor + COALESCE(juros, 0) - COALESCE(desconto, 0)) - COALESCE(valor_pago, 0)) as total FROM transacoes 
+                 WHERE tipo = 'P' AND status IN ('Pendente', 'Atrasado', 'Pago Parcial') 
                  AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')
                  AND DATE_FORMAT(vencimento, '%Y-%m') = :mes"
             );
@@ -786,8 +946,8 @@ class FinancialModel extends Model
             $mesRef = $mesReferencia ?: date('Y-m');
             // Ignora transferências internas
             $stmt = $this->db->prepare(
-                "SELECT SUM(valor) as total FROM transacoes 
-                 WHERE tipo = 'R' AND status IN ('Pendente', 'Atrasado') 
+                "SELECT SUM((valor + COALESCE(juros, 0) - COALESCE(desconto, 0)) - COALESCE(valor_pago, 0)) as total FROM transacoes 
+                 WHERE tipo = 'R' AND status IN ('Pendente', 'Atrasado', 'Pago Parcial') 
                  AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')
                  AND DATE_FORMAT(vencimento, '%Y-%m') = :mes"
             );
@@ -808,9 +968,9 @@ class FinancialModel extends Model
     {
         try {
             $mesRef = $mesReferencia ?: date('Y-m');
-            $sql = "SELECT id, descricao, valor, vencimento, status 
+            $sql = "SELECT id, descricao, valor, valor_pago, juros, desconto, vencimento, status 
                     FROM transacoes 
-                    WHERE tipo = 'P' AND status IN ('Pendente', 'Atrasado') 
+                    WHERE tipo = 'P' AND status IN ('Pendente', 'Atrasado', 'Pago Parcial') 
                     AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')
                     AND DATE_FORMAT(vencimento, '%Y-%m') = :mes
                     ORDER BY vencimento ASC
@@ -833,9 +993,9 @@ class FinancialModel extends Model
     {
         try {
             $mesRef = $mesReferencia ?: date('Y-m');
-            $sql = "SELECT id, descricao, valor, vencimento, status 
+            $sql = "SELECT id, descricao, valor, valor_pago, juros, desconto, vencimento, status 
                     FROM transacoes 
-                    WHERE tipo = 'R' AND status IN ('Pendente', 'Atrasado') 
+                    WHERE tipo = 'R' AND status IN ('Pendente', 'Atrasado', 'Pago Parcial') 
                     AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')
                     AND DATE_FORMAT(vencimento, '%Y-%m') = :mes
                     ORDER BY vencimento ASC
@@ -859,9 +1019,9 @@ class FinancialModel extends Model
         try {
             $stmt = $this->db->prepare("
                 SELECT (
-                    (SELECT COALESCE(SUM(saldo_inicial), 0) FROM bancos) +
-                    (SELECT COALESCE(SUM(valor), 0) FROM transacoes WHERE tipo = 'R' AND status = 'Pago' AND banco_id IS NOT NULL AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')) -
-                    (SELECT COALESCE(SUM(valor), 0) FROM transacoes WHERE tipo = 'P' AND status = 'Pago' AND banco_id IS NOT NULL AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')) +
+                    (SELECT COALESCE(SUM(saldo_inicial), 0) FROM bancos WHERE ativo = 1) +
+                    (SELECT COALESCE(SUM(CASE WHEN status = 'Pago Parcial' THEN valor_pago ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END), 0) FROM transacoes WHERE tipo = 'R' AND status IN ('Pago', 'Pago Parcial') AND banco_id IS NOT NULL AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')) -
+                    (SELECT COALESCE(SUM(CASE WHEN status = 'Pago Parcial' THEN valor_pago ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END), 0) FROM transacoes WHERE tipo = 'P' AND status IN ('Pago', 'Pago Parcial') AND banco_id IS NOT NULL AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%')) +
                     (SELECT COALESCE(SUM(valor), 0) FROM transacoes WHERE documento_vinculado LIKE 'transfer_in:%' AND status = 'Pago' AND banco_id IS NOT NULL) -
                     (SELECT COALESCE(SUM(valor), 0) FROM transacoes WHERE documento_vinculado LIKE 'transfer_out:%' AND status = 'Pago' AND banco_id IS NOT NULL)
                 )
@@ -883,7 +1043,7 @@ class FinancialModel extends Model
     public function getBancos(): array
     {
         try {
-            $stmt = $this->db->query("SELECT id, nome FROM bancos ORDER BY nome ASC");
+            $stmt = $this->db->query("SELECT id, nome FROM bancos WHERE ativo = 1 ORDER BY nome ASC");
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Erro ao buscar bancos: " . $e->getMessage());
@@ -922,12 +1082,13 @@ class FinancialModel extends Model
                     MAX(b.logo) as logo,
                     MAX(b.tipo) as tipo,
                     SUM(b.saldo_inicial 
-                        + COALESCE((SELECT SUM(t.valor) FROM transacoes t WHERE t.banco_id = b.id AND t.tipo = 'R' AND t.status = 'Pago' AND (t.documento_vinculado IS NULL OR t.documento_vinculado NOT LIKE 'transfer_%')), 0)
-                        - COALESCE((SELECT SUM(t.valor) FROM transacoes t WHERE t.banco_id = b.id AND t.tipo = 'P' AND t.status = 'Pago' AND (t.documento_vinculado IS NULL OR t.documento_vinculado NOT LIKE 'transfer_%')), 0)
+                        + COALESCE((SELECT SUM(CASE WHEN t.status = 'Pago Parcial' THEN t.valor_pago ELSE t.valor + COALESCE(t.juros, 0) - COALESCE(t.desconto, 0) END) FROM transacoes t WHERE t.banco_id = b.id AND t.tipo = 'R' AND t.status IN ('Pago', 'Pago Parcial') AND (t.documento_vinculado IS NULL OR t.documento_vinculado NOT LIKE 'transfer_%')), 0)
+                        - COALESCE((SELECT SUM(CASE WHEN t.status = 'Pago Parcial' THEN t.valor_pago ELSE t.valor + COALESCE(t.juros, 0) - COALESCE(t.desconto, 0) END) FROM transacoes t WHERE t.banco_id = b.id AND t.tipo = 'P' AND t.status IN ('Pago', 'Pago Parcial') AND (t.documento_vinculado IS NULL OR t.documento_vinculado NOT LIKE 'transfer_%')), 0)
                         + COALESCE((SELECT SUM(t.valor) FROM transacoes t WHERE t.banco_id = b.id AND t.documento_vinculado LIKE 'transfer_in:%' AND t.status = 'Pago'), 0)
                         - COALESCE((SELECT SUM(t.valor) FROM transacoes t WHERE t.banco_id = b.id AND t.documento_vinculado LIKE 'transfer_out:%' AND t.status = 'Pago'), 0)
                     ) as saldo_atual
                 FROM bancos b
+                WHERE b.ativo = 1
                 GROUP BY b.nome
                 ORDER BY b.nome ASC
             ";
@@ -1243,7 +1404,7 @@ class FinancialModel extends Model
     {
         try {
             // Adicionados: juros, desconto, forma_pagamento, data_pagamento, prestacao_categoria_id.
-            $cols = "id, tipo, descricao, valor, vencimento, data_emissao as dataEmissao, status, documento_vinculado as documentoVinculado, observacoes, banco_id, classificacao_id, prestacao_categoria_id, centro_custo_id, juros, desconto, iss_percentual, forma_pagamento, data_pagamento, cliente_id, fornecedor_id, contrato_parcela_id";
+            $cols = "id, tipo, descricao, valor, valor_pago, vencimento, data_emissao as dataEmissao, status, documento_vinculado as documentoVinculado, observacoes, banco_id, classificacao_id, prestacao_categoria_id, centro_custo_id, juros, desconto, iss_percentual, forma_pagamento, data_pagamento, cliente_id, fornecedor_id, contrato_parcela_id";
             if ($this->ensureUsuarioColumn()) {
                 $cols .= ", usuario_id";
             }
@@ -1306,6 +1467,7 @@ class FinancialModel extends Model
                         tipo = :tipo,
                         descricao = :descricao,
                         valor = :valor,
+                        valor_pago = :valor_pago,
                         vencimento = :vencimento,
                         data_pagamento = :data_pagamento,
                         data_emissao = :dataEmissao,
@@ -1327,11 +1489,11 @@ class FinancialModel extends Model
         } else {
             // Lógica de INSERT com os novos campos (inclui usuario_id apenas se tabela suportar)
             if ($this->ensureUsuarioColumn()) {
-                $sql = "INSERT INTO transacoes (tipo, descricao, valor, vencimento, data_pagamento, data_emissao, status, documento_vinculado, observacoes, banco_id, classificacao_id, prestacao_categoria_id, centro_custo_id, contrato_parcela_id, juros, desconto, iss_percentual, forma_pagamento, usuario_id, cliente_id, fornecedor_id, created_at) 
-                        VALUES (:tipo, :descricao, :valor, :vencimento, :data_pagamento, :dataEmissao, :status, :documentoVinculado, :observacoes, :banco_id, :classificacao_id, :prestacao_categoria_id, :centro_custo_id, :contrato_parcela_id, :juros, :desconto, :iss_percentual, :forma_pagamento, :usuario_id, :cliente_id, :fornecedor_id, NOW())";
+                $sql = "INSERT INTO transacoes (tipo, descricao, valor, valor_pago, vencimento, data_pagamento, data_emissao, status, documento_vinculado, observacoes, banco_id, classificacao_id, prestacao_categoria_id, centro_custo_id, contrato_parcela_id, juros, desconto, iss_percentual, forma_pagamento, usuario_id, cliente_id, fornecedor_id, created_at) 
+                        VALUES (:tipo, :descricao, :valor, :valor_pago, :vencimento, :data_pagamento, :dataEmissao, :status, :documentoVinculado, :observacoes, :banco_id, :classificacao_id, :prestacao_categoria_id, :centro_custo_id, :contrato_parcela_id, :juros, :desconto, :iss_percentual, :forma_pagamento, :usuario_id, :cliente_id, :fornecedor_id, NOW())";
             } else {
-                $sql = "INSERT INTO transacoes (tipo, descricao, valor, vencimento, data_pagamento, data_emissao, status, documento_vinculado, observacoes, banco_id, classificacao_id, prestacao_categoria_id, centro_custo_id, contrato_parcela_id, juros, desconto, iss_percentual, forma_pagamento, cliente_id, fornecedor_id, created_at) 
-                        VALUES (:tipo, :descricao, :valor, :vencimento, :data_pagamento, :dataEmissao, :status, :documentoVinculado, :observacoes, :banco_id, :classificacao_id, :prestacao_categoria_id, :centro_custo_id, :contrato_parcela_id, :juros, :desconto, :iss_percentual, :forma_pagamento, :cliente_id, :fornecedor_id, NOW())";
+                $sql = "INSERT INTO transacoes (tipo, descricao, valor, valor_pago, vencimento, data_pagamento, data_emissao, status, documento_vinculado, observacoes, banco_id, classificacao_id, prestacao_categoria_id, centro_custo_id, contrato_parcela_id, juros, desconto, iss_percentual, forma_pagamento, cliente_id, fornecedor_id, created_at) 
+                        VALUES (:tipo, :descricao, :valor, :valor_pago, :vencimento, :data_pagamento, :dataEmissao, :status, :documentoVinculado, :observacoes, :banco_id, :classificacao_id, :prestacao_categoria_id, :centro_custo_id, :contrato_parcela_id, :juros, :desconto, :iss_percentual, :forma_pagamento, :cliente_id, :fornecedor_id, NOW())";
             }
         }
 
@@ -1341,6 +1503,7 @@ class FinancialModel extends Model
             $stmt->bindValue(':tipo', $dados['tipo'] ?? null);
             $stmt->bindValue(':descricao', $dados['descricao'] ?? null);
             $stmt->bindValue(':valor', $dados['valor'] ?? null);
+            $stmt->bindValue(':valor_pago', $dados['valor_pago'] ?? 0);
             $stmt->bindValue(':vencimento', $dados['vencimento'] ?? null);
             $stmt->bindValue(':data_pagamento', (isset($dados['data_pagamento']) && $dados['data_pagamento'] !== '' ? $dados['data_pagamento'] : null), PDO::PARAM_STR);
             $stmt->bindValue(':dataEmissao', (isset($dados['dataEmissao']) && $dados['dataEmissao'] !== '' ? $dados['dataEmissao'] : null), PDO::PARAM_STR);
@@ -1412,7 +1575,7 @@ class FinancialModel extends Model
     {
         try {
             $sql = "SELECT 
-                        t.id, t.tipo, t.descricao, t.valor, t.vencimento, t.data_emissao, t.status,
+                        t.id, t.tipo, t.descricao, t.valor, t.valor_pago, t.vencimento, t.data_emissao, t.status,
                         t.documento_vinculado as documentoVinculado, t.observacoes, t.banco_id, t.classificacao_id, t.created_at,
                         t.centro_custo_id, t.juros, t.desconto, t.forma_pagamento, t.data_pagamento";
             
@@ -1472,7 +1635,9 @@ class FinancialModel extends Model
                         $conditions[] = "t.status IN (" . implode(',', $inQuery) . ")";
                     }
                 } elseif ($status === 'Atrasado') {
-                    $conditions[] = "(t.status = 'Atrasado' OR (t.status = 'Pendente' AND t.vencimento < CURDATE()))";
+                    $conditions[] = "(t.status = 'Atrasado' OR (t.status = 'Pendente' AND t.vencimento < CURDATE()) OR (t.status = 'Pago Parcial' AND t.vencimento < CURDATE()))";
+                } elseif ($status === 'Pendente') {
+                    $conditions[] = "(t.status = 'Pendente' OR t.status = 'Pago Parcial')";
                 } else {
                     $conditions[] = "t.status = :status";
                     $params[':status'] = $status;
@@ -1501,8 +1666,6 @@ class FinancialModel extends Model
 
             if (!empty($filtros['descricao'])) {
                 $conditions[] = "t.descricao LIKE :descricao";
-                // Se o valor do filtro já contém um wildcard (%), usa-o como está (para buscas "começa com").
-                // Caso contrário, envolve com wildcards para uma busca "contém".
                 if (strpos($filtros['descricao'], '%') !== false) {
                     $params[':descricao'] = $filtros['descricao'];
                 } else {
@@ -1566,8 +1729,6 @@ class FinancialModel extends Model
 
             if (!empty($filtros['status'])) {
                 $status = $filtros['status'];
-                // Se o status for 'Atrasado', busca tanto as com status 'Atrasado'
-                // quanto as 'Pendente' com data de vencimento passada.
                 if (is_array($status)) {
                     if (!empty($status)) {
                         $inQuery = [];
@@ -1579,7 +1740,9 @@ class FinancialModel extends Model
                         $conditions[] = "t.status IN (" . implode(',', $inQuery) . ")";
                     }
                 } elseif ($status === 'Atrasado') {
-                    $conditions[] = "(t.status = 'Atrasado' OR (t.status = 'Pendente' AND t.vencimento < CURDATE()))";
+                    $conditions[] = "(t.status = 'Atrasado' OR (t.status = 'Pendente' AND t.vencimento < CURDATE()) OR (t.status = 'Pago Parcial' AND t.vencimento < CURDATE()))";
+                } elseif ($status === 'Pendente') {
+                    $conditions[] = "(t.status = 'Pendente' OR t.status = 'Pago Parcial')";
                 } else {
                     $conditions[] = "t.status = :status";
                     $params[':status'] = $status;
@@ -1593,12 +1756,10 @@ class FinancialModel extends Model
 
             if (!empty($filtros['data_pagamento'])) {
                 $conditions[] = "t.data_pagamento = :data_pagamento";
-                $params[':data_pagamento'] = $filtros['data_pagamento'];
             }
 
             if (!empty($filtros['valor'])) {
                 $conditions[] = "t.valor = :valor";
-                $params[':valor'] = $filtros['valor'];
             }
 
             if (!empty($filtros['mes'])) {
@@ -1752,13 +1913,75 @@ class FinancialModel extends Model
         $ids = array_map('intval', $ids);
         try {
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            $sql = "UPDATE transacoes SET status = 'Pago', data_pagamento = ? WHERE id IN ($placeholders)";
+            $sql = "UPDATE transacoes SET status = 'Pago', valor_pago = valor, data_pagamento = ? WHERE id IN ($placeholders)";
             $params = array_merge([$dataPagamento], $ids);
             $stmt = $this->db->prepare($sql);
             return $stmt->execute($params);
         } catch (PDOException $e) {
             error_log("Erro ao liquidar transações em massa: " . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Registra uma baixa parcial em uma transação, atualizando valor_pago e status.
+     * @param int $id ID da transação
+     * @param float $valorPago Valor pago nesta parcela
+     * @param string $dataPagamento Data do pagamento
+     * @param string $formaPagamento Forma de pagamento
+     * @return array ['success' => bool, 'status' => string, 'message' => string]
+     */
+    public function registrarBaixaParcial(int $id, float $valorPago, string $dataPagamento, string $formaPagamento = ''): array
+    {
+        try {
+            $transacao = $this->getTransacaoPorId($id);
+            if (!$transacao) {
+                return ['success' => false, 'status' => 'error', 'message' => 'Transação não encontrada.'];
+            }
+
+            $novoValorPago = ($transacao['valor_pago'] ?? 0) + $valorPago;
+            $valorOriginal = $transacao['valor'] ?? 0;
+
+            if ($novoValorPago > $valorOriginal) {
+                return ['success' => false, 'status' => 'error', 'message' => 'Valor pago excede o valor original da transação.'];
+            }
+
+            if ($novoValorPago >= $valorOriginal) {
+                $novoStatus = 'Pago';
+                $novoValorPago = $valorOriginal;
+            } else {
+                $novoStatus = 'Pago Parcial';
+            }
+
+            $sql = "UPDATE transacoes SET 
+                        valor_pago = :valor_pago,
+                        status = :status,
+                        data_pagamento = :data_pagamento,
+                        forma_pagamento = COALESCE(:forma_pagamento, forma_pagamento)
+                    WHERE id = :id";
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':valor_pago', $novoValorPago);
+            $stmt->bindValue(':status', $novoStatus);
+            $stmt->bindValue(':data_pagamento', $dataPagamento);
+            $stmt->bindValue(':forma_pagamento', $formaPagamento ?: null);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+
+            if ($stmt->execute()) {
+                $saldoRestante = $valorOriginal - $novoValorPago;
+                return [
+                    'success' => true,
+                    'status' => 'success',
+                    'message' => "Baixa parcial registrada. Saldo restante: R$ " . number_format($saldoRestante, 2, ',', '.'),
+                    'novo_status' => $novoStatus,
+                    'valor_pago' => $novoValorPago,
+                    'saldo_restante' => $saldoRestante
+                ];
+            }
+            return ['success' => false, 'status' => 'error', 'message' => 'Erro ao registrar baixa parcial.'];
+        } catch (PDOException $e) {
+            error_log("Erro ao registrar baixa parcial: " . $e->getMessage());
+            return ['success' => false, 'status' => 'error', 'message' => 'Erro no banco de dados: ' . $e->getMessage()];
         }
     }
 
@@ -1870,7 +2093,7 @@ class FinancialModel extends Model
                 "SELECT MIN(vencimento) as proximo_vencimento 
                  FROM transacoes 
                  WHERE tipo = 'P' 
-                 AND status IN ('Pendente', 'Atrasado') 
+                 AND status IN ('Pendente', 'Atrasado', 'Pago Parcial') 
                  AND vencimento >= CURDATE()"
             );
             $stmt->execute();
@@ -1893,7 +2116,7 @@ class FinancialModel extends Model
                 "SELECT COUNT(*) 
                  FROM transacoes 
                  WHERE tipo = 'R' 
-                 AND status = 'Atrasado'"
+                 AND (status = 'Atrasado' OR (status = 'Pago Parcial' AND vencimento < CURDATE()))"
             );
             $stmt->execute();
             return (int) $stmt->fetchColumn();
@@ -1913,7 +2136,7 @@ class FinancialModel extends Model
             $stmt = $this->db->prepare(
                 "SELECT MAX(data_pagamento) as ultima_atualizacao 
                  FROM transacoes 
-                 WHERE status = 'Pago' AND data_pagamento IS NOT NULL"
+                 WHERE status IN ('Pago', 'Pago Parcial') AND data_pagamento IS NOT NULL"
             );
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -1935,10 +2158,10 @@ class FinancialModel extends Model
         $query = "
             SELECT 
                 COUNT(id) as count,
-                COALESCE(SUM(valor), 0) as valor
+                COALESCE(SUM(valor - COALESCE(valor_pago, 0)), 0) as valor
             FROM transacoes 
             WHERE tipo = 'P' 
-              AND status = 'Pendente' 
+              AND (status = 'Pendente' OR status = 'Pago Parcial')
               AND vencimento < CURDATE()
         ";
 
@@ -1968,10 +2191,10 @@ class FinancialModel extends Model
         $query = "
             SELECT 
                 COUNT(id) as count,
-                COALESCE(SUM(valor), 0) as valor
+                COALESCE(SUM(valor - COALESCE(valor_pago, 0)), 0) as valor
             FROM transacoes 
             WHERE tipo = 'R' 
-              AND status = 'Pendente' 
+              AND (status = 'Pendente' OR status = 'Pago Parcial')
               AND vencimento < CURDATE()
         ";
 
@@ -2001,14 +2224,15 @@ class FinancialModel extends Model
     {
         // CORREÇÃO: A query agora busca transações diretamente pelo pessoa_id,
         // tornando-a mais abrangente e não dependente de um contrato.
-        $sql = "SELECT 
-                    t.id,
-                    t.descricao,
-                    t.valor,
-                    t.vencimento,
-                    t.data_pagamento,
-                    t.status
-                FROM transacoes t";
+            $sql = "SELECT 
+                        t.id,
+                        t.descricao,
+                        t.valor,
+                        t.valor_pago,
+                        t.vencimento,
+                        t.data_pagamento,
+                        t.status
+                    FROM transacoes t";
             
             // Tenta usar cliente_id para Receitas e fornecedor_id para Despesas
             $colVinculo = ($tipo === 'R') ? 'cliente_id' : 'fornecedor_id';
@@ -2325,8 +2549,8 @@ class FinancialModel extends Model
             $sql = "
                 SELECT (
                     (SELECT COALESCE(SUM(saldo_inicial), 0) FROM bancos) +
-                    (SELECT COALESCE(SUM(valor), 0) FROM transacoes WHERE tipo = 'R' AND status = 'Pago' AND data_pagamento < :data_inicio) -
-                    (SELECT COALESCE(SUM(valor), 0) FROM transacoes WHERE tipo = 'P' AND status = 'Pago' AND data_pagamento < :data_inicio)
+                    (SELECT COALESCE(SUM(CASE WHEN status = 'Pago Parcial' THEN valor_pago ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END), 0) FROM transacoes WHERE tipo = 'R' AND status IN ('Pago', 'Pago Parcial') AND data_pagamento < :data_inicio) -
+                    (SELECT COALESCE(SUM(CASE WHEN status = 'Pago Parcial' THEN valor_pago ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END), 0) FROM transacoes WHERE tipo = 'P' AND status IN ('Pago', 'Pago Parcial') AND data_pagamento < :data_inicio)
                 ) AS saldo_inicio_ano
             ";
             $stmt = $this->db->prepare($sql);
@@ -2359,10 +2583,10 @@ class FinancialModel extends Model
                         -- Previstas (Regime de Competência - baseadas na data de vencimento)
                         SELECT
                             DATE_FORMAT(vencimento, '%Y-%m') as mes,
-                            SUM(CASE WHEN tipo = 'R' AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') THEN valor ELSE 0 END) as receitas_previstas,
-                            SUM(CASE WHEN tipo = 'P' AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') THEN valor ELSE 0 END) as despesas_previstas,
-                            0 as receitas_realizadas, -- Não aplicável para 'previstas'
-                            0 as despesas_realizadas  -- Não aplicável para 'previstas'
+                            SUM(CASE WHEN tipo = 'R' AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') THEN (valor - COALESCE(valor_pago, 0)) ELSE 0 END) as receitas_previstas,
+                            SUM(CASE WHEN tipo = 'P' AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') THEN (valor - COALESCE(valor_pago, 0)) ELSE 0 END) as despesas_previstas,
+                            0 as receitas_realizadas,
+                            0 as despesas_realizadas
                         FROM transacoes
                         WHERE
                             status != 'Cancelado' AND
@@ -2375,13 +2599,13 @@ class FinancialModel extends Model
                         -- Realizadas (Regime de Caixa - baseadas na data de pagamento)
                         SELECT
                             DATE_FORMAT(data_pagamento, '%Y-%m') as mes,
-                            0 as receitas_previstas,  -- Não aplicável para 'realizadas'
-                            0 as despesas_previstas,  -- Não aplicável para 'realizadas'
-                            SUM(CASE WHEN tipo = 'R' AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') THEN valor ELSE 0 END) as receitas_realizadas,
-                            SUM(CASE WHEN tipo = 'P' AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') THEN valor ELSE 0 END) as despesas_realizadas
+                            0 as receitas_previstas,
+                            0 as despesas_previstas,
+                            SUM(CASE WHEN tipo = 'R' AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') THEN (CASE WHEN status = 'Pago Parcial' THEN COALESCE(valor_pago, 0) ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END) ELSE 0 END) as receitas_realizadas,
+                            SUM(CASE WHEN tipo = 'P' AND (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') THEN (CASE WHEN status = 'Pago Parcial' THEN COALESCE(valor_pago, 0) ELSE valor + COALESCE(juros, 0) - COALESCE(desconto, 0) END) ELSE 0 END) as despesas_realizadas
                         FROM transacoes
                         WHERE
-                            status = 'Pago' AND
+                            status IN ('Pago', 'Pago Parcial') AND
                             data_pagamento IS NOT NULL AND
                             (documento_vinculado IS NULL OR documento_vinculado NOT LIKE 'transfer_%') AND
                             YEAR(data_pagamento) = :ano_realizadas
@@ -2438,8 +2662,8 @@ class FinancialModel extends Model
             $statusCondition = "t.status != 'Cancelado'";
 
             if ($regime === 'caixa') {
-                $statusCondition .= " AND t.status = 'Pago'"; // Apenas transações pagas/recebidas para regime de caixa
-                $statusCondition .= " AND t.data_pagamento IS NOT NULL AND t.data_pagamento != '0000-00-00'"; // Garante que a data de pagamento seja válida
+                $statusCondition .= " AND t.status IN ('Pago', 'Pago Parcial')";
+                $statusCondition .= " AND t.data_pagamento IS NOT NULL AND t.data_pagamento != '0000-00-00'";
             }
 
             // Define o período atual e o período anterior para comparação
@@ -2466,8 +2690,12 @@ class FinancialModel extends Model
             $hasPrestacaoCol = $this->ensurePrestacaoCategoriaColumn();
             $categoriaExpr = "COALESCE(NULLIF(TRIM(tc.nome), ''), " . ($hasPrestacaoCol ? "NULLIF(TRIM(pc.nome), ''), " : "") . "NULLIF(TRIM(t.categoria), ''), 'Sem Categoria')";
 
+            $valorExpr = ($regime === 'caixa')
+                ? "SUM(CASE WHEN t.status = 'Pago Parcial' THEN COALESCE(t.valor_pago, 0) ELSE t.valor + COALESCE(t.juros, 0) - COALESCE(t.desconto, 0) END) as total"
+                : "SUM(t.valor) as total";
+
             $baseSql = "
-                SELECT $categoriaExpr as categoria, t.tipo, SUM(t.valor) as total
+                SELECT $categoriaExpr as categoria, t.tipo, $valorExpr
                 FROM transacoes t
                 LEFT JOIN transacao_classificacoes tc ON t.classificacao_id = tc.id " .
                 ($hasPrestacaoCol ? " LEFT JOIN prestacao_categorias pc ON t.prestacao_categoria_id = pc.id " : "") .
@@ -2560,7 +2788,7 @@ class FinancialModel extends Model
                     FROM transacoes t
                     LEFT JOIN transacao_classificacoes tc ON t.classificacao_id = tc.id
                     WHERE t.observacoes LIKE :term 
-                    AND t.status IN ('Pendente', 'Pago')
+                    AND t.status IN ('Pendente', 'Pago', 'Pago Parcial')
                     ORDER BY t.vencimento ASC";
 
             $stmt = $this->db->prepare($sql);
@@ -2641,8 +2869,8 @@ class FinancialModel extends Model
             $hoje = date('Y-m-d');
 
             $sql = "SELECT 
-                        COUNT(CASE WHEN (status = 'Pago' AND data_pagamento > vencimento) OR (status IN ('Pendente', 'Atrasado') AND vencimento < :hoje) THEN 1 END) as total_atrasos,
-                        COUNT(CASE WHEN status = 'Pago' AND data_pagamento < vencimento THEN 1 END) as total_antecipacoes,
+                        COUNT(CASE WHEN (status IN ('Pago', 'Pago Parcial') AND data_pagamento > vencimento) OR (status IN ('Pendente', 'Atrasado') AND vencimento < :hoje) THEN 1 END) as total_atrasos,
+                        COUNT(CASE WHEN status IN ('Pago', 'Pago Parcial') AND data_pagamento < vencimento THEN 1 END) as total_antecipacoes,
                         COUNT(*) as total_transacoes
                     FROM transacoes 
                     WHERE tipo = 'R' AND status != 'Cancelado' AND cliente_id = :cliente_id

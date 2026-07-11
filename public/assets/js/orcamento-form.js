@@ -229,8 +229,234 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ========== LÓGICA DE CONTRATO VINCULADO ==========
+    const hasContratoCheckbox = document.getElementById('has-contrato-checkbox');
+    const sectionContrato = document.getElementById('section-contrato');
+    const contratoSelect = document.getElementById('contrato_id');
+    const contratoDetailsContainer = document.getElementById('section-contrato-detalhes');
+
+    if (hasContratoCheckbox && sectionContrato) {
+        hasContratoCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                sectionContrato.classList.remove('hidden');
+            } else {
+                sectionContrato.classList.add('hidden');
+                if (contratoDetailsContainer) {
+                    contratoDetailsContainer.classList.add('hidden');
+                }
+                if (contratoSelect) {
+                    contratoSelect.value = '';
+                }
+            }
+        });
+    }
+
     calculateTotals();
 });
+
+// ========== LÓGICA DE ASSINATURAS ==========
+(function() {
+    // Toggle tipo de assinatura da Contratada
+    const ctdTipo = document.getElementById('assinatura_tipo');
+    if (ctdTipo) {
+        ctdTipo.addEventListener('change', function() {
+            const v = this.value;
+            const el = document.getElementById('ctd_imagem_container');
+            const el2 = document.getElementById('ctd_certificado_container');
+            if (el) el.classList.toggle('hidden', v !== 'imagem');
+            if (el2) el2.classList.toggle('hidden', v !== 'certificado');
+        });
+    }
+
+    // Toggle visibilidade dos campos do Elaborador
+    const elabCheckbox = document.getElementById('elab_checkbox');
+    const elabFields = document.getElementById('elab_signature_fields');
+    if (elabCheckbox && elabFields) {
+        elabCheckbox.addEventListener('change', function() {
+            elabFields.classList.toggle('hidden', !this.checked);
+        });
+    }
+
+    // Toggle tipo de assinatura do Elaborador
+    const elabTipo = document.getElementById('elab_assinatura_tipo');
+    if (elabTipo) {
+        elabTipo.addEventListener('change', function() {
+            const v = this.value;
+            const el = document.getElementById('elab_imagem_container');
+            const el2 = document.getElementById('elab_certificado_container');
+            if (el) el.classList.toggle('hidden', v !== 'imagem');
+            if (el2) el2.classList.toggle('hidden', v !== 'certificado');
+        });
+    }
+
+    // Upload e preview de imagem (genérico, via data attributes)
+    document.querySelectorAll('.sig-img-input').forEach(function(input) {
+        input.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 500 * 1024) {
+                alert('A imagem deve ter no máximo 500KB.');
+                this.value = '';
+                return;
+            }
+
+            const previewId = this.dataset.preview;
+            const hiddenId = this.dataset.hidden;
+            const removerFieldId = this.dataset.removerField;
+            const preview = document.getElementById(previewId);
+            const hidden = document.getElementById(hiddenId);
+            const removerField = document.getElementById(removerFieldId);
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const base64 = ev.target.result.split(',')[1];
+                if (hidden) hidden.value = base64;
+                if (preview) preview.innerHTML = `<img src="data:image/png;base64,${base64}" style="max-height:50px; max-width:200px; object-fit:contain;">`;
+                if (removerField) removerField.value = '0';
+                // Mostra botão remover associado
+                const removerBtn = document.querySelector(`.btn-limpar-sig[data-hidden="${hiddenId}"]`);
+                if (removerBtn) removerBtn.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // Botões de remover imagem
+    document.querySelectorAll('.btn-limpar-sig').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const hiddenId = this.dataset.hidden;
+            const previewId = this.dataset.preview;
+            const removerFieldId = this.dataset.removerField;
+
+            const hidden = document.getElementById(hiddenId);
+            const preview = document.getElementById(previewId);
+            const removerField = document.getElementById(removerFieldId);
+
+            if (hidden) hidden.value = '';
+            if (removerField) removerField.value = '1';
+            if (preview) preview.innerHTML = '<span class="text-xs text-gray-400">Nenhuma imagem selecionada</span>';
+            this.classList.add('hidden');
+            // Limpa o input file associado
+            const fileInput = document.querySelector(`.sig-img-input[data-hidden="${hiddenId}"]`);
+            if (fileInput) fileInput.value = '';
+        });
+    });
+
+    // ========== CERTIFICADO DIGITAL A1 ==========
+    function setupCertUpload(target) {
+        const fileInput = document.querySelector(`.cert-file-input[data-target="${target}"]`);
+        const pwdInput = document.querySelector(`.cert-password-input[data-target="${target}"]`);
+        const container = fileInput?.closest('.cert-container');
+        const statusEl = document.getElementById(`${target}_cert_status`);
+        const infoEl = document.getElementById(`${target}_cert_info`);
+        const verifiedBadge = document.getElementById(`${target}_cert_verified`);
+        const changeLink = document.getElementById(`${target}_cert_change`);
+        const pathHidden = document.getElementById(`${target}_cert_path_hidden`);
+        const senhaHidden = document.getElementById(`${target}_cert_senha_hidden`);
+        const nomeHidden = document.getElementById(`${target}_cert_nome_hidden`);
+        const cpfHidden = document.getElementById(`${target}_cert_cpf_hidden`);
+        const valHidden = document.getElementById(`${target}_cert_validade_hidden`);
+
+        if (!fileInput || !pwdInput) return;
+
+        function lockFields(saved) {
+            fileInput.disabled = true;
+            pwdInput.disabled = true;
+            if (container) container.classList.add('opacity-60');
+            if (verifiedBadge) verifiedBadge.classList.remove('hidden');
+            if (changeLink) changeLink.classList.remove('hidden');
+            if (saved && pwdInput) {
+                pwdInput.value = '';
+                pwdInput.placeholder = 'Senha verificada';
+            }
+        }
+
+        function unlockFields() {
+            fileInput.disabled = false;
+            pwdInput.disabled = false;
+            pwdInput.value = '';
+            pwdInput.placeholder = 'Senha do .pfx';
+            if (container) container.classList.remove('opacity-60');
+            if (verifiedBadge) verifiedBadge.classList.add('hidden');
+            if (changeLink) changeLink.classList.add('hidden');
+            if (infoEl) infoEl.classList.add('hidden');
+            if (statusEl) statusEl.innerHTML = '';
+            if (pathHidden) pathHidden.value = '';
+            if (senhaHidden) senhaHidden.value = '';
+            if (nomeHidden) nomeHidden.value = '';
+            if (cpfHidden) cpfHidden.value = '';
+            if (valHidden) valHidden.value = '';
+            fileInput.value = '';
+        }
+
+        function lerCertificado() {
+            const file = fileInput.files[0];
+            const senha = pwdInput.value;
+
+            if (!file || !senha) {
+                statusEl.innerHTML = '<span class="text-xs text-red-500">Selecione o arquivo e informe a senha.</span>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('certificado_file', file);
+            formData.append('certificado_senha', senha);
+
+            statusEl.innerHTML = '<span class="text-xs text-sky-500"><i class="fas fa-spinner fa-spin"></i> Lendo certificado...</span>';
+            infoEl.classList.add('hidden');
+
+            fetch(BASE_URL + '/orcamento/uploadCertificado', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    const d = res.data;
+                    statusEl.innerHTML = '<span class="text-xs text-green-600"><i class="fas fa-check-circle"></i> Certificado válido</span>';
+                    document.getElementById(`${target}_cert_nome`).textContent = d.nome || '-';
+                    document.getElementById(`${target}_cert_doc`).textContent = d.documento || d.cpf || d.cnpj || '-';
+                    document.getElementById(`${target}_cert_validade`).textContent = d.validade_ate || '-';
+                    document.getElementById(`${target}_cert_icp`).textContent = d.icp_brasil ? 'Sim' : 'Não';
+                    infoEl.classList.remove('hidden');
+
+                    if (pathHidden) pathHidden.value = d.path;
+                    if (senhaHidden) senhaHidden.value = senha;
+                    if (nomeHidden) nomeHidden.value = d.nome || '';
+                    if (cpfHidden) cpfHidden.value = d.documento || d.cpf || '';
+                    if (valHidden) valHidden.value = d.validade_ate || '';
+
+                    lockFields(true);
+                } else {
+                    statusEl.innerHTML = '<span class="text-xs text-red-500"><i class="fas fa-exclamation-triangle"></i> ' + (res.error || 'Erro ao ler certificado') + '</span>';
+                    if (pathHidden) pathHidden.value = '';
+                    if (senhaHidden) senhaHidden.value = '';
+                }
+            })
+            .catch(err => {
+                statusEl.innerHTML = '<span class="text-xs text-red-500">Erro de comunicação.</span>';
+                console.error(err);
+            });
+        }
+
+        fileInput.addEventListener('change', function() {
+            if (this.files[0] && pwdInput.value) lerCertificado();
+        });
+        pwdInput.addEventListener('blur', function() {
+            if (fileInput.files[0] && this.value) lerCertificado();
+        });
+
+        if (changeLink) {
+            changeLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                unlockFields();
+            });
+        }
+    }
+
+    setupCertUpload('ctd');
+    setupCertUpload('elab');
+})();
 
 // Estilo da animação injetado dinamicamente
 const style = document.createElement('style');

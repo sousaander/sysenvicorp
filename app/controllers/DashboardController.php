@@ -98,6 +98,16 @@ class DashboardController extends BaseController
         // Contagem para o menu lateral
         $contagemPropostasPendentes = $this->propostaModel->getCountPropostasPendentes();
 
+        // Propostas aguardando aprovação do diretor (apenas admin pode aprovar)
+        $isAdmin = $this->session->isAdmin();
+        $propostasPendentesDiretor = [];
+        if ($isAdmin) {
+            $propostasPendentesDiretor = $this->propostaModel->getPropostasPendentesDiretor(5);
+        }
+
+        $empresa = $this->empresaModel->getDadosEmpresa();
+        $userEmail = $this->session->get('user_email', '');
+
         $data = [
             'pageTitle' => 'Dashboard - Visão Geral',
             'alerta_sistema' => $alertaSistema,
@@ -111,7 +121,11 @@ class DashboardController extends BaseController
             'projetosComLocalizacao' => $projetosComLocalizacao,
             'monthlySummary' => $monthlySummary,
             'statusDistribution' => $statusDistribution,
-            'contagemPropostasPendentes' => $contagemPropostasPendentes
+            'contagemPropostasPendentes' => $contagemPropostasPendentes,
+            'propostasPendentesDiretor' => $propostasPendentesDiretor,
+            'isAdmin' => $isAdmin,
+            'empresa' => $empresa,
+            'userEmail' => $userEmail,
         ];
 
         // 5. Renderiza a view do dashboard com os dados dinâmicos

@@ -1,5 +1,11 @@
 <div class="bg-white p-6 rounded-lg shadow-lg">
-    <h2 class="text-2xl font-bold mb-6 text-gray-800">Cadastros Gerais</h2>
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+        <h2 class="text-2xl font-bold text-gray-800">Cadastros Gerais</h2>
+        <a href="<?php echo BASE_URL; ?>/configuracoes" style="width: fit-content" class="inline-flex items-center gap-1.5 px-2 py-1.5 text-sm font-semibold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 hover:text-gray-900 transition duration-200">
+            <i class='bx bx-arrow-back text-sm'></i>
+            <span>Voltar</span>
+        </a>
+    </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Bancos e Contas -->

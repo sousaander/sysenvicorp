@@ -14,7 +14,7 @@
     --sys-border: #e2e8f0;
 
     /* Identidade Visual */
-    --sys-navy: #0f172a;
+    --sys-navy: #2563eb;
     --sys-blue: #2563eb;
     --sys-blue-soft: #dbeafe;
     --sys-accent-glow: rgba(37, 99, 235, 0.05);
@@ -64,6 +64,9 @@
     --mod-slate: #64748b;
     --mod-slate-rgb: 100, 116, 139;
     --mod-slate-dark: #475569;
+    --mod-orange: #f97316;
+    --mod-orange-rgb: 249, 115, 22;
+    --mod-orange-dark: #c2410c;
 }
 
 /* Configurações Base */
@@ -102,7 +105,7 @@ html {
     padding: 10px 12px;
     margin: 2px 8px;
     border-radius: 8px;
-    color: var(--sys-text-light) !important;
+    color: rgba(255,255,255,0.78) !important;
     text-decoration: none;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     gap: 12px;
@@ -165,6 +168,12 @@ html {
     --mod-rgb: var(--mod-slate-rgb);
 }
 
+.item-orange {
+    --mod-color: var(--mod-orange);
+    --mod-color-dark: var(--mod-orange-dark);
+    --mod-rgb: var(--mod-orange-rgb);
+}
+
 .sys-sidebar-item:hover {
     background-color: rgba(255, 255, 255, 0.08);
     color: #ffffff !important;
@@ -182,10 +191,9 @@ html {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 1.8px;
-    color: var(--sys-text-light);
+    color: rgba(255,255,255,0.5);
     text-transform: uppercase;
     padding: 24px 16px 8px;
-    opacity: 0.6;
     display: block;
 }
 

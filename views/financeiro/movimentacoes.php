@@ -42,6 +42,7 @@ if (isset($_SESSION['flash_message'])):
                     <option value="">Todos</option>
                     <option value="Pendente" <?= ($filtros['status'] ?? '') === 'Pendente' ? 'selected' : '' ?>>Pendente</option>
                     <option value="Pago" <?= ($filtros['status'] ?? '') === 'Pago' ? 'selected' : '' ?>>Pago</option>
+                    <option value="Pago Parcial" <?= ($filtros['status'] ?? '') === 'Pago Parcial' ? 'selected' : '' ?>>Pago Parcial</option>
                     <option value="Atrasado" <?= ($filtros['status'] ?? '') === 'Atrasado' ? 'selected' : '' ?>>Atrasado</option>
                 </select>
             </div>
@@ -210,7 +211,15 @@ if (isset($_SESSION['flash_message'])):
                                 </td>
 
                                 <td class="px-6 py-2 whitespace-nowrap text-sm text-center font-medium <?= ($valorSign === '-') ? 'text-red-600' : 'text-green-600'; ?>">
-                                    <?= $valorSign . 'R$ ' . number_format($transacao['valor'], 2, ',', '.'); ?>
+                                    <?php if ($transacao['status'] === 'Pago'): ?>
+                                        <?= $valorSign ?>R$ <?= number_format($transacao['valor_pago'] ?? $transacao['valor'], 2, ',', '.'); ?>
+                                    <?php elseif ($transacao['status'] === 'Pago Parcial'): ?>
+                                        <span class="text-gray-500"><?= $valorSign ?>R$ <?= number_format($transacao['valor'], 2, ',', '.'); ?></span>
+                                        <br>
+                                        <span class="text-xs text-blue-600">Pago: R$ <?= number_format($transacao['valor_pago'] ?? 0, 2, ',', '.'); ?> | Resta: R$ <?= number_format(($transacao['valor'] + ($transacao['juros'] ?? 0) - ($transacao['desconto'] ?? 0)) - ($transacao['valor_pago'] ?? 0), 2, ',', '.'); ?></span>
+                                    <?php else: ?>
+                                        <?= $valorSign ?>R$ <?= number_format($transacao['valor'], 2, ',', '.'); ?>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-2 whitespace-nowrap text-center text-sm font-medium">
                                     <a href="<?= BASE_URL; ?>/financeiro/editar/<?= $transacao['id']; ?>" class="text-indigo-600 hover:text-indigo-900 mr-3" title="Editar">

@@ -37,6 +37,15 @@ class PropostaModel extends Model
             tipo_criacao VARCHAR(50) DEFAULT 'from_scratch', -- 'from_scratch' ou 'vinculado_projeto'
             projeto_id INT NULL,
             cliente_id INT NULL,
+            cliente_sigla VARCHAR(50) NULL,
+            cliente_documento VARCHAR(30) NULL,
+            cliente_telefone VARCHAR(30) NULL,
+            cliente_logradouro VARCHAR(255) NULL,
+            cliente_numero VARCHAR(50) NULL,
+            cliente_complemento VARCHAR(255) NULL,
+            cliente_bairro VARCHAR(255) NULL,
+            cliente_municipio VARCHAR(255) NULL,
+            cliente_endereco TEXT NULL,
             nome_proposta VARCHAR(255) NOT NULL,
             descricao TEXT NULL, -- Descrição geral da proposta
             objetivo TEXT NULL,
@@ -102,6 +111,7 @@ class PropostaModel extends Model
                 'custos_extras_json' => "JSON NULL",
                 'impostos_valor' => "DECIMAL(15,2) DEFAULT 0.00",
                 'descontos_valor' => "DECIMAL(15,2) DEFAULT 0.00",
+                'desconto_tipo' => "VARCHAR(20) DEFAULT 'percentual'",
                 'condicao_pagamento' => "VARCHAR(255) NULL",
                 'forma_pagamento' => "TEXT NULL",
                 'prazo_execucao' => "VARCHAR(255) NULL",
@@ -116,6 +126,14 @@ class PropostaModel extends Model
                 'aceite_nome' => "VARCHAR(255) NULL",
                 'created_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
                 'cliente_telefone' => "VARCHAR(30) NULL",
+                'cliente_sigla' => "VARCHAR(50) NULL",
+                'cliente_documento' => "VARCHAR(30) NULL",
+                'cliente_logradouro' => "VARCHAR(255) NULL",
+                'cliente_numero' => "VARCHAR(50) NULL",
+                'cliente_complemento' => "VARCHAR(255) NULL",
+                'cliente_bairro' => "VARCHAR(255) NULL",
+                'cliente_municipio' => "VARCHAR(255) NULL",
+                'cliente_endereco' => "TEXT NULL",
                 'updated_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
                 'versao_documento' => "VARCHAR(50) NULL",
                 'latitude' => "DECIMAL(10,8) NULL",
@@ -124,6 +142,36 @@ class PropostaModel extends Model
                 'pix_tipo_chave' => "VARCHAR(50) NULL",
                 'pix_chave' => "VARCHAR(255) NULL",
                 'dados_bancarios' => "TEXT NULL",
+                'contextualizacao_json' => "LONGTEXT NULL",
+                'equipe_json' => "LONGTEXT NULL",
+                'cliente_uf' => "VARCHAR(2) NULL",
+                'aprovacao_diretor_status' => "ENUM('nao_solicitado','pendente','aprovado','rejeitado') DEFAULT 'nao_solicitado'",
+                'aprovado_diretor_por' => "INT NULL",
+                'aprovado_diretor_em' => "DATETIME NULL",
+                'justificativa_rejeicao' => "TEXT NULL",
+                'enviado_para_diretor_em' => "DATETIME NULL",
+                'enviado_diretor_por' => "INT NULL",
+
+                // Assinatura da proposta (Contratada)
+                'assinatura_tipo' => "VARCHAR(20) DEFAULT 'imagem'",
+                'assinatura_elaborador_responsavel' => "TINYINT(1) DEFAULT 0",
+                'assinatura_imagem' => "LONGTEXT NULL",
+                'assinatura_certificado_nome' => "VARCHAR(255) NULL",
+                'assinatura_certificado_cpf' => "VARCHAR(20) NULL",
+                'assinatura_certificado_path' => "VARCHAR(255) NULL",
+                'assinatura_certificado_senha' => "TEXT NULL",
+                'assinatura_certificado_validade' => "DATETIME NULL",
+
+                // Assinatura do Elaborador (Responsável Técnico)
+                'assinatura_elaborador_tipo' => "VARCHAR(20) DEFAULT 'imagem'",
+                'assinatura_elaborador_imagem' => "LONGTEXT NULL",
+                'assinatura_elaborador_certificado_nome' => "VARCHAR(255) NULL",
+                'assinatura_elaborador_certificado_cpf' => "VARCHAR(20) NULL",
+                'assinatura_elaborador_certificado_path' => "VARCHAR(255) NULL",
+                'assinatura_elaborador_certificado_senha' => "TEXT NULL",
+                'assinatura_elaborador_certificado_validade' => "DATETIME NULL",
+
+                'assinatura_data' => "DATETIME NULL",
             ];
             foreach ($columnsToAdd as $col => $def) {
                 $stmt = $this->db->query("SHOW COLUMNS FROM orcamento_proposta LIKE '$col'");
@@ -395,11 +443,13 @@ class PropostaModel extends Model
     {
         try {
             $sql = "SELECT p.*, p.id as id, p.nome_proposta as titulo, p.total_final as valor_total, p.responsavel_interno as responsavel_interno_id,
-                           c.nome as cliente_nome, c.telefone as cliente_telefone, c.email as cliente_email, proj.nome as projeto_nome, u.nome as responsavel_nome
+                           c.nome as cliente_nome, c.telefone as cliente_telefone, c.email as cliente_email, proj.nome as projeto_nome, u.nome as responsavel_nome,
+                           du.nome as diretor_nome
                     FROM orcamento_proposta p
                     LEFT JOIN clientes c ON p.cliente_id = c.id
                     LEFT JOIN projetos proj ON p.projeto_id = proj.id
                     LEFT JOIN usuarios u ON p.responsavel_interno = u.id
+                    LEFT JOIN usuarios du ON p.aprovado_diretor_por = du.id
                     ORDER BY p.id DESC LIMIT :limit OFFSET :offset";
             $stmt = $this->db->prepare($sql);
             $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
@@ -441,15 +491,21 @@ class PropostaModel extends Model
     {
         try {
             $sql = "SELECT p.*, p.id as id, p.responsavel_interno as responsavel_interno_id, ct.numero_contrato as contrato_numero,
-                           c.nome as cliente_nome, c.sigla as cliente_sigla, c.nome_fantasia as cliente_nome_fantasia, c.contato_principal as cliente_contato, 
-                           c.email as cliente_email, c.cnpj_cpf as cliente_documento, c.telefone as cliente_telefone, 
-                           c.endereco as cliente_endereco,
-                           proj.nome as projeto_nome, u.nome as responsavel_nome
-                    FROM orcamento_proposta p
-                    LEFT JOIN clientes c ON p.cliente_id = c.id
-                    LEFT JOIN contratos ct ON p.contrato_id = ct.id
-                    LEFT JOIN projetos proj ON p.projeto_id = proj.id
-                    LEFT JOIN usuarios u ON p.responsavel_interno = u.id
+                           COALESCE(p.cliente_sigla, c.sigla) as cliente_sigla, c.nome as cliente_nome, c.nome_fantasia as cliente_nome_fantasia, c.contato_principal as cliente_contato, 
+                           COALESCE(p.cliente_documento, c.cnpj_cpf) as cliente_documento,
+                           COALESCE(p.cliente_telefone, c.telefone) as cliente_telefone,
+                           COALESCE(p.cliente_endereco, c.endereco) as cliente_endereco,
+                           p.cliente_logradouro, p.cliente_numero, p.cliente_complemento, p.cliente_bairro, p.cliente_municipio, p.cliente_uf,
+                           proj.nome as projeto_nome, u.nome as responsavel_nome,
+                            du.nome as diretor_nome,
+                            eu.nome as enviado_diretor_nome
+                     FROM orcamento_proposta p
+                     LEFT JOIN clientes c ON p.cliente_id = c.id
+                     LEFT JOIN contratos ct ON p.contrato_id = ct.id
+                     LEFT JOIN projetos proj ON p.projeto_id = proj.id
+                     LEFT JOIN usuarios u ON p.responsavel_interno = u.id
+                     LEFT JOIN usuarios du ON p.aprovado_diretor_por = du.id
+                     LEFT JOIN usuarios eu ON p.enviado_diretor_por = eu.id
                     WHERE p.id = ?";
             $stmt = $this->db->prepare($sql);
             $stmt->execute([$id]);
@@ -497,11 +553,15 @@ class PropostaModel extends Model
                     }
 
                     $sql = "UPDATE orcamento_proposta SET 
-                                tipo_criacao = :tipo_criacao, projeto_id = :projeto_id, cliente_id = :cliente_id, nome_proposta = :nome_proposta, 
+                                numero_proposta = :numero_proposta, tipo_criacao = :tipo_criacao, projeto_id = :projeto_id, cliente_id = :cliente_id, nome_proposta = :nome_proposta, 
                                 descricao = :descricao, objetivo = :objetivo, data_proposta = :data_proposta, validade = :validade, responsavel_interno = :responsavel_interno,
                                 contrato_id = :contrato_id, servicos_json = :servicos_json, materiais_json = :materiais_json, custos_extras_json = :custos_extras_json,
                                 impostos_valor = :impostos_valor, descontos_valor = :descontos_valor,
-                                cliente_telefone = :cliente_telefone, condicao_pagamento = :condicao_pagamento, forma_pagamento = :forma_pagamento, prazo_execucao = :prazo_execucao, garantias = :garantias,
+                                desconto_tipo = :desconto_tipo,
+                                cliente_telefone = :cliente_telefone, cliente_sigla = :cliente_sigla, representante = :representante, email_cliente = :email_cliente, cliente_documento = :cliente_documento,
+                                cliente_logradouro = :cliente_logradouro, cliente_numero = :cliente_numero, cliente_complemento = :cliente_complemento,
+                                cliente_bairro = :cliente_bairro, cliente_municipio = :cliente_municipio, cliente_uf = :cliente_uf, cliente_endereco = :cliente_endereco,
+                                condicao_pagamento = :condicao_pagamento, forma_pagamento = :forma_pagamento, prazo_execucao = :prazo_execucao, garantias = :garantias,
                                 total_servicos = :total_servicos, total_materiais = :total_materiais, total_final = :total_final,
                                 status = :status, anexos = :anexos,
                                 token_aprovacao = :token_aprovacao, token_validade = :token_validade,
@@ -509,10 +569,28 @@ class PropostaModel extends Model
                                 pix_tipo_chave = :pix_tipo_chave,
                                 pix_chave = :pix_chave, dados_bancarios = :dados_bancarios,
                                 cronograma_data = :cronograma_data,
-                                latitude = :latitude, longitude = :longitude
+                                contextualizacao_json = :contextualizacao_json,
+                                equipe_json = :equipe_json,
+                                latitude = :latitude, longitude = :longitude,
+                                assinatura_tipo = :assinatura_tipo,
+                                assinatura_elaborador_responsavel = :assinatura_elaborador_responsavel,
+                                assinatura_imagem = :assinatura_imagem,
+                                assinatura_certificado_nome = :assinatura_certificado_nome,
+                                assinatura_certificado_cpf = :assinatura_certificado_cpf,
+                                assinatura_certificado_path = :assinatura_certificado_path,
+                                assinatura_certificado_senha = :assinatura_certificado_senha,
+                                assinatura_certificado_validade = :assinatura_certificado_validade,
+                                assinatura_elaborador_tipo = :assinatura_elaborador_tipo,
+                                assinatura_elaborador_imagem = :assinatura_elaborador_imagem,
+                                assinatura_elaborador_certificado_nome = :assinatura_elaborador_certificado_nome,
+                                assinatura_elaborador_certificado_cpf = :assinatura_elaborador_certificado_cpf,
+                                assinatura_elaborador_certificado_path = :assinatura_elaborador_certificado_path,
+                                assinatura_elaborador_certificado_senha = :assinatura_elaborador_certificado_senha,
+                                assinatura_elaborador_certificado_validade = :assinatura_elaborador_certificado_validade
                             WHERE id = :id";
                     $stmt = $this->db->prepare($sql);
                     $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+                    $stmt->bindValue(':numero_proposta', $dados['numero_proposta']);
                 } else {
                     // Para nova proposta, gera o número sequencial
                     // Em caso de retry por colisão (erro 1062), o attempt > 0 forçará a geração de um novo número
@@ -523,19 +601,40 @@ class PropostaModel extends Model
                     $sql = "INSERT INTO orcamento_proposta (
                                 numero_proposta, tipo_criacao, projeto_id, cliente_id, contrato_id, nome_proposta, descricao, objetivo, data_proposta, validade, 
                                 responsavel_interno, servicos_json, materiais_json, custos_extras_json,
-                                impostos_valor, descontos_valor, cliente_telefone, condicao_pagamento, forma_pagamento, prazo_execucao, garantias,
+                                impostos_valor, descontos_valor, desconto_tipo, cliente_telefone, cliente_sigla, representante, email_cliente, cliente_documento,
+                                cliente_logradouro, cliente_numero, cliente_complemento,
+                                cliente_bairro, cliente_municipio, cliente_uf, cliente_endereco,
+                                condicao_pagamento, forma_pagamento, prazo_execucao, garantias,
                                 total_servicos, total_materiais, total_final, status, anexos, cronograma_data,
+                                contextualizacao_json, equipe_json,
                                 token_aprovacao, token_validade,
                                 versao_documento, latitude, longitude,
-                                pix_tipo_chave, pix_chave, dados_bancarios
+                                pix_tipo_chave, pix_chave, dados_bancarios,
+                                assinatura_tipo, assinatura_elaborador_responsavel,
+                                assinatura_imagem, assinatura_certificado_nome, assinatura_certificado_cpf,
+                                assinatura_certificado_path, assinatura_certificado_senha, assinatura_certificado_validade,
+                                assinatura_elaborador_tipo, assinatura_elaborador_imagem,
+                                assinatura_elaborador_certificado_nome, assinatura_elaborador_certificado_cpf,
+                                assinatura_elaborador_certificado_path, assinatura_elaborador_certificado_senha,
+                                assinatura_elaborador_certificado_validade
                             ) VALUES (
                                 :numero_proposta, :tipo_criacao, :projeto_id, :cliente_id, :contrato_id, :nome_proposta, :descricao, :objetivo, :data_proposta, :validade, 
                                 :responsavel_interno, :servicos_json, :materiais_json, :custos_extras_json,
-                                :impostos_valor, :descontos_valor, :cliente_telefone, :condicao_pagamento, :forma_pagamento, :prazo_execucao, :garantias,
+                                :impostos_valor, :descontos_valor, :desconto_tipo, :cliente_telefone, :cliente_sigla, :representante, :email_cliente, :cliente_documento,
+                                :cliente_logradouro, :cliente_numero, :cliente_complemento,
+                                :cliente_bairro, :cliente_municipio, :cliente_uf, :cliente_endereco,
+                                :condicao_pagamento, :forma_pagamento, :prazo_execucao, :garantias,
                                 :total_servicos, :total_materiais, :total_final, :status, :anexos, :cronograma_data,
-                                :token_aprovacao, :token_validade, :versao_documento,
-                                :latitude, :longitude,
-                                :pix_tipo_chave, :pix_chave, :dados_bancarios
+                                :contextualizacao_json, :equipe_json,
+                                :token_aprovacao, :token_validade, :versao_documento, :latitude, :longitude,
+                                :pix_tipo_chave, :pix_chave, :dados_bancarios,
+                                :assinatura_tipo, :assinatura_elaborador_responsavel,
+                                :assinatura_imagem, :assinatura_certificado_nome, :assinatura_certificado_cpf,
+                                :assinatura_certificado_path, :assinatura_certificado_senha, :assinatura_certificado_validade,
+                                :assinatura_elaborador_tipo, :assinatura_elaborador_imagem,
+                                :assinatura_elaborador_certificado_nome, :assinatura_elaborador_certificado_cpf,
+                                :assinatura_elaborador_certificado_path, :assinatura_elaborador_certificado_senha,
+                                :assinatura_elaborador_certificado_validade
                             )";
                     $stmt = $this->db->prepare($sql);
                     $stmt->bindValue(':numero_proposta', $dados['numero_proposta']);
@@ -559,7 +658,19 @@ class PropostaModel extends Model
                 $stmt->bindValue(':custos_extras_json', json_encode($dados['custos_extras'] ?? []));
                 $stmt->bindValue(':impostos_valor', $dados['impostos_valor'] ?? 0.00);
                 $stmt->bindValue(':descontos_valor', $dados['descontos_valor'] ?? 0.00);
+                $stmt->bindValue(':desconto_tipo', $dados['desconto_tipo'] ?? 'percentual');
                 $stmt->bindValue(':cliente_telefone', $dados['cliente_telefone'] ?? null);
+                $stmt->bindValue(':cliente_sigla', $dados['cliente_sigla'] ?? null);
+                $stmt->bindValue(':representante', $dados['representante'] ?? null);
+                $stmt->bindValue(':email_cliente', $dados['email_cliente'] ?? null);
+                $stmt->bindValue(':cliente_documento', $dados['cliente_documento'] ?? null);
+                $stmt->bindValue(':cliente_logradouro', $dados['cliente_logradouro'] ?? null);
+                $stmt->bindValue(':cliente_numero', $dados['cliente_numero'] ?? null);
+                $stmt->bindValue(':cliente_complemento', $dados['cliente_complemento'] ?? null);
+                $stmt->bindValue(':cliente_bairro', $dados['cliente_bairro'] ?? null);
+                $stmt->bindValue(':cliente_municipio', $dados['cliente_municipio'] ?? null);
+                $stmt->bindValue(':cliente_uf', $dados['cliente_uf'] ?? null);
+                $stmt->bindValue(':cliente_endereco', $dados['cliente_endereco'] ?? null);
                 $stmt->bindValue(':condicao_pagamento', $dados['condicao_pagamento'] ?? null);
                 $stmt->bindValue(':forma_pagamento', $dados['forma_pagamento'] ?? null);
                 $stmt->bindValue(':prazo_execucao', $dados['prazo_execucao'] ?? null);
@@ -573,6 +684,8 @@ class PropostaModel extends Model
                 $stmt->bindValue(':total_materiais', $dados['total_materiais'] ?? 0.00);
 
                 $stmt->bindValue(':cronograma_data', $dados['cronograma_data'] ?? null);
+                $stmt->bindValue(':contextualizacao_json', $dados['contextualizacao_json'] ?? null);
+                $stmt->bindValue(':equipe_json', $dados['equipe_json'] ?? null);
                 $stmt->bindValue(':latitude', $lat);
                 $stmt->bindValue(':longitude', $lng);
 
@@ -583,25 +696,57 @@ class PropostaModel extends Model
                 $stmt->bindValue(':status', !empty($dados['status']) ? $dados['status'] : 'Rascunho'); // Status pode ser alterado por aprovação
                 $stmt->bindValue(':anexos', null); // Placeholder para futura implementação de anexos
                 
-                // Token de aprovação (gerado apenas se o status for 'Enviada' e não houver um token existente)
-                $tokenAprovacao = ($dados['status'] === 'Enviada' && empty($propostaAtual['token_aprovacao'])) ? $this->generateApprovalToken() : ($propostaAtual['token_aprovacao'] ?? null);
-                $tokenValidade = ($tokenAprovacao && empty($propostaAtual['token_validade'])) ? date('Y-m-d H:i:s', strtotime('+7 days')) : ($propostaAtual['token_validade'] ?? null);
+                // Token de aprovação (gerado se status for 'Enviada' e não houver token ou se o existente expirou)
+                $tokenAusente = empty($propostaAtual['token_aprovacao']);
+                $tokenExpirado = !$tokenAusente && !empty($propostaAtual['token_validade']) && strtotime($propostaAtual['token_validade']) < time();
+                $tokenAprovacao = ($dados['status'] === 'Enviada' && ($tokenAusente || $tokenExpirado)) ? $this->generateApprovalToken() : ($propostaAtual['token_aprovacao'] ?? null);
+                $tokenValidade = ($tokenAprovacao && ($tokenAusente || $tokenExpirado)) ? date('Y-m-d H:i:s', strtotime('+7 days')) : ($propostaAtual['token_validade'] ?? null);
                 $stmt->bindValue(':token_aprovacao', $tokenAprovacao);
                 $stmt->bindValue(':token_validade', $tokenValidade);
                 $stmt->bindValue(':versao_documento', $dados['versao_documento'] ?? null);
+                $stmt->bindValue(':assinatura_tipo', $dados['assinatura_tipo'] ?? 'imagem');
+                $stmt->bindValue(':assinatura_elaborador_responsavel', !empty($dados['assinatura_elaborador_responsavel']) ? 1 : 0, PDO::PARAM_INT);
+                $stmt->bindValue(':assinatura_imagem', $dados['assinatura_imagem'] ?? null);
+                $stmt->bindValue(':assinatura_certificado_nome', $dados['assinatura_certificado_nome'] ?? null);
+                $stmt->bindValue(':assinatura_certificado_cpf', $dados['assinatura_certificado_cpf'] ?? null);
+                $stmt->bindValue(':assinatura_certificado_path', $dados['assinatura_certificado_path'] ?? null);
+                $stmt->bindValue(':assinatura_certificado_senha', $dados['assinatura_certificado_senha'] ?? null);
+                $stmt->bindValue(':assinatura_certificado_validade', $dados['assinatura_certificado_validade'] ?? null);
+                $stmt->bindValue(':assinatura_elaborador_tipo', $dados['assinatura_elaborador_tipo'] ?? 'imagem');
+                $stmt->bindValue(':assinatura_elaborador_imagem', $dados['assinatura_elaborador_imagem'] ?? null);
+                $stmt->bindValue(':assinatura_elaborador_certificado_nome', $dados['assinatura_elaborador_certificado_nome'] ?? null);
+                $stmt->bindValue(':assinatura_elaborador_certificado_cpf', $dados['assinatura_elaborador_certificado_cpf'] ?? null);
+                $stmt->bindValue(':assinatura_elaborador_certificado_path', $dados['assinatura_elaborador_certificado_path'] ?? null);
+                $stmt->bindValue(':assinatura_elaborador_certificado_senha', $dados['assinatura_elaborador_certificado_senha'] ?? null);
+                $stmt->bindValue(':assinatura_elaborador_certificado_validade', $dados['assinatura_elaborador_certificado_validade'] ?? null);
 
                 $success = $stmt->execute();
 
                 if ($success) {
-                // Sincronização Sênior: Se a proposta já está aprovada e vinculada a um projeto,
-                // atualiza o orçamento previsto do projeto para refletir a nova realidade comercial.
-                if ($id && !empty($propostaAtual['projeto_id']) && $propostaAtual['status'] === 'Aprovada') {
-                    $sqlSync = "UPDATE projetos SET orcamento = :novo_valor WHERE id = :projeto_id";
-                    $stmtSync = $this->db->prepare($sqlSync);
-                    $stmtSync->bindValue(':novo_valor', $totalFinal);
-                    $stmtSync->bindValue(':projeto_id', $propostaAtual['projeto_id'], PDO::PARAM_INT);
-                    $stmtSync->execute();
-                }
+                    // Sincronização: Se a proposta está aprovada e vinculada a um projeto,
+                    // atualiza o orçamento previsto do projeto e sincroniza os itens.
+                    $novoStatus = $dados['status'] ?? '';
+                    $oldStatus = $propostaAtual['status'] ?? '';
+                    $projetoId = $id ? ($propostaAtual['projeto_id'] ?? null) : (!empty($dados['projeto_id']) ? (int)$dados['projeto_id'] : null);
+
+                    $estaAprovada = ($novoStatus === 'Aprovada' || $oldStatus === 'Aprovada');
+                    if ($projetoId && $estaAprovada) {
+                        $sqlSync = "UPDATE projetos SET orcamento = :novo_valor WHERE id = :projeto_id";
+                        $stmtSync = $this->db->prepare($sqlSync);
+                        $stmtSync->bindValue(':novo_valor', $totalFinal);
+                        $stmtSync->bindValue(':projeto_id', $projetoId, PDO::PARAM_INT);
+                        $stmtSync->execute();
+
+                        $projetosModel = new \App\Models\ProjetosModel();
+                        $projetosModel->syncOrcamentoFromProposta(
+                            $projetoId,
+                            $dados['servicos'] ?? [],
+                            $dados['materiais'] ?? [],
+                            $dados['custos_extras'] ?? [],
+                            $id ?: 0,
+                            $dados['data_proposta'] ?? null
+                        );
+                    }
 
                     $this->db->commit();
                     return true;
@@ -741,6 +886,17 @@ class PropostaModel extends Model
      * @param int $proposta_id
      * @return array
      */
+    public function limparHistorico(int $propostaId): bool
+    {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM orcamento_proposta_historico WHERE proposta_id = ?");
+            return $stmt->execute([$propostaId]);
+        } catch (\PDOException $e) {
+            error_log('Erro ao limpar histórico da proposta: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     public function getHistoricoByPropostaId(int $proposta_id): array
     {
         $stmt = $this->db->prepare("SELECT h.*, u.nome as usuario_nome FROM orcamento_proposta_historico h LEFT JOIN usuarios u ON h.usuario_id = u.id WHERE h.proposta_id = ? ORDER BY h.versao DESC");
@@ -845,9 +1001,12 @@ class PropostaModel extends Model
     public function getPropostaByToken(string $token): ?array
     {
         try {
-            $sql = "SELECT p.*, p.id as id, p.garantias, ct.numero_contrato as contrato_numero, c.nome as cliente_nome, c.nome_fantasia as cliente_nome_fantasia, c.contato_principal as cliente_contato, 
-                           c.email as cliente_email, c.cnpj_cpf as cliente_documento, c.telefone as cliente_telefone, 
-                           c.endereco as cliente_endereco,
+            $sql = "SELECT p.*, p.id as id, p.garantias, ct.numero_contrato as contrato_numero,
+                           COALESCE(p.cliente_sigla, c.sigla) as cliente_sigla, c.nome as cliente_nome, c.nome_fantasia as cliente_nome_fantasia, c.contato_principal as cliente_contato, 
+                           COALESCE(p.cliente_documento, c.cnpj_cpf) as cliente_documento,
+                           COALESCE(p.cliente_telefone, c.telefone) as cliente_telefone,
+                           COALESCE(p.cliente_endereco, c.endereco) as cliente_endereco,
+                           p.cliente_logradouro, p.cliente_numero, p.cliente_complemento, p.cliente_bairro, p.cliente_municipio, p.cliente_uf,
                            proj.nome as projeto_nome, u.nome as responsavel_nome
                     FROM orcamento_proposta p
                     LEFT JOIN clientes c ON p.cliente_id = c.id
@@ -885,13 +1044,35 @@ class PropostaModel extends Model
             $stmt = $this->db->prepare("UPDATE orcamento_proposta SET status = 'Aprovada', numero_proposta = ?, aprovado_em = NOW(), aceite_em = NOW(), aceite_ip = ?, aceite_nome = ? WHERE id = ?");
             $success = $stmt->execute([$numeroProposta, $aceiteIp, $aceiteNome ?: null, $propostaId]);
 
+            $projetoIdCriado = null;
             if ($success && $propostaAtual && empty($propostaAtual['projeto_id'])) {
-                // Atualiza o objeto em memória para refletir o novo número na criação do projeto
                 $propostaAtual['numero_proposta'] = $numeroProposta;
-                $this->criarProjetoParaPropostaAprovada($propostaAtual);
+                $projetoIdCriado = $this->criarProjetoParaPropostaAprovada($propostaAtual);
+            } elseif ($success && !empty($propostaAtual['projeto_id'])) {
+                $projetoIdCriado = $propostaAtual['projeto_id'];
             }
 
             $this->db->commit();
+
+            // Sincroniza os itens da proposta para o orçamento do projeto (fora da transação)
+            if ($success && !empty($projetoIdCriado)) {
+                try {
+                    $projetosModel = new \App\Models\ProjetosModel();
+                    $servicos = json_decode($propostaAtual['servicos_json'] ?? '[]', true) ?: [];
+                    $materiais = json_decode($propostaAtual['materiais_json'] ?? '[]', true) ?: [];
+                    $custosExtras = json_decode($propostaAtual['custos_extras_json'] ?? '[]', true) ?: [];
+                    $projetosModel->syncOrcamentoFromProposta(
+                        $projetoIdCriado,
+                        $servicos,
+                        $materiais,
+                        $custosExtras,
+                        $propostaId,
+                        $propostaAtual['data_proposta'] ?? null
+                    );
+                } catch (\Exception $e) {
+                    error_log("Aviso: syncOrcamentoFromProposta falhou para proposta #{$propostaId}: " . $e->getMessage());
+                }
+            }
             error_log("DEBUG: Proposta #{$propostaId} aprovada via link.");
 
             // Geração de contrato fora da transação — erro aqui não desfaz a aprovação
@@ -899,15 +1080,28 @@ class PropostaModel extends Model
                 try {
                     error_log("DEBUG: Iniciando criação de contrato para proposta #{$propostaId}.");
                     $contratosModel = new ContratosModel();
-                    // Passamos os dados atualizados para evitar re-instanciação circular no ContratosModel
                     $propostaFinal = $this->getPropostaById($propostaId);
-                    $contratoId = $contratosModel->criarContratoDeProposta($propostaId, $propostaFinal);
-                    if ($contratoId && is_numeric($contratoId)) {
-                        // Atualiza a proposta com o ID do contrato gerado
-                        $this->db->prepare("UPDATE orcamento_proposta SET contrato_id = ? WHERE id = ?")->execute([$contratoId, $propostaId]);
-                        error_log("DEBUG: Contrato automático #{$contratoId} criado e vinculado à proposta #{$propostaId}.");
-                    } else {
-                        error_log("Aviso: Contrato automático não gerado para proposta #{$propostaId} (criarContratoDeProposta retornou false).");
+
+                    // Verifica se o cliente já possui contratos ativos — se sim, apenas loga aviso e não cria automático
+                    $clienteId = $propostaFinal['cliente_id'] ?? null;
+                    $pularCriacao = false;
+                    if (!empty($clienteId)) {
+                        $contratosExistentes = $contratosModel->getContratosByClienteId((int)$clienteId);
+                        if (count($contratosExistentes) > 0) {
+                            error_log("Aviso: Cliente #{$clienteId} já possui " . count($contratosExistentes) . " contrato(s). Contrato automático NÃO gerado para proposta #{$propostaId}. Vincule manualmente na edição da proposta.");
+                            $pularCriacao = true;
+                        }
+                    }
+
+                    if (!$pularCriacao) {
+                        $contratoId = $contratosModel->criarContratoDeProposta($propostaId, $propostaFinal);
+                        if ($contratoId && is_numeric($contratoId)) {
+                            // Atualiza a proposta com o ID do contrato gerado
+                            $this->db->prepare("UPDATE orcamento_proposta SET contrato_id = ? WHERE id = ?")->execute([$contratoId, $propostaId]);
+                            error_log("DEBUG: Contrato automático #{$contratoId} criado e vinculado à proposta #{$propostaId}.");
+                        } else {
+                            error_log("Aviso: Contrato automático não gerado para proposta #{$propostaId} (criarContratoDeProposta retornou false).");
+                        }
                     }
                 } catch (\Exception $ce) {
                     error_log('Aviso: contrato automático não gerado para proposta ' . $propostaId . ': ' . $ce->getMessage());
@@ -967,10 +1161,11 @@ class PropostaModel extends Model
                 }
             }
 
-            // Se a proposta for marcada como 'Enviada', gera um token de aprovação se não existir
-            if ($newStatus === 'Enviada' && empty($propostaAtual['token_aprovacao'])) {
+            // Se a proposta for marcada como 'Enviada', gera/renova token se não existir ou se expirou
+            $tokenExpirado = !empty($propostaAtual['token_validade']) && strtotime($propostaAtual['token_validade']) < time();
+            if ($newStatus === 'Enviada' && (empty($propostaAtual['token_aprovacao']) || $tokenExpirado)) {
                 $sql .= ", token_aprovacao = :token, token_validade = :validade";
-                error_log("DEBUG: Gerando token para proposta enviada");
+                error_log("DEBUG: Gerando/renovando token para proposta enviada");
             }
 
             $sql .= " WHERE id = :id";
@@ -992,7 +1187,7 @@ class PropostaModel extends Model
                     error_log("DEBUG: Erro ao buscar nome do usuário: " . $e->getMessage());
                 }
             }
-            if ($newStatus === 'Enviada' && empty($propostaAtual['token_aprovacao'])) {
+            if ($newStatus === 'Enviada' && (empty($propostaAtual['token_aprovacao']) || $tokenExpirado)) {
                 $token = $this->generateApprovalToken();
                 $validade = date('Y-m-d H:i:s', strtotime('+7 days'));
                 $stmt->bindValue(':token', $token);
@@ -1007,7 +1202,9 @@ class PropostaModel extends Model
             // Gatilho: Se o novo status for 'Aprovada', gera o projeto e o contrato
             if ($success && $newStatus === 'Aprovada') {
                 if ($propostaAtual && empty($propostaAtual['projeto_id'])) {
-                    $this->criarProjetoParaPropostaAprovada($propostaAtual);
+                    $projetoId = $this->criarProjetoParaPropostaAprovada($propostaAtual);
+                } else {
+                    $projetoId = $propostaAtual['projeto_id'] ?? null;
                 }
                 if ($criarContrato) {
                     error_log("DEBUG: Gerando contrato para proposta aprovada");
@@ -1016,6 +1213,21 @@ class PropostaModel extends Model
                     if ($contratoId && is_numeric($contratoId)) {
                         $this->db->prepare("UPDATE orcamento_proposta SET contrato_id = ? WHERE id = ?")->execute([$contratoId, $propostaId]);
                     }
+                }
+                // Sincroniza os itens da proposta para o orçamento do projeto
+                if (!empty($projetoId)) {
+                    $projetosModel = new \App\Models\ProjetosModel();
+                    $servicos = json_decode($propostaAtual['servicos_json'] ?? '[]', true) ?: [];
+                    $materiais = json_decode($propostaAtual['materiais_json'] ?? '[]', true) ?: [];
+                    $custosExtras = json_decode($propostaAtual['custos_extras_json'] ?? '[]', true) ?: [];
+                    $projetosModel->syncOrcamentoFromProposta(
+                        $projetoId,
+                        $servicos,
+                        $materiais,
+                        $custosExtras,
+                        $propostaId,
+                        $propostaAtual['data_proposta'] ?? null
+                    );
                 }
             }
 
@@ -1125,6 +1337,119 @@ class PropostaModel extends Model
             }
         } catch (\Exception $e) {
             error_log("Erro em notificarGestorComercialConversaoGeolocalizada: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Envia uma proposta para aprovação do diretor.
+     */
+    public function enviarParaDiretor(int $propostaId, int $usuarioId): bool
+    {
+        try {
+            $stmt = $this->db->prepare(
+                "UPDATE orcamento_proposta SET 
+                    aprovacao_diretor_status = 'pendente',
+                    enviado_para_diretor_em = NOW(),
+                    enviado_diretor_por = ?,
+                    justificativa_rejeicao = NULL
+                 WHERE id = ? AND status IN ('Rascunho', 'Enviada')"
+            );
+            return $stmt->execute([$usuarioId, $propostaId]);
+        } catch (\PDOException $e) {
+            $this->lastError = $e->getMessage();
+            return false;
+        }
+    }
+
+    /**
+     * Diretor aprova a proposta.
+     */
+    public function aprovarDiretor(int $propostaId, int $diretorId): bool
+    {
+        try {
+            $stmt = $this->db->prepare(
+                "UPDATE orcamento_proposta SET 
+                    aprovacao_diretor_status = 'aprovado',
+                    aprovado_diretor_por = ?,
+                    aprovado_diretor_em = NOW(),
+                    justificativa_rejeicao = NULL
+                 WHERE id = ? AND aprovacao_diretor_status = 'pendente'"
+            );
+            return $stmt->execute([$diretorId, $propostaId]);
+        } catch (\PDOException $e) {
+            $this->lastError = $e->getMessage();
+            return false;
+        }
+    }
+
+    /**
+     * Diretor rejeita a proposta com justificativa.
+     */
+    public function rejeitarDiretor(int $propostaId, int $diretorId, string $justificativa): bool
+    {
+        try {
+            $this->db->beginTransaction();
+
+            $stmt = $this->db->prepare(
+                "UPDATE orcamento_proposta SET 
+                    aprovacao_diretor_status = 'rejeitado',
+                    aprovado_diretor_por = ?,
+                    aprovado_diretor_em = NOW(),
+                    justificativa_rejeicao = ?
+                 WHERE id = ? AND aprovacao_diretor_status = 'pendente'"
+            );
+            $stmt->execute([$diretorId, $justificativa, $propostaId]);
+
+            // Salva histórico
+            $propostaAtual = $this->getPropostaById($propostaId);
+            if ($propostaAtual) {
+                $this->salvarHistorico($propostaAtual, $diretorId, 'Rejeitada pelo diretor: ' . $justificativa);
+            }
+
+            $this->db->commit();
+            return true;
+        } catch (\PDOException $e) {
+            if ($this->db->inTransaction()) $this->db->rollBack();
+            $this->lastError = $e->getMessage();
+            return false;
+        }
+    }
+
+    /**
+     * Retorna propostas pendentes de aprovação do diretor.
+     */
+    public function getPropostasPendentesDiretor(int $limit = 50, int $offset = 0): array
+    {
+        try {
+            $sql = "SELECT p.*, p.id as id, p.nome_proposta as titulo, p.total_final as valor_total,
+                           c.nome as cliente_nome, u.nome as responsavel_nome
+                    FROM orcamento_proposta p
+                    LEFT JOIN clientes c ON p.cliente_id = c.id
+                    LEFT JOIN usuarios u ON p.enviado_diretor_por = u.id
+                    WHERE p.aprovacao_diretor_status = 'pendente'
+                    ORDER BY p.enviado_para_diretor_em DESC
+                    LIMIT :limit OFFSET :offset";
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            error_log('Erro ao buscar propostas pendentes: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Retorna a contagem de propostas pendentes de aprovação do diretor.
+     */
+    public function getCountPropostasPendentesDiretor(): int
+    {
+        try {
+            $stmt = $this->db->query("SELECT COUNT(*) FROM orcamento_proposta WHERE aprovacao_diretor_status = 'pendente'");
+            return (int)$stmt->fetchColumn();
+        } catch (\PDOException $e) {
+            return 0;
         }
     }
 

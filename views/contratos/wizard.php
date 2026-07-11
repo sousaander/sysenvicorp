@@ -42,18 +42,24 @@ $contratoData = $contrato ?? null;
     --c-text:        #1A2233;
     --c-text-2:      #4A5568;
     --c-text-3:      #8896A9;
-    --c-blue:        #1E4D8C;
-    --c-blue-light:  #EBF2FB;
-    --c-blue-mid:    #3A6DB5;
-    --c-blue-hover:  #163D70;
-    --c-gold:        #A67C00;
-    --c-gold-light:  #FFF8E1;
-    --c-gold-border: #E8C84A;
+
+    --c-accent:        #2563eb;
+    --c-accent-soft:   #dbeafe;
+    --c-accent-deep:   #1d4ed8;
+    --c-accent-hover:  #1e40af;
+
+    --c-amber:        #d97706;
+    --c-amber-light:  #fef3c7;
+    --c-amber-border: #fcd34d;
+
     --c-green:       #1A6B45;
     --c-green-light: #E8F5EE;
     --c-green-border:#6BBF8A;
+
+    --radius:        8px;
     --radius-lg:     12px;
     --radius-xl:     16px;
+
     --shadow-sm:     0 1px 3px rgba(0,0,0,.07);
     --font-display:  'Lora', Georgia, serif;
     --font-body:     'DM Sans', system-ui, sans-serif;
@@ -68,9 +74,9 @@ $contratoData = $contrato ?? null;
     --c-text:        var(--db-text, #e6edf3);
     --c-text-2:      var(--db-text2, #8b949e);
     --c-text-3:      var(--db-text3, #6e7681);
-    --c-blue-light:  #1E293B;
+    --c-accent-soft: rgba(37, 99, 235, 0.15);
     --c-green-light: rgba(22, 163, 74, 0.15);
-    --c-gold-light:  rgba(234, 179, 8, 0.15);
+    --c-amber-light: rgba(217, 119, 6, 0.15);
     --c-green-border: #2D4A3A;
 }
 
@@ -108,7 +114,7 @@ $contratoData = $contrato ?? null;
     box-shadow: var(--shadow-sm);
 }
 .ctr-header-icon {
-    width: 46px; height: 46px; background: var(--c-blue);
+    width: 46px; height: 46px; background: var(--c-accent);
     border-radius: 8px; display: flex; align-items: center; justify-content: center;
     color: #fff; font-size: 18px; margin-right: 15px;
 }
@@ -126,7 +132,7 @@ $contratoData = $contrato ?? null;
     color: var(--c-text-3); border-right: 1px solid var(--c-border);
     display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.ctr-step.active { background: var(--c-blue); color: #fff; }
+.ctr-step.active { background: var(--c-accent); color: #fff; }
 .ctr-step.done { background: var(--c-green-light); color: var(--c-green); }
 .ctr-step:last-child { border-right: none; }
 
@@ -149,17 +155,17 @@ $contratoData = $contrato ?? null;
     padding: 10px 12px; background: var(--c-bg); border: 1px solid var(--c-border);
     border-radius: 8px; outline: none; transition: all .15s;
 }
-.ctr-input:focus, .ctr-select:focus { border-color: var(--c-blue-mid); background: #fff; box-shadow: 0 0 0 3px rgba(30,77,140,.1); }
+.ctr-input:focus, .ctr-select:focus { border-color: var(--c-accent); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
 
 .group-title {
     font-family: var(--font-display); font-size: 15px; font-weight: 600;
-    color: var(--c-blue); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;
+    color: var(--c-accent); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;
     border-bottom: 1px solid var(--c-border); padding-bottom: 8px;
 }
 
 /* Botões */
-.btn-next { background: var(--c-blue); color: #fff; font-weight: 600; padding: 10px 24px; border-radius: 8px; transition: background .2s; }
-.btn-next:hover { background: var(--c-blue-hover); }
+.btn-next { background: var(--c-accent); color: #fff; font-weight: 600; padding: 10px 24px; border-radius: 8px; transition: background .2s; }
+.btn-next:hover { background: var(--c-accent-hover); }
 .btn-prev { color: var(--c-text-3); font-weight: 600; padding: 10px 20px; }
 </style>
 

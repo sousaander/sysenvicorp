@@ -28,7 +28,7 @@
     /* Bordas suaves */
 
     /* Identidade Visual */
-    --sys-navy: #0f172a;
+    --sys-navy: #2563eb;
     /* Azul Marinho (Sidebar/Navegação) */
     --sys-blue: #2563eb;
     /* Azul Real (Ações Principais/Primária) */
@@ -82,6 +82,8 @@
     --mod-slate-dark: #475569;
     --mod-purple: #a855f7; --mod-purple-rgb: 168, 85, 247;
     --mod-purple-dark: #7e22ce;
+    --mod-orange: #f97316; --mod-orange-rgb: 249, 115, 22;
+    --mod-orange-dark: #c2410c;
 }
 
 /* Configuração para Tema Escuro (Dark Mode) */
@@ -141,7 +143,7 @@ html {
     padding: 10px 12px;
     margin: 2px 8px;
     border-radius: 8px;
-    color: var(--sys-text-light);
+    color: rgba(255,255,255,0.78);
     text-decoration: none;
     transition: all 0.3s ease;
     gap: 12px;
@@ -160,6 +162,7 @@ html {
 .item-teal { --mod-color: var(--mod-teal); --mod-color-dark: var(--mod-teal-dark); --mod-rgb: var(--mod-teal-rgb); }
 .item-slate { --mod-color: var(--mod-slate); --mod-color-dark: var(--mod-slate-dark); --mod-rgb: var(--mod-slate-rgb); }
 .item-purple { --mod-color: var(--mod-purple); --mod-color-dark: var(--mod-purple-dark); --mod-rgb: var(--mod-purple-rgb); }
+.item-orange { --mod-color: var(--mod-orange); --mod-color-dark: var(--mod-orange-dark); --mod-rgb: var(--mod-orange-rgb); }
 
 .sys-sidebar-item:hover {
     background-color: rgba(255, 255, 255, 0.05);
@@ -178,10 +181,9 @@ html {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 1.5px;
-    color: var(--sys-text-light);
+    color: rgba(255,255,255,0.5);
     text-transform: uppercase;
     padding: 24px 16px 8px;
-    opacity: 0.5;
     display: block;
 }
 

@@ -523,9 +523,11 @@
                 if (nome && nome.trim() !== "") {
                     const formData = new FormData();
                     formData.append('nome', nome.trim());
+                    formData.append('csrf_token', '<?php echo $csrf_token ?? ''; ?>');
 
                     fetch('<?php echo BASE_URL; ?>/financeiro/addPrestacaoCategoria', {
                             method: 'POST',
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
                             body: formData
                         })
                         .then(response => response.json())
@@ -557,9 +559,11 @@
                 if (nome && nome.trim() !== "") {
                     const formData = new FormData();
                     formData.append('nome', nome.trim());
+                    formData.append('csrf_token', '<?php echo $csrf_token ?? ''; ?>');
 
                     fetch('<?php echo BASE_URL; ?>/financeiro/addCentroCusto', {
                             method: 'POST',
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
                             body: formData
                         })
                         .then(response => response.json())

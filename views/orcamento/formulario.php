@@ -17,6 +17,10 @@
  *   $isEdicao     bool         — (opcional, inferido de $orc['id'])
  */
 
+// ─── Tema (claro/escuro) ───────────────────────────────────────────────────────
+$themePref = $_COOKIE['theme'] ?? 'light';
+$isDark = ($themePref === 'dark');
+
 // ─── Setup inicial ────────────────────────────────────────────────────────────
 $isEdicao = isset($isEdicao) ? (bool)$isEdicao : !empty($orc['id']);
 $isAjax   = (isset($_GET['ajax']) && $_GET['ajax'] == 1);
@@ -41,6 +45,13 @@ $def = [
     'email_cliente'      => $orc['email_cliente']      ?? '',
     'municipio'          => $orc['municipio']          ?? '',
     'area'               => $orc['area']               ?? '',
+    'cliente_logradouro' => $orc['cliente_logradouro'] ?? '',
+    'cliente_numero'     => $orc['cliente_numero']     ?? '',
+    'cliente_complemento'=> $orc['cliente_complemento']?? '',
+    'cliente_endereco'   => $orc['cliente_endereco']   ?? $orc['endereco_cliente'] ?? '',
+    'cliente_bairro'     => $orc['cliente_bairro']     ?? '',
+    'cliente_municipio'  => $orc['cliente_municipio']  ?? '',
+    'cliente_uf'         => $orc['cliente_uf']         ?? '',
     'projeto_id'         => $orc['projeto_id']         ?? '',
     'contrato_id'        => $orc['contrato_id']        ?? '',
     'cliente_documento'  => $orc['cliente_documento']  ?? '',
@@ -56,6 +67,24 @@ $def = [
     'pix_tipo_chave'     => $orc['pix_tipo_chave']     ?? '',
     'pix_chave'          => $orc['pix_chave']          ?? '',
     'dados_bancarios'    => $orc['dados_bancarios']    ?? '',
+    'banco_id'           => $orc['banco_id']           ?? '',
+
+    // Assinatura (Contratada)
+    'assinatura_tipo'               => $orc['assinatura_tipo'] ?? 'imagem',
+    'assinatura_imagem'             => $orc['assinatura_imagem'] ?? null,
+    'assinatura_certificado_nome'   => $orc['assinatura_certificado_nome'] ?? '',
+    'assinatura_certificado_cpf'    => $orc['assinatura_certificado_cpf'] ?? '',
+    'assinatura_certificado_path'   => $orc['assinatura_certificado_path'] ?? '',
+    'assinatura_certificado_validade' => $orc['assinatura_certificado_validade'] ?? '',
+
+    // Assinatura do Elaborador
+    'assinatura_elaborador_responsavel' => $orc['assinatura_elaborador_responsavel'] ?? 0,
+    'assinatura_elaborador_tipo'        => $orc['assinatura_elaborador_tipo'] ?? 'imagem',
+    'assinatura_elaborador_imagem'      => $orc['assinatura_elaborador_imagem'] ?? null,
+    'assinatura_elaborador_certificado_nome' => $orc['assinatura_elaborador_certificado_nome'] ?? '',
+    'assinatura_elaborador_certificado_cpf'  => $orc['assinatura_elaborador_certificado_cpf'] ?? '',
+    'assinatura_elaborador_certificado_path' => $orc['assinatura_elaborador_certificado_path'] ?? '',
+    'assinatura_elaborador_certificado_validade' => $orc['assinatura_elaborador_certificado_validade'] ?? '',
 ];
 
 // Categorias carregadas do banco ou padrões fixos
@@ -79,13 +108,14 @@ $condicoesPagamento = [
     '30 dias após aprovação',
     '50% na aprovação / 50% na entrega',
     'À vista',
+    '100% após a conclusão',
     'Parcelado (negociar)',
     'Conforme contrato',
 ];
 
 // Cores de badge por categoria (usadas no preview)
 $categoriaCores = [
-    'Planejamento / Coordenação'   => ['bg' => '#E6F1FB', 'text' => '#0C447C', 'border' => '#B5D4F4'],
+    'Planejamento / Coordenação'   => ['bg' => '#dbeafe', 'text' => '#1d4ed8', 'border' => '#93c5fd'],
     'Serviços de Campo'            => ['bg' => '#EAF3DE', 'text' => '#27500A', 'border' => '#C0DD97'],
     'Custos Reembolsáveis'         => ['bg' => '#FAEEDA', 'text' => '#633806', 'border' => '#FAC775'],
     'Elaboração de Peças Técnicas' => ['bg' => '#EEEDFE', 'text' => '#3C3489', 'border' => '#CECBF6'],
@@ -120,16 +150,20 @@ function badgeStyle(array $cor, string $label): string {
 
     <!-- Tailwind CSS local (build de produção) -->
     <link href="<?= BASE_URL ?>/css/output.css" rel="stylesheet">
+    <!-- Estilos Globais Customizados (variáveis CSS, temas) -->
+    <link href="<?= BASE_URL ?>/css/global.css" rel="stylesheet">
+    <!-- Estilos específicos do orçamento -->
+    <link href="<?= BASE_URL ?>/assets/css/orcamento.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
     <style>
         /* ── Variáveis de cor ── */
         :root {
-            --brand:          #185FA5;
-            --brand-light:    #E6F1FB;
-            --brand-border:   #B5D4F4;
-            --brand-dark:     #0C447C;
+            --brand:          #2563eb;
+            --brand-light:    #dbeafe;
+            --brand-border:   #93c5fd;
+            --brand-dark:     #1d4ed8;
             --success:        #3B6D11;
             --success-light:  #EAF3DE;
             --success-border: #C0DD97;
@@ -151,7 +185,6 @@ function badgeStyle(array $cor, string $label): string {
             background: #fff;
             border: 0.5px solid #E5E7EB;
             border-radius: 12px;
-            overflow: hidden;
         }
         .card-header {
             display: flex;
@@ -200,7 +233,7 @@ function badgeStyle(array $cor, string $label): string {
             transition: border-color .15s, box-shadow .15s;
             background: #fff;
         }
-        .fi:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(24,95,165,.12); }
+        .fi:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
         .fi[readonly] { background: #F9FAFB; color: #9CA3AF; cursor: not-allowed; }
 
         /* ── Tabela de itens ── */
@@ -304,9 +337,231 @@ function badgeStyle(array $cor, string $label): string {
             display: flex; align-items: center; justify-content: center;
             margin: 0 auto 1.5rem;
         }
+
+        /* ══════════════════════════════════════════════════════════════
+           DARK MODE — sobrescreve classes custom do formulário
+           ══════════════════════════════════════════════════════════════ */
+        body.dark-theme { background: #0f172a; color: #e2e8f0; }
+
+        body.dark-theme .card {
+            background: var(--db-surface, #1e293b);
+            border-color: var(--db-border, #334155);
+        }
+        body.dark-theme .card-header {
+            background: var(--db-surface2, #0f172a);
+            border-bottom-color: var(--db-border, #334155);
+        }
+        body.dark-theme .card-header .title { color: var(--db-text, #f1f5f9); }
+        body.dark-theme .card-header .subtitle { color: var(--db-text2, #94a3b8); }
+
+        body.dark-theme .fi {
+            background: var(--db-surface2, #0f172a);
+            border-color: var(--db-border, #334155);
+            color: var(--db-text, #e2e8f0);
+        }
+        body.dark-theme .fi:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(37,99,235,.25); }
+        body.dark-theme .fi[readonly] { background: #1e293b; color: #64748b; }
+
+        body.dark-theme .lbl { color: #94a3b8; }
+
+        body.dark-theme .step-btn:not(.active):not(.done) { background: #1e293b; }
+        body.dark-theme .step-btn .step-icon { color: #64748b; }
+        body.dark-theme .step-btn .step-label { color: #64748b; }
+        body.dark-theme .step-btn.active .step-icon { color: var(--brand); }
+        body.dark-theme .step-btn.active .step-label { color: var(--brand-dark); }
+        body.dark-theme .step-btn.done .step-icon { color: var(--success); }
+        body.dark-theme .step-btn.done .step-label { color: #4ade80; }
+
+        body.dark-theme #stepper { border-color: var(--db-border, #334155); }
+        body.dark-theme #stepper .border-r { border-color: var(--db-border, #334155); }
+
+        body.dark-theme .tabela-itens th {
+            background: #1e293b;
+            color: #94a3b8;
+            border-bottom-color: var(--db-border, #334155);
+        }
+        body.dark-theme .tabela-itens td { border-bottom-color: #334155; }
+        body.dark-theme .tabela-itens tbody tr:not(:last-child) td { border-bottom-color: #334155; }
+        body.dark-theme .tabela-itens tbody tr:hover td { background: #1a2332; }
+        body.dark-theme .tabela-itens tbody tr:hover .btn-remover-item { color: #64748b; }
+        body.dark-theme .tabela-itens .btn-remover-item { color: #475569; }
+        body.dark-theme .item-total-cell { color: #e2e8f0; }
+
+        body.dark-theme .btn-nav {
+            background: #1e293b;
+            border-color: var(--db-border, #334155);
+            color: #e2e8f0;
+        }
+        body.dark-theme .btn-nav:hover { background: #334155; }
+        body.dark-theme .btn-primary {
+            background: var(--brand);
+            color: #fff;
+            border-color: var(--brand);
+        }
+        body.dark-theme .btn-primary:hover { background: #145087; }
+
+        body.dark-theme .resumo-total {
+            background: rgba(37,99,235,.15);
+            border-color: rgba(37,99,235,.3);
+        }
+
+        body.dark-theme .preview-field .pf-label { color: #64748b; }
+        body.dark-theme .preview-field .pf-value { color: #e2e8f0; }
+
+        body.dark-theme .preview-header { border-bottom-color: var(--brand); }
+        body.dark-theme #prev-titulo { color: #e2e8f0; }
+        body.dark-theme #prev-header-codigo { background: rgba(37,99,235,.2); }
+
+        body.dark-theme #totais-por-categoria > div > span:last-child { color: #e2e8f0; }
+        body.dark-theme #display-subtotal { color: #e2e8f0; }
+
+        body.dark-theme #fin-categorias > div {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        body.dark-theme #fin-categorias > div span { color: #e2e8f0; }
+        body.dark-theme #fin-categorias > div span.text-gray-400,
+        body.dark-theme #fin-categorias > div span.text-gray-500 { color: #94a3b8 !important; }
+
+        body.dark-theme #prev-composicao > div {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        body.dark-theme #prev-composicao > div span { color: #e2e8f0; }
+
+        body.dark-theme .preview-field-grid { border-bottom-color: #334155; }
+        body.dark-theme .preview-field { border-color: #334155; }
+
+        body.dark-theme .crono-table td.col-ativ { background: #1e293b; }
+        body.dark-theme .crono-table td.col-ativ input { color: #e2e8f0; }
+        body.dark-theme .crono-table tbody tr:hover td { background: #1a2332; }
+        body.dark-theme .crono-table tbody tr:hover td.col-ativ { background: #1a2332; }
+        body.dark-theme .crono-table th { background: #1e293b; color: #94a3b8; border-bottom-color: #334155; }
+        body.dark-theme .crono-table td { border-bottom-color: #334155; }
+        body.dark-theme .crono-dot { border-color: #475569; background: #1e293b; }
+        body.dark-theme .crono-sum-card { background: #1e293b; border-color: #334155; }
+        body.dark-theme .crono-sum-label { color: #64748b; }
+        body.dark-theme .crono-sum-value { color: #e2e8f0; }
+        body.dark-theme .crono-day-num { color: #e2e8f0; }
+        body.dark-theme .crono-day-sub { color: #64748b; }
+        body.dark-theme .crono-mode-switcher { background: #1e293b; }
+        body.dark-theme .crono-mode-btn.active { background: #0f172a; color: #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+        body.dark-theme .crono-mode-btn { color: #64748b; }
+
+        /* ── Metadados: Data · Validade · Elaborado por ── */
+        .idf-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .idf-expiry-chip {
+            display: block;
+            margin-top: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6B7280;
+            font-family: ui-monospace, SFMono-Regular, "IBM Plex Mono", Menlo, Consolas, monospace;
+        }
+        .idf-expiry-chip strong { color: var(--brand-dark); font-weight: 700; letter-spacing: .01em; }
+
+        body.dark-theme .idf-expiry-chip { color: #94a3b8; }
+        body.dark-theme .idf-expiry-chip strong { color: #60a5fa; }
+        body.dark-theme .crono-config-bar { background: #0f172a; border-bottom-color: #334155; }
+        body.dark-theme .crono-legend { background: #0f172a; border-top-color: #334155; }
+        body.dark-theme .crono-legend-item { color: #94a3b8; }
+        body.dark-theme .crono-tip { background: #3b2f1a; border-color: #5c4a2e; }
+        body.dark-theme .crono-tip p { color: #d4b87a; }
+        body.dark-theme .crono-tip i { color: #d4b87a; }
+        body.dark-theme .crono-add-btn { background: #1e293b; color: #60a5fa; border-top-color: #334155; }
+        body.dark-theme .crono-add-btn:hover { background: rgba(37,99,235,.15); }
+body.dark-theme #btn-add-item { background: var(--brand); }
+
+        body.dark-theme #btn-add-item:hover { background: #145087; }
+        body.dark-theme #btn-add-legend { background: #1e293b; border-color: #334155; color: #60a5fa; }
+        body.dark-theme #btn-add-legend:hover { background: #334155; }
+
+        body.dark-theme #section-projeto #project-details-container { background: rgba(37,99,235,.12); border-color: rgba(37,99,235,.3); }
+        body.dark-theme #section-contrato #section-contrato-detalhes { background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.3); }
+
+        body.dark-theme tr.bg-slate-100\/50 { background: rgba(30,41,59,.5) !important; }
+        body.dark-theme tr.bg-slate-100\/50 .text-sky-700 { color: #60a5fa; }
+        body.dark-theme tr.bg-slate-100\/50 .bg-sky-100 { background: rgba(37,99,235,.3); }
+        body.dark-theme tr.bg-slate-100\/50 .border-sky-200 { border-color: rgba(37,99,235,.3); }
+        body.dark-theme tr.bg-slate-100\/50 textarea { color: #e2e8f0; }
+
+        body.dark-theme .border-t.border-gray-100 { border-top-color: #334155 !important; }
+        body.dark-theme .border-b.border-gray-200 { border-bottom-color: #334155 !important; }
+        body.dark-theme .border-b.border-gray-100 { border-bottom-color: #334155 !important; }
+        body.dark-theme hr { border-color: #334155; }
+        body.dark-theme .bg-gray-50 { background: #1a2332 !important; }
+        body.dark-theme .bg-white { background: var(--db-surface, #1e293b) !important; }
+        body.dark-theme .text-gray-400 { color: #94a3b8 !important; }
+        body.dark-theme .text-gray-500 { color: #94a3b8 !important; }
+        body.dark-theme .text-gray-600 { color: #94a3b8 !important; }
+        body.dark-theme .text-gray-700 { color: #cbd5e1 !important; }
+        body.dark-theme .text-gray-800 { color: #e2e8f0 !important; }
+        body.dark-theme .text-gray-900 { color: #e2e8f0 !important; }
+        body.dark-theme .text-slate-500 { color: #94a3b8 !important; }
+        body.dark-theme .text-sky-700 { color: #60a5fa; }
+        body.dark-theme .bg-sky-50 { background: rgba(37,99,235,.15) !important; }
+        body.dark-theme .border-sky-200 { border-color: rgba(37,99,235,.3) !important; }
+        body.dark-theme .bg-emerald-50 { background: rgba(16,185,129,.12) !important; }
+        body.dark-theme .border-emerald-200 { border-color: rgba(16,185,129,.3) !important; }
+        body.dark-theme .text-sky-600 { color: #60a5fa; }
+
+        body.dark-theme .bg-slate-50 { background: #1e293b !important; }
+        body.dark-theme .border-slate-200 { border-color: #334155 !important; }
+        body.dark-theme .text-\[\#9CA3AF\] { color: #64748b; }
+
+        body.dark-theme #btn-reset-codigo { background: #1e293b; border-color: #334155; color: #94a3b8; }
+        body.dark-theme #btn-reset-codigo:hover { background: #334155; }
+
+        body.dark-theme label[for="permitir-edicao-versao"] { background: #1e293b !important; border-color: #334155 !important; }
+        body.dark-theme label[for="permitir-edicao-versao"] .text-gray-600 { color: #94a3b8 !important; }
+
+        body.dark-theme table.tabela-itens thead tr.border-b { border-bottom-color: #334155; }
+        body.dark-theme .text-gray-400 i { color: #64748b; }
+
+        /* Dark mode: Título de seção e Texto descritivo */
+        body.dark-theme tr[style*="rgba(238,237,254"] { background: rgba(60,52,137,.2) !important; }
+        body.dark-theme tr[style*="rgba(230,241,251"] { background: rgba(37,99,235,.12) !important; }
+
+        body.dark-theme #prev-desc-row .resumo-linha span { color: #94a3b8; }
+        body.dark-theme #prev-imp-row .resumo-linha span { color: #94a3b8; }
+        body.dark-theme #prev-escopo { color: #cbd5e1; }
+        body.dark-theme #prev-observacoes { color: #cbd5e1; }
+        body.dark-theme #prev-pagamento { color: #cbd5e1; }
+
+        body.dark-theme .file\:bg-sky-50::file-selector-button { background: rgba(37,99,235,.25); color: #60a5fa; }
+        body.dark-theme .file\:text-sky-700::file-selector-button { color: #60a5fa; }
+        body.dark-theme .hover\:file\:bg-sky-100::file-selector-button:hover { background: rgba(37,99,235,.35); }
+
+        body.dark-theme .drag-handle { color: #475569; }
+        body.dark-theme .drag-handle:hover { color: #60a5fa; }
+
+        body.dark-theme .crono-row-drag.bg-sky-50 { background: rgba(37,99,235,.15) !important; }
+
+        body.dark-theme .bg-gray-100 { background: #1a2332 !important; }
+        body.dark-theme .hover\:bg-gray-50:hover { background: #1e293b !important; }
+        body.dark-theme .hover\:bg-gray-200:hover { background: #334155 !important; }
+        body.dark-theme .bg-amber-50 { background: rgba(251,191,36,.12) !important; }
+        body.dark-theme .border-amber-200 { border-color: rgba(251,191,36,.3) !important; }
+        body.dark-theme .border-gray-300 { border-color: #475569 !important; }
+        body.dark-theme .border-dashed.border-gray-300 { border-color: #475569 !important; }
+        body.dark-theme .bg-white.rounded-lg.shadow-md { background: var(--db-surface, #1e293b) !important; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body class="bg-gray-50 text-gray-900 <?= $isDark ? 'dark-theme' : '' ?>">
+<script>
+// Aplica o tema escuro imediatamente (antes do paint) para evitar flash
+(function() {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || (!stored && document.cookie.indexOf('theme=dark') !== -1)) {
+        document.body.classList.add('dark-theme');
+        document.documentElement.classList.add('dark');
+    }
+})();
+</script>
 
 <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6">
 
@@ -420,32 +675,31 @@ function badgeStyle(array $cor, string $label): string {
                         <?php endif; ?>
                     </div>
 
-                    <!-- Código · Data -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="lbl" for="codigo">Código da Proposta <span class="req">*</span></label>
-                            <div class="flex gap-2">
-                                <input type="text" id="codigo" name="codigo" required
-                                       class="fi" placeholder="Ex: 002-26-FCA"
-                                       value="<?= htmlspecialchars($def['codigo']) ?>">
-                                <button type="button" id="btn-reset-codigo" 
-                                        class="px-3 py-1 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition text-gray-600"
-                                        title="Resetar para o código sugerido pelo sistema">
-                                    <i class="fas fa-sync-alt"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div>
+                    <!-- Metadados da proposta: Data · Validade · Elaborado por -->
+                    <div class="idf-meta-grid">
+
+                        <!-- Data da Proposta -->
+                        <div class="idf-meta-item">
                             <label class="lbl" for="data_proposta">Data da Proposta <span class="req">*</span></label>
                             <input type="date" id="data_proposta" name="data_proposta" required
                                    class="fi"
                                    value="<?= htmlspecialchars($def['data_proposta']) ?>">
                         </div>
-                    </div>
 
-                    <!-- Responsável · Validade -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
+                        <!-- Validade -->
+                        <div class="idf-meta-item">
+                            <label class="lbl" for="validade_proposta">Validade (dias corridos)</label>
+                            <input type="number" id="validade_proposta" name="validade_proposta"
+                                   class="fi"
+                                   min="1" max="365"
+                                   value="<?= (int)$def['validade'] ?>">
+                            <span class="idf-expiry-chip">
+                                Expira em <strong id="data-validade-preview">—</strong>
+                            </span>
+                        </div>
+
+                        <!-- Elaborado por -->
+                        <div class="idf-meta-item">
                             <label class="lbl" for="responsavel_id">Elaborado por</label>
                             <select id="responsavel_id" name="responsavel_interno_id" class="fi">
                                 <option value="">— Selecione —</option>
@@ -459,19 +713,7 @@ function badgeStyle(array $cor, string $label): string {
                                 <?php endif; ?>
                             </select>
                         </div>
-                        <div>
-                            <label class="lbl" for="validade_proposta">Validade (dias corridos)</label>
-                            <div class="flex items-center gap-3">
-                                <input type="number" id="validade_proposta" name="validade_proposta"
-                                       class="fi" style="width:90px"
-                                       min="1" max="365"
-                                       value="<?= (int)$def['validade'] ?>">
-                                <span class="text-xs text-gray-500">
-                                    Expira em
-                                    <strong id="data-validade-preview" style="color:var(--brand)">—</strong>
-                                </span>
-                            </div>
-                        </div>
+
                     </div>
 
                     <!-- Coordenadas Geográficas -->
@@ -536,7 +778,7 @@ function badgeStyle(array $cor, string $label): string {
                 <div class="card-header">
                     <i class="fas fa-align-left"></i>
                     <div>
-                        <p class="title">Escopo / Apresentação</p>
+                        <p class="title">Apresentação / Objeto</p>
                         <p class="subtitle">Descreva o objeto da proposta</p>
                     </div>
                 </div>
@@ -567,9 +809,9 @@ function badgeStyle(array $cor, string $label): string {
                 </div>
                 <div class="p-5 flex flex-col gap-4">
 
-                    <!-- Cliente + sigla automática -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div class="md:col-span-3">
+                    <!-- Cliente + sigla + código da proposta -->
+                    <div class="flex flex-wrap items-end gap-4">
+                        <div class="min-w-0 flex-1">
                             <label class="lbl" for="select-cliente">Cliente <span class="req">*</span></label>
                             <select id="select-cliente" name="cliente_id" required class="fi">
                                 <option value="">— Selecione um cliente —</option>
@@ -578,7 +820,12 @@ function badgeStyle(array $cor, string $label): string {
                                             data-sigla="<?= htmlspecialchars($c['sigla'] ?? '') ?>"
                                             data-email="<?= htmlspecialchars($c['email'] ?? '') ?>"
                                             data-representante="<?= htmlspecialchars($c['contato_principal'] ?? '') ?>"
-                                            data-endereco="<?= htmlspecialchars($c['endereco'] ?? '') ?>"
+                                            data-logradouro="<?= htmlspecialchars($c['logradouro'] ?? '') ?>"
+                                            data-numero="<?= htmlspecialchars($c['numero'] ?? '') ?>"
+                                            data-complemento="<?= htmlspecialchars($c['complemento'] ?? '') ?>"
+                                            data-bairro="<?= htmlspecialchars($c['bairro'] ?? '') ?>"
+                                            data-municipio="<?= htmlspecialchars($c['municipio'] ?? '') ?>"
+                                            data-uf="<?= htmlspecialchars($c['estado'] ?? '') ?>"
                                             data-telefone="<?= htmlspecialchars($c['telefone'] ?? '') ?>"
                                             data-documento="<?= htmlspecialchars($c['cnpj_cpf'] ?? '') ?>"
                                             data-fantasia="<?= htmlspecialchars($c['nome_fantasia'] ?? '') ?>"
@@ -593,13 +840,28 @@ function badgeStyle(array $cor, string $label): string {
                                 <p class="text-red-500 text-xs mt-1"><?= $erros['cliente_id'] ?></p>
                             <?php endif; ?>
                         </div>
-                        <div>
+                        <div class="inline-block w-auto">
                             <label class="lbl" for="cliente_sigla_input">Sigla</label>
                             <input type="text" id="cliente_sigla_input" name="cliente_sigla"
                                    class="fi font-bold uppercase" readonly
                                    placeholder="—"
                                    value="<?= htmlspecialchars($orc['cliente_sigla'] ?? '') ?>"
-                                   style="background:#F9FAFB;color:#6B7280">
+                                   style="background:#F9FAFB;color:#6B7280;width:auto">
+                        </div>
+                        <div class="inline-block w-auto">
+                            <label class="lbl" for="codigo">Código da Proposta <span class="req">*</span></label>
+                            <div class="flex gap-2 items-center">
+                                <input type="text" id="codigo" name="codigo" required
+                                       class="fi" placeholder="Ex: 002-26-FCA"
+                                       value="<?= htmlspecialchars($def['codigo']) ?>"
+                                       style="width:auto;min-width:150px;max-width:100%"
+                                       oninput="this.style.width = (this.scrollWidth + 4) + 'px'">
+                                <button type="button" id="btn-reset-codigo"
+                                        class="px-3 py-1 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition text-gray-600 flex-shrink-0"
+                                        title="Resetar para o código sugerido pelo sistema">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -607,7 +869,7 @@ function badgeStyle(array $cor, string $label): string {
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="lbl" for="cliente_documento">CPF / CNPJ</label>
-                            <input type="text" id="cliente_documento" 
+                            <input type="text" id="cliente_documento" name="cliente_documento"
                                    class="fi" readonly
                                    placeholder="—"
                                    value="<?= htmlspecialchars($def['cliente_documento']) ?>"
@@ -633,21 +895,56 @@ function badgeStyle(array $cor, string $label): string {
                         </div>
                     </div>
 
-                    <!-- Município · Área -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="lbl" for="municipio">Município / Estado</label>
-                            <input type="text" id="municipio" name="municipio"
-                                   class="fi" placeholder="Ex: Cachoeira – BA"
-                                   value="<?= htmlspecialchars($def['municipio']) ?>">
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                        <div class="md:col-span-3">
+                            <label class="lbl" for="cliente_logradouro">Logradouro</label>
+                            <input type="text" id="cliente_logradouro" name="cliente_logradouro"
+                                   class="fi" readonly placeholder="—"
+                                   value="<?= htmlspecialchars($def['cliente_logradouro']) ?>"
+                                   style="background:#F9FAFB;color:#6B7280">
                         </div>
-                        <div>
-                            <label class="lbl" for="area">Área total</label>
-                            <input type="text" id="area" name="area"
-                                   class="fi" placeholder="Ex: 0,12 ha"
-                                   value="<?= htmlspecialchars($def['area']) ?>">
+                        <div class="md:col-span-1">
+                            <label class="lbl" for="cliente_numero">Nº</label>
+                            <input type="text" id="cliente_numero" name="cliente_numero"
+                                   class="fi" readonly placeholder="—"
+                                   value="<?= htmlspecialchars($def['cliente_numero']) ?>"
+                                   style="background:#F9FAFB;color:#6B7280">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="lbl" for="cliente_complemento">Complemento</label>
+                            <input type="text" id="cliente_complemento" name="cliente_complemento"
+                                   class="fi" readonly placeholder="—"
+                                   value="<?= htmlspecialchars($def['cliente_complemento']) ?>"
+                                   style="background:#F9FAFB;color:#6B7280">
                         </div>
                     </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="md:col-span-1">
+                            <label class="lbl" for="cliente_bairro">Bairro</label>
+                            <input type="text" id="cliente_bairro" name="cliente_bairro"
+                                   class="fi" readonly placeholder="—"
+                                   value="<?= htmlspecialchars($def['cliente_bairro']) ?>"
+                                   style="background:#F9FAFB;color:#6B7280">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="lbl" for="cliente_municipio">Município</label>
+                            <input type="text" id="cliente_municipio" name="cliente_municipio"
+                                   class="fi" readonly placeholder="—"
+                                   value="<?= htmlspecialchars($def['cliente_municipio']) ?>"
+                                   style="background:#F9FAFB;color:#6B7280">
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="lbl" for="cliente_uf">UF</label>
+                            <input type="text" id="cliente_uf" name="cliente_uf"
+                                   class="fi" readonly placeholder="—"
+                                   value="<?= htmlspecialchars($def['cliente_uf']) ?>"
+                                   style="background:#F9FAFB;color:#6B7280">
+                        </div>
+                    </div>
+
+                    <!-- Município / Área agora calculados automaticamente pela tabela de Contextualização -->
+                    <input type="hidden" id="municipio" name="municipio" value="<?= htmlspecialchars($def['municipio']) ?>">
+                    <input type="hidden" id="area" name="area" value="<?= htmlspecialchars($def['area']) ?>">
 
                     <!-- Projeto vinculado (opcional) -->
                     <div class="border-t border-gray-100 pt-4">
@@ -737,6 +1034,93 @@ function badgeStyle(array $cor, string $label): string {
                 </div>
             </div><!-- /card Cliente -->
 
+            <!-- ════════════════════════════════════════════════════════════
+                 CARD — CONTEXTUALIZAÇÃO (Empreendedor / Faixa de domínio / KM / Município / Área)
+            ════════════════════════════════════════════════════════════ -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <div>
+                        <p class="title">Contextualização</p>
+                        <p class="subtitle">Áreas de inventário florestal por empreendedor / trecho</p>
+                    </div>
+                </div>
+                <div class="p-5 flex flex-col gap-3">
+                    <textarea id="ctx-texto-intro" rows="2"
+                              class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-400 focus:border-sky-400 resize-none"
+                              placeholder="Texto de introdução antes da tabela (opcional)"></textarea>
+                    <div class="overflow-x-auto">
+                        <table class="w-full tabela-itens" id="tabela-contextualizacao">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th style="min-width:140px">Empreendedor</th>
+                                    <th style="min-width:140px">Faixa de domínio</th>
+                                    <th style="min-width:120px">KM</th>
+                                    <th style="min-width:160px">Município / Estado</th>
+                                    <th style="width:110px">Área (ha)</th>
+                                    <th style="width:40px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-contextualizacao"></tbody>
+                            <tfoot>
+                                <tr style="background:var(--brand-light);font-weight:700">
+                                    <td colspan="4" style="padding:10px;color:var(--brand-dark);text-transform:uppercase;font-size:11px;letter-spacing:.05em">Total</td>
+                                    <td id="contexto-total-area" style="padding:10px;color:var(--brand-dark)">0,00</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <div class="flex items-center justify-between mt-2">
+                        <button type="button" id="btn-add-contexto"
+                                class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-sky-700 hover:text-sky-900 transition">
+                            <i class="fas fa-plus-circle"></i> Incluir linha
+                        </button>
+                        <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                            <input type="checkbox" id="ctx-ocultar-vazias" class="rounded border-gray-300 text-sky-600 focus:ring-sky-500" checked>
+                            <i class="fas fa-file-pdf text-gray-400"></i> Ocultar tabela no PDF
+                        </label>
+                    </div>
+                    <input type="hidden" id="contextualizacao_json" name="contextualizacao_json" value="">
+                </div>
+            </div><!-- /card Contextualização -->
+
+            <!-- ════════════════════════════════════════════════════════════
+                 CARD — EQUIPE DO PROJETO
+            ════════════════════════════════════════════════════════════ -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-users"></i>
+                    <div>
+                        <p class="title">Equipe do Projeto</p>
+                        <p class="subtitle">Profissionais responsáveis pela execução das atividades</p>
+                    </div>
+                </div>
+                <div class="p-5 flex flex-col gap-3">
+                    <textarea id="eq-texto-intro" rows="2"
+                              class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-400 focus:border-sky-400 resize-none"
+                              placeholder="Texto de introdução antes da tabela (opcional)"></textarea>
+                    <div class="overflow-x-auto">
+                        <table class="w-full tabela-itens" id="tabela-equipe">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th style="min-width:160px">Profissional</th>
+                                    <th style="min-width:140px">Campo de atuação</th>
+                                    <th style="min-width:260px">Função</th>
+                                    <th style="width:40px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-equipe"></tbody>
+                        </table>
+                    </div>
+                    <button type="button" id="btn-add-equipe"
+                            class="self-start inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-sky-700 hover:text-sky-900 transition">
+                        <i class="fas fa-plus-circle"></i> Incluir profissional
+                    </button>
+                    <input type="hidden" id="equipe_json" name="equipe_json" value="">
+                </div>
+            </div><!-- /card Equipe -->
+
             <div class="flex justify-between">
                 <button type="button" class="btn-nav" onclick="goToStep(1)">
                     <i class="fas fa-arrow-left"></i> Anterior
@@ -810,17 +1194,22 @@ function badgeStyle(array $cor, string $label): string {
                     </div>
                 </div>
 
+                <textarea id="cronograma-texto-intro" rows="2"
+                          class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-400 focus:border-sky-400 resize-none"
+                          placeholder="Texto de introdução antes do cronograma (opcional)"></textarea>
+
                 <div class="crono-config-bar">
                     <div class="crono-config-group">
                         <label class="lbl" style="margin:0">Total de períodos:</label>
-                        <select class="fi" id="crono-total-periods" style="width:130px" onchange="cronoBuildTable()">
-                            <option value="15">15 dias</option>
-                            <option value="20">20 dias</option>
-                            <option value="24" selected>24 dias</option>
-                            <option value="30">30 dias</option>
-                            <option value="45">45 dias</option>
-                            <option value="60">60 dias</option>
-                        </select>
+                        <input type="number" class="fi" id="crono-total-periods" style="width:130px" value="24" min="1" max="999" list="crono-periods-list" oninput="cronoBuildTable()">
+                        <datalist id="crono-periods-list">
+                            <option value="15">15</option>
+                            <option value="20">20</option>
+                            <option value="24">24</option>
+                            <option value="30">30</option>
+                            <option value="45">45</option>
+                            <option value="60">60</option>
+                        </datalist>
                     </div>
                     <div class="crono-config-group">
                         <label class="lbl" style="margin:0">Data de início:</label>
@@ -887,6 +1276,10 @@ function badgeStyle(array $cor, string $label): string {
                     </div>
                 </div>
 
+                <textarea id="cronograma-texto-footer" rows="2"
+                          class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-sky-400 focus:border-sky-400 resize-none mt-2"
+                          placeholder="Texto opcional exibido após o cronograma">* Cronograma sujeito a alterações conforme condições climáticas ou liberações de órgãos anuentes.</textarea>
+
                 <!-- Campo oculto para persistir o cronograma no submit -->
                 <input type="hidden" name="cronograma_data" id="crono-hidden-data" value="">
             </div>
@@ -914,18 +1307,24 @@ function badgeStyle(array $cor, string $label): string {
         <div id="step-panel-4" class="step-content" role="tabpanel">
 
             <div class="card">
-                <div class="card-header" style="justify-content:space-between">
+                <div class="sticky top-0 z-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700" style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0">
                     <div style="display:flex;align-items:center;gap:10px">
-                        <i class="fas fa-list-ol" style="font-size:15px;color:var(--brand)"></i>
+                        <div style="background:linear-gradient(135deg,var(--brand),#3b82f6);width:4px;height:32px;border-radius:4px;flex-shrink:0"></div>
                         <div>
-                            <p class="title">Itens da Proposta</p>
-                            <p class="subtitle">Organize por categoria; os totais são calculados em tempo real</p>
+                            <p class="title" style="margin:0;font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--brand-dark, #1e293b)">Itens da Proposta</p>
+                            <p class="subtitle" style="margin:2px 0 0;font-size:11.5px;color:#6b7280;font-weight:500">Organize por categoria — os totais são calculados em tempo real</p>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button type="button" id="btn-add-legend"
-                                class="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-sky-700 bg-white border border-sky-200 hover:bg-sky-50 rounded-lg transition shadow-sm">
-                            <i class="fas fa-heading"></i> Adicionar legenda
+                    <div class="flex gap-2 flex-wrap">
+                        <button type="button" id="btn-add-titulo"
+                                class="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-purple-700 bg-white border border-purple-200 hover:bg-purple-50 rounded-lg transition shadow-sm"
+                                title="Adiciona título de seção numerado (ex: 5.1 Planejamento)">
+                            <i class="fas fa-heading"></i> Título de seção
+                        </button>
+                        <button type="button" id="btn-add-subtitulo"
+                                class="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-sky-700 bg-white border border-sky-200 hover:bg-sky-50 rounded-lg transition shadow-sm"
+                                title="Adiciona parágrafo descritivo abaixo do título">
+                            <i class="fas fa-align-left"></i> Texto descritivo
                         </button>
                         <button type="button" id="btn-add-item"
                                 class="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-lg transition shadow-sm shadow-sky-100">
@@ -940,9 +1339,9 @@ function badgeStyle(array $cor, string $label): string {
                     </div>
                 <?php endif; ?>
 
-                <div class="overflow-x-auto">
+                <div style="overflow-x:auto;max-width:100%">
                     <table class="w-full tabela-itens" id="tabela-itens">
-                        <thead>
+                        <thead id="thead-itens">
                             <tr class="border-b border-gray-200">
                                 <th style="min-width:140px">Categoria</th>
                                 <th style="min-width:180px">Descrição</th>
@@ -960,10 +1359,72 @@ function badgeStyle(array $cor, string $label): string {
                         $idxItem = 0;
                         foreach ($itens as $item):
                             $catItem = $item['categoria'] ?? 'Outros';
-                            $isLegend = ($catItem === 'Legenda');
-                            $totalItem = $isLegend ? 0 : (float)$item['quantidade'] * (float)$item['valor_unit'] * (1 - ((float)($item['desconto_item'] ?? 0) / 100));
+                            $isTitulo    = ($catItem === 'Titulo');
+                            $isSubtitulo = ($catItem === 'Subtitulo');
+                            $isLegend    = ($catItem === 'Legenda') || $isTitulo || $isSubtitulo;
+                            $totalItem   = $isLegend ? 0 : (float)$item['quantidade'] * (float)$item['valor_unit'] * (1 - ((float)($item['desconto_item'] ?? 0) / 100));
                         ?>
-                        <?php if ($isLegend): ?>
+                        <?php if ($isTitulo): ?>
+                            <!-- TÍTULO DE SEÇÃO -->
+                            <tr class="border-l-4 border-l-purple-500" style="background:rgba(238,237,254,.55)" data-is-legend="1">
+                                <td class="px-3 py-2" style="white-space:nowrap">
+                                    <div class="flex items-center gap-1">
+                                        <span style="font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;border:0.5px solid #CECBF6;background:#EEEDFE;color:#3C3489">
+                                            <i class="fas fa-heading" style="font-size:8px;margin-right:3px"></i>Título
+                                        </span>
+                                        <input type="hidden" name="item_categoria[]" class="item-categoria" value="Titulo">
+                                    </div>
+                                </td>
+                                <td colspan="5" style="padding:6px 8px">
+                                    <input type="text" name="item_descricao[]"
+                                           class="fi" style="font-size:13px;font-weight:700;padding:5px 8px;border-color:#CECBF6;background:transparent"
+                                           placeholder="Ex: Planejamento logístico e coordenação geral do projeto"
+                                           value="<?= htmlspecialchars($item['descricao'] ?? '') ?>" required>
+                                    <input type="hidden" name="item_detalhes[]" value="<?= htmlspecialchars($item['detalhes'] ?? '') ?>">
+                                    <input type="hidden" name="item_unidade[]" value="un">
+                                    <input type="hidden" name="item_quantidade[]" value="0">
+                                    <input type="hidden" name="item_valor[]" value="0">
+                                    <input type="hidden" name="item_desconto[]" value="0">
+                                </td>
+                                <td colspan="2"></td>
+                                <td class="text-center">
+                                    <button type="button" class="btn-remover-item text-gray-300 hover:text-red-500 transition" title="Remover título">
+                                        <i class="fas fa-trash-alt" style="font-size:13px"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php elseif ($isSubtitulo): ?>
+                            <!-- TEXTO DESCRITIVO -->
+                            <tr class="border-l-4 border-l-sky-300" style="background:rgba(230,241,251,.4)" data-is-legend="1">
+                                <td class="px-3 py-2" style="white-space:nowrap">
+                                    <div class="flex items-center gap-1">
+                                        <span style="font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;border:0.5px solid #93c5fd;background:#dbeafe;color:#1d4ed8">
+                                            <i class="fas fa-align-left" style="font-size:7px;margin-right:3px"></i>Texto
+                                        </span>
+                                        <input type="hidden" name="item_categoria[]" class="item-categoria" value="Subtitulo">
+                                    </div>
+                                </td>
+                                <td colspan="7" style="padding:6px 8px">
+                                    <textarea name="item_descricao[]"
+                                              class="fi !bg-transparent !border-none focus:!ring-0 resize-none overflow-hidden"
+                                              style="font-size:12px;color:#374151;min-height:36px;line-height:1.6;padding:4px 8px"
+                                              placeholder="Descreva as atividades desta seção (aparece como parágrafo no PDF)..."
+                                              oninput="this.style.height='';this.style.height=this.scrollHeight+'px'"
+                                              ><?= htmlspecialchars($item['descricao'] ?? '') ?></textarea>
+                                    <input type="hidden" name="item_detalhes[]" value="">
+                                    <input type="hidden" name="item_unidade[]" value="un">
+                                    <input type="hidden" name="item_quantidade[]" value="0">
+                                    <input type="hidden" name="item_valor[]" value="0">
+                                    <input type="hidden" name="item_desconto[]" value="0">
+                                </td>
+                                <td class="text-center" style="vertical-align:middle">
+                                    <button type="button" class="btn-remover-item text-gray-300 hover:text-red-500 transition" title="Remover texto">
+                                        <i class="fas fa-trash-alt" style="font-size:13px"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php elseif ($isLegend): ?>
+                            <!-- LEGENDA LEGADA (compatibilidade) -->
                             <tr class="bg-slate-100/50 border-l-4 border-l-sky-500" data-is-legend="1">
                                 <td class="px-4 py-3">
                                     <div class="flex items-center h-full">
@@ -972,12 +1433,12 @@ function badgeStyle(array $cor, string $label): string {
                                     </div>
                                 </td>
                                 <td colspan="7">
-                                    <textarea name="item_descricao[]" 
-                                              class="fi !font-bold !bg-transparent !border-none focus:!ring-0 resize-none overflow-hidden" 
-                                              style="font-size:13px; min-height: 38px; line-height: 1.5; padding: 8px" 
-                                              placeholder="Digite o título da seção ou texto da legenda..." 
-                                              oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"
-                                              required><?= htmlspecialchars($item['descricao']) ?></textarea>
+                                    <textarea name="item_descricao[]"
+                                              class="fi !font-bold !bg-transparent !border-none focus:!ring-0 resize-none overflow-hidden"
+                                              style="font-size:13px;min-height:38px;line-height:1.5;padding:8px"
+                                              placeholder="Título da seção..."
+                                              oninput="this.style.height='';this.style.height=this.scrollHeight+'px'"
+                                              required><?= htmlspecialchars($item['descricao'] ?? '') ?></textarea>
                                     <input type="hidden" name="item_detalhes[]" value="">
                                     <input type="hidden" name="item_unidade[]" value="un">
                                     <input type="hidden" name="item_quantidade[]" value="0">
@@ -1149,11 +1610,19 @@ function badgeStyle(array $cor, string $label): string {
                     <!-- Linhas de resumo -->
                     <div class="flex flex-col gap-1">
                         <div class="resumo-linha">
-                            <span class="text-gray-500">Subtotal</span>
+                            <span class="text-gray-500">Subtotal (bruto)</span>
+                            <span id="fin-subtotal-bruto" class="font-semibold text-gray-700">R$ 0,00</span>
+                        </div>
+                        <div class="resumo-linha">
+                            <span class="text-gray-500">Desconto nos Itens</span>
+                            <span id="fin-item-desc" class="font-semibold" style="color:var(--danger)">− R$ 0,00</span>
+                        </div>
+                        <div class="resumo-linha" style="border-bottom:1px dashed #E5E7EB;padding-bottom:4px">
+                            <span class="text-gray-500">Subtotal (líquido)</span>
                             <span id="fin-subtotal" class="font-semibold text-gray-700">R$ 0,00</span>
                         </div>
                         <div class="resumo-linha">
-                            <span id="fin-desc-label" class="text-gray-500">Desconto</span>
+                            <span id="fin-desc-label" class="text-gray-500">Desconto Global</span>
                             <span id="fin-desconto" class="font-semibold" style="color:var(--danger)">− R$ 0,00</span>
                         </div>
                         <div class="resumo-linha">
@@ -1180,20 +1649,25 @@ function badgeStyle(array $cor, string $label): string {
                         <select id="condicao_pagamento" name="condicao_pagamento" class="fi">
                             <option value="">— Selecione —</option>
                             <?php
-                            // Condições vindas do banco ($condicoes) + fallback para lista estática
+                            $condicaoAtual = $def['condicao'];
                             $listaCondicoes = !empty($condicoes)
                                 ? array_column($condicoes, 'descricao')
                                 : $condicoesPagamento;
+                            $isOutro = $condicaoAtual && !in_array($condicaoAtual, $listaCondicoes);
                             foreach ($listaCondicoes as $cp): ?>
                                 <option value="<?= htmlspecialchars($cp) ?>"
-                                    <?= $def['condicao'] === $cp ? 'selected' : '' ?>>
+                                    <?= $condicaoAtual === $cp ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($cp) ?>
                                 </option>
                             <?php endforeach; ?>
-                            <option value="outro" <?= !in_array($def['condicao'], $listaCondicoes) && $def['condicao'] ? 'selected' : '' ?>>
+                            <option value="outro" <?= $isOutro ? 'selected' : '' ?>>
                                 Outra (especificar)
                             </option>
                         </select>
+                        <input type="text" id="condicao_pagamento_outro" class="fi mt-1"
+                            value="<?= $isOutro ? htmlspecialchars($condicaoAtual) : '' ?>"
+                            placeholder="Digite a condição de pagamento"
+                            style="<?= $isOutro ? '' : 'display:none' ?>">
                     </div>
                     <div>
                         <label class="lbl" for="forma_pagamento">Forma de Pagamento</label>
@@ -1208,7 +1682,35 @@ function badgeStyle(array $cor, string $label): string {
                         </select>
                     </div>
 
-                    <!-- Campos condicionais para PIX e Transferência -->
+                    <!-- Seletor de conta bancária (PIX e Transferência) -->
+                    <div id="container-banco" class="md:col-span-2 hidden">
+                        <label class="lbl" for="banco_id">Conta Bancária</label>
+                        <select id="banco_id" class="fi" style="max-width:400px">
+                            <option value="">— Selecione uma conta —</option>
+                            <?php $bancoSelecionado = $def['banco_id'] ?? ''; ?>
+                            <?php foreach ($bancos as $b): ?>
+                                <?php
+                                    $label = $b['nome'];
+                                    if ($b['agencia'] && $b['conta']) $label .= " — Ag {$b['agencia']}" . ($b['agencia_dv'] ? "-{$b['agencia_dv']}" : '') . " / CC {$b['conta']}" . ($b['conta_dv'] ? "-{$b['conta_dv']}" : '');
+                                    if (!empty($b['nome_titular'])) $label .= " — {$b['nome_titular']}";
+
+                                    $dadosBancariosLabel = $b['nome'];
+                                    if ($b['agencia'] && $b['conta']) $dadosBancariosLabel .= "\nAg {$b['agencia']}" . ($b['agencia_dv'] ? "-{$b['agencia_dv']}" : '') . " / CC {$b['conta']}" . ($b['conta_dv'] ? "-{$b['conta_dv']}" : '');
+                                    if (!empty($b['nome_titular'])) $dadosBancariosLabel .= "\n{$b['nome_titular']}";
+                                ?>
+                                <option value="<?= $b['id'] ?>" <?= $bancoSelecionado == $b['id'] ? 'selected' : '' ?>
+                                    data-pix-tipo="<?= htmlspecialchars($b['pix_tipo'] ?? '') ?>"
+                                    data-pix-chave="<?= htmlspecialchars($b['pix_chave'] ?? '') ?>"
+                                    data-dados-bancarios="<?= htmlspecialchars($dadosBancariosLabel) ?>">
+                                    <?= htmlspecialchars($label) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Selecione a conta para preencher automaticamente os dados abaixo.</p>
+                        <p id="banco-selecionado-hint" class="text-xs font-semibold text-brand mt-1 hidden"></p>
+                    </div>
+
+                    <!-- Campos condicionais para PIX -->
                     <div id="container-pix" class="md:col-span-2 hidden grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="lbl" for="pix_tipo_chave">Tipo de Chave Pix</label>
@@ -1227,6 +1729,7 @@ function badgeStyle(array $cor, string $label): string {
                         </div>
                     </div>
 
+                    <!-- Campos condicionais para Transferência Bancária -->
                     <div id="container-transferencia" class="md:col-span-2 hidden">
                         <label class="lbl" for="dados_bancarios">Dados Bancários (Banco, Agência, Conta)</label>
                         <textarea id="dados_bancarios" name="dados_bancarios" class="fi" rows="2" placeholder="Ex: Banco do Brasil - Ag: 1234-5 / CC: 56789-0"><?= htmlspecialchars($def['dados_bancarios'] ?? '') ?></textarea>
@@ -1238,6 +1741,177 @@ function badgeStyle(array $cor, string $label): string {
                                class="fi"
                                placeholder="Ex: 24 dias corridos após aprovação"
                                value="<?= htmlspecialchars($def['prazo']) ?>">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assinaturas -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-file-signature"></i>
+                    <div><p class="title">Assinaturas do PDF</p></div>
+                </div>
+
+                <!-- Contratada -->
+                <div class="p-5 border-b border-gray-100">
+                    <h4 class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="fas fa-building text-sky-500"></i> Assinatura da Contratada
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="lbl" for="assinatura_tipo">Tipo de Assinatura</label>
+                            <select id="assinatura_tipo" name="assinatura_tipo" class="fi">
+                                <option value="imagem" <?= $def['assinatura_tipo'] === 'imagem' ? 'selected' : '' ?>>Assinatura por Imagem</option>
+                                <option value="certificado" <?= $def['assinatura_tipo'] === 'certificado' ? 'selected' : '' ?>>Assinatura via Certificado Digital</option>
+                                <option value="nenhum" <?= $def['assinatura_tipo'] === 'nenhum' ? 'selected' : '' ?>>Nenhum (linha em branco)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="ctd_imagem_container" class="mt-3 <?= $def['assinatura_tipo'] !== 'imagem' ? 'hidden' : '' ?>">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div>
+                                <label class="lbl">Upload de Imagem</label>
+                                <input type="file" class="sig-img-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" data-preview="ctd_imagem_preview" data-hidden="ctd_imagem_hidden" data-remover-field="ctd_imagem_remover" accept="image/png,image/jpeg">
+                                <button type="button" class="btn-limpar-sig text-xs text-red-500 hover:text-red-700 font-bold mt-1 <?= !$def['assinatura_imagem'] ? 'hidden' : '' ?>" data-hidden="ctd_imagem_hidden" data-preview="ctd_imagem_preview" data-remover-field="ctd_imagem_remover"><i class="fas fa-trash-alt"></i> Remover</button>
+                                <p class="text-xs text-gray-400 mt-1">PNG ou JPG, máx. 500KB.</p>
+                                <input type="hidden" name="assinatura_imagem" id="ctd_imagem_hidden" value="<?= htmlspecialchars($def['assinatura_imagem'] ?? '') ?>">
+                                <input type="hidden" name="assinatura_imagem_remover" id="ctd_imagem_remover" value="0">
+                            </div>
+                            <div class="flex items-center justify-center">
+                                <div class="text-center">
+                                    <p class="text-xs font-bold text-gray-400 uppercase mb-2">Preview</p>
+                                    <div id="ctd_imagem_preview" class="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[60px] flex items-center justify-center bg-white">
+                                        <?php if ($def['assinatura_imagem']): ?>
+                                            <img src="data:image/png;base64,<?= $def['assinatura_imagem'] ?>" style="max-height:50px; max-width:200px; object-fit:contain;">
+                                        <?php else: ?>
+                                            <span class="text-xs text-gray-400">Nenhuma</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="ctd_certificado_container" class="mt-3 <?= $def['assinatura_tipo'] !== 'certificado' ? 'hidden' : '' ?>">
+                        <div class="p-4 bg-amber-50 rounded-lg border border-amber-200 cert-container">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="lbl mb-0">Certificado Digital A1 (ICP-Brasil)</label>
+                                <span id="ctd_cert_verified" class="hidden text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
+                                    <i class="fas fa-lock"></i> Senha verificada
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="lbl">Arquivo (.pfx / .p12)</label>
+                                    <input type="file" class="cert-file-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" accept=".pfx,.p12" data-target="ctd">
+                                </div>
+                                <div>
+                                    <label class="lbl">Senha do Certificado</label>
+                                    <input type="password" class="cert-password-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none" data-target="ctd" placeholder="Senha do .pfx">
+                                    <a href="#" id="ctd_cert_change" class="hidden text-[10px] text-sky-600 hover:text-sky-800 font-bold mt-1 inline-block"><i class="fas fa-sync-alt"></i> Alterar certificado</a>
+                                </div>
+                            </div>
+                            <div id="ctd_cert_status" class="mt-3"></div>
+                            <div id="ctd_cert_info" class="mt-3 hidden">
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs bg-white p-3 rounded border border-gray-200">
+                                    <div><span class="text-gray-400 block">Titular</span><span id="ctd_cert_nome" class="font-semibold">-</span></div>
+                                    <div><span class="text-gray-400 block">CPF/CNPJ</span><span id="ctd_cert_doc" class="font-semibold">-</span></div>
+                                    <div><span class="text-gray-400 block">Validade</span><span id="ctd_cert_validade" class="font-semibold">-</span></div>
+                                    <div><span class="text-gray-400 block">ICP-Brasil</span><span id="ctd_cert_icp" class="font-semibold">-</span></div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="assinatura_certificado_nome" id="ctd_cert_nome_hidden" value="<?= htmlspecialchars($def['assinatura_certificado_nome']) ?>">
+                            <input type="hidden" name="assinatura_certificado_cpf" id="ctd_cert_cpf_hidden" value="<?= htmlspecialchars($def['assinatura_certificado_cpf']) ?>">
+                            <input type="hidden" name="assinatura_certificado_path" id="ctd_cert_path_hidden" value="">
+                            <input type="hidden" name="assinatura_certificado_senha" id="ctd_cert_senha_hidden" value="">
+                            <input type="hidden" name="assinatura_certificado_validade" id="ctd_cert_validade_hidden" value="">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Elaborador como Responsável Técnico -->
+                <div class="p-5">
+                    <label class="flex items-center gap-3 cursor-pointer group mb-3">
+                        <input type="checkbox" name="assinatura_elaborador_responsavel" value="1" id="elab_checkbox" <?= $def['assinatura_elaborador_responsavel'] ? 'checked' : '' ?> class="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500">
+                        <span class="text-sm font-medium text-gray-700 group-hover:text-sky-600 transition">
+                            <i class="fas fa-user-check text-sky-500 mr-1"></i>
+                            Elaborador também assina como Responsável Técnico
+                        </span>
+                    </label>
+
+                    <div id="elab_signature_fields" class="<?= !$def['assinatura_elaborador_responsavel'] ? 'hidden' : '' ?> space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="lbl">Tipo de Assinatura do Elaborador</label>
+                                <select name="assinatura_elaborador_tipo" id="elab_assinatura_tipo" class="fi">
+                                    <option value="imagem" <?= $def['assinatura_elaborador_tipo'] === 'imagem' ? 'selected' : '' ?>>Assinatura por Imagem</option>
+                                    <option value="certificado" <?= $def['assinatura_elaborador_tipo'] === 'certificado' ? 'selected' : '' ?>>Assinatura via Certificado Digital</option>
+                                    <option value="nenhum" <?= $def['assinatura_elaborador_tipo'] === 'nenhum' ? 'selected' : '' ?>>Nenhum (linha em branco)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="elab_imagem_container" class="<?= $def['assinatura_elaborador_tipo'] !== 'imagem' ? 'hidden' : '' ?>">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <div>
+                                    <label class="lbl">Imagem de Assinatura</label>
+                                    <input type="file" class="sig-img-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" data-preview="elab_imagem_preview" data-hidden="elab_imagem_hidden" data-remover-field="elab_imagem_remover" accept="image/png,image/jpeg">
+                                    <button type="button" class="btn-limpar-sig text-xs text-red-500 hover:text-red-700 font-bold mt-1 <?= !$def['assinatura_elaborador_imagem'] ? 'hidden' : '' ?>" data-hidden="elab_imagem_hidden" data-preview="elab_imagem_preview" data-remover-field="elab_imagem_remover"><i class="fas fa-trash-alt"></i> Remover</button>
+                                    <p class="text-xs text-gray-400 mt-1">PNG ou JPG, máx. 500KB.</p>
+                                    <input type="hidden" name="assinatura_elaborador_imagem" id="elab_imagem_hidden" value="<?= htmlspecialchars($def['assinatura_elaborador_imagem'] ?? '') ?>">
+                                    <input type="hidden" name="assinatura_elaborador_imagem_remover" id="elab_imagem_remover" value="0">
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <div class="text-center">
+                                        <p class="text-xs font-bold text-gray-400 uppercase mb-2">Preview</p>
+                                        <div id="elab_imagem_preview" class="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[60px] flex items-center justify-center bg-white">
+                                            <?php if ($def['assinatura_elaborador_imagem']): ?>
+                                                <img src="data:image/png;base64,<?= $def['assinatura_elaborador_imagem'] ?>" style="max-height:50px; max-width:200px; object-fit:contain;">
+                                            <?php else: ?>
+                                                <span class="text-xs text-gray-400">Nenhuma</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="elab_certificado_container" class="<?= $def['assinatura_elaborador_tipo'] !== 'certificado' ? 'hidden' : '' ?>">
+                            <div class="p-4 bg-amber-50 rounded-lg border border-amber-200 cert-container">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="lbl mb-0">Certificado Digital A1 do Elaborador</label>
+                                    <span id="elab_cert_verified" class="hidden text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
+                                        <i class="fas fa-lock"></i> Senha verificada
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="lbl">Arquivo (.pfx / .p12)</label>
+                                        <input type="file" class="cert-file-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" accept=".pfx,.p12" data-target="elab">
+                                    </div>
+                                    <div>
+                                        <label class="lbl">Senha do Certificado</label>
+                                        <input type="password" class="cert-password-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none" data-target="elab" placeholder="Senha do .pfx">
+                                        <a href="#" id="elab_cert_change" class="hidden text-[10px] text-sky-600 hover:text-sky-800 font-bold mt-1 inline-block"><i class="fas fa-sync-alt"></i> Alterar certificado</a>
+                                    </div>
+                                </div>
+                                <div id="elab_cert_status" class="mt-3"></div>
+                                <div id="elab_cert_info" class="mt-3 hidden">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs bg-white p-3 rounded border border-gray-200">
+                                        <div><span class="text-gray-400 block">Titular</span><span id="elab_cert_nome" class="font-semibold">-</span></div>
+                                        <div><span class="text-gray-400 block">CPF/CNPJ</span><span id="elab_cert_doc" class="font-semibold">-</span></div>
+                                        <div><span class="text-gray-400 block">Validade</span><span id="elab_cert_validade" class="font-semibold">-</span></div>
+                                        <div><span class="text-gray-400 block">ICP-Brasil</span><span id="elab_cert_icp" class="font-semibold">-</span></div>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="assinatura_elaborador_certificado_nome" id="elab_cert_nome_hidden" value="<?= htmlspecialchars($def['assinatura_elaborador_certificado_nome']) ?>">
+                                <input type="hidden" name="assinatura_elaborador_certificado_cpf" id="elab_cert_cpf_hidden" value="<?= htmlspecialchars($def['assinatura_elaborador_certificado_cpf']) ?>">
+                                <input type="hidden" name="assinatura_elaborador_certificado_path" id="elab_cert_path_hidden" value="">
+                                <input type="hidden" name="assinatura_elaborador_certificado_senha" id="elab_cert_senha_hidden" value="">
+                                <input type="hidden" name="assinatura_elaborador_certificado_validade" id="elab_cert_validade_hidden" value="">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1434,7 +2108,69 @@ function badgeStyle(array $cor, string $label): string {
     </tr>
 </template>
 
-<!-- Template para Legenda (Separador de Seção) -->
+<!-- Template: TÍTULO DE SEÇÃO (gera "5.X Título" no PDF com tabela própria abaixo) -->
+<template id="tmpl-titulo-row">
+    <tr class="border-l-4 border-l-purple-500" style="background:rgba(238,237,254,.55)" data-is-legend="1">
+        <td class="px-3 py-2" style="white-space:nowrap">
+            <div class="flex items-center gap-1">
+                <span style="font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;border:0.5px solid #CECBF6;background:#EEEDFE;color:#3C3489">
+                    <i class="fas fa-heading" style="font-size:8px;margin-right:3px"></i>Título
+                </span>
+                <input type="hidden" name="item_categoria[]" class="item-categoria" value="Titulo">
+            </div>
+        </td>
+        <td colspan="5" style="padding:6px 8px">
+            <input type="text" name="item_descricao[]"
+                   class="fi" style="font-size:13px;font-weight:700;padding:5px 8px;border-color:#CECBF6;background:transparent"
+                   placeholder="Ex: Planejamento logístico e coordenação geral do projeto"
+                   required>
+            <input type="hidden" name="item_detalhes[]" value="">
+            <input type="hidden" name="item_unidade[]" value="un">
+            <input type="hidden" name="item_quantidade[]" value="0">
+            <input type="hidden" name="item_valor[]" value="0">
+            <input type="hidden" name="item_desconto[]" value="0">
+        </td>
+        <td colspan="2"></td>
+        <td class="text-center">
+            <button type="button" class="btn-remover-item text-gray-300 hover:text-red-500 transition" title="Remover título">
+                <i class="fas fa-trash-alt" style="font-size:13px"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<!-- Template: TEXTO DESCRITIVO (parágrafo que aparece entre o título e a tabela no PDF) -->
+<template id="tmpl-subtitulo-row">
+    <tr class="border-l-4 border-l-sky-300" style="background:rgba(230,241,251,.4)" data-is-legend="1">
+        <td class="px-3 py-2" style="white-space:nowrap">
+            <div class="flex items-center gap-1">
+                <span style="font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:6px;border:0.5px solid #93c5fd;background:#dbeafe;color:#1d4ed8">
+                    <i class="fas fa-align-left" style="font-size:7px;margin-right:3px"></i>Texto
+                </span>
+                <input type="hidden" name="item_categoria[]" class="item-categoria" value="Subtitulo">
+            </div>
+        </td>
+        <td colspan="7" style="padding:6px 8px">
+            <textarea name="item_descricao[]"
+                      class="fi !bg-transparent !border-none focus:!ring-0 resize-none overflow-hidden"
+                      style="font-size:12px;color:#374151;min-height:36px;line-height:1.6;padding:4px 8px"
+                      placeholder="Descreva as atividades desta seção (aparece como parágrafo no PDF)..."
+                      oninput="this.style.height='';this.style.height=this.scrollHeight+'px'"></textarea>
+            <input type="hidden" name="item_detalhes[]" value="">
+            <input type="hidden" name="item_unidade[]" value="un">
+            <input type="hidden" name="item_quantidade[]" value="0">
+            <input type="hidden" name="item_valor[]" value="0">
+            <input type="hidden" name="item_desconto[]" value="0">
+        </td>
+        <td class="text-center" style="vertical-align:middle">
+            <button type="button" class="btn-remover-item text-gray-300 hover:text-red-500 transition" title="Remover texto">
+                <i class="fas fa-trash-alt" style="font-size:13px"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<!-- Template: LEGENDA LEGADA (mantida para compatibilidade retroativa) -->
 <template id="tmpl-legend-row">
     <tr class="bg-slate-100/50 border-l-4 border-l-sky-500" data-is-legend="1">
         <td class="px-4 py-3">
@@ -1444,13 +2180,12 @@ function badgeStyle(array $cor, string $label): string {
             </div>
         </td>
         <td colspan="7">
-            <textarea name="item_descricao[]" 
-                      class="fi !font-bold !bg-transparent !border-none focus:!ring-0 resize-none overflow-hidden" 
-                      style="font-size:13px; min-height: 38px; line-height: 1.5; padding: 8px" 
-                      placeholder="Digite o título da seção ou texto da legenda..." 
-                      oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"
+            <textarea name="item_descricao[]"
+                      class="fi !font-bold !bg-transparent !border-none focus:!ring-0 resize-none overflow-hidden"
+                      style="font-size:13px;min-height:38px;line-height:1.5;padding:8px"
+                      placeholder="Título da seção..."
+                      oninput="this.style.height='';this.style.height=this.scrollHeight+'px'"
                       required></textarea>
-            <!-- Campos ocultos para manter a sincronia dos arrays no POST -->
             <input type="hidden" name="item_detalhes[]" value="">
             <input type="hidden" name="item_unidade[]" value="un">
             <input type="hidden" name="item_quantidade[]" value="0">
@@ -1495,6 +2230,58 @@ function formatPhone(value) {
 const fmtBRL = (v) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
+// ── Guia interativo da aba Itens ─────────────────────────────────────
+let guiaItensExibido = false;
+
+function exibirGuiaItens() {
+    if (guiaItensExibido) return;
+    guiaItensExibido = true;
+
+    const passo1 = `<div class="flex items-start gap-2 mb-2">
+        <span style="background:#6D28D9;color:#fff;border-radius:50%;min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">1</span>
+        <div><strong style="color:#6D28D9;font-size:14px">Título de seção</strong>
+        <p style="margin:2px 0 0;font-size:13px;color:#374151">Clique no botão <span style="background:#EEEDFE;color:#3C3489;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px"><i class="fas fa-heading"></i> Título de seção</span> para criar uma seção numerada (ex: <em>5.1 Planejamento</em>).</p></div>
+    </div>`;
+    const passo2 = `<div class="flex items-start gap-2 mb-2">
+        <span style="background:#0284C7;color:#fff;border-radius:50%;min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">2</span>
+        <div><strong style="color:#0284C7;font-size:14px">Texto descritivo</strong>
+        <p style="margin:2px 0 0;font-size:13px;color:#374151">Clique no botão <span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px"><i class="fas fa-align-left"></i> Texto descritivo</span> para adicionar um parágrafo explicativo abaixo do título.</p></div>
+    </div>`;
+    const passo3 = `<div class="flex items-start gap-2">
+        <span style="background:#0369A1;color:#fff;border-radius:50%;min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">3</span>
+        <div><strong style="color:#0369A1;font-size:14px">Adicionar item</strong>
+        <p style="margin:2px 0 0;font-size:13px;color:#374151">Por fim, clique em <span style="background:#0284C7;color:#fff;padding:2px 8px;border-radius:4px;font-weight:600;font-size:11px"><i class="fas fa-plus"></i> Adicionar item</span> para inserir os produtos/serviços com valores e quantidades.</p></div>
+    </div>`;
+
+    Swal.fire({
+        title: '<span style="font-size:20px;font-weight:800;color:#1F2937"><i class="fas fa-list-ol" style="color:#6D28D9;margin-right:8px"></i>Como preencher a aba Itens</span>',
+        html: `<div style="text-align:left;line-height:1.6">
+            <p style="font-size:13px;color:#4B5563;margin-bottom:12px">Siga a ordem recomendada para estruturar sua proposta:</p>
+            ${passo1}${passo2}${passo3}
+            <div style="margin-top:14px;padding:8px 12px;background:#F3F4F6;border-radius:6px;font-size:12px;color:#6B7280;text-align:center">
+                <i class="fas fa-lightbulb" style="color:#F59E0B;margin-right:4px"></i>
+                Você pode reordenar ou remover itens a qualquer momento.
+            </div>
+        </div>`,
+        icon: null,
+        showConfirmButton: true,
+        confirmButtonText: '<i class="fas fa-check"></i> Entendi!',
+        confirmButtonColor: '#6D28D9',
+        showCancelButton: true,
+        cancelButtonText: 'Não mostrar novamente',
+        cancelButtonColor: '#9CA3AF',
+        reverseButtons: true,
+        width: 520,
+        padding: '1.25rem',
+        allowOutsideClick: true,
+        customClass: {
+            popup: 'rounded-2xl',
+            confirmButton: '!rounded-lg !font-bold !text-sm !px-5',
+            cancelButton: '!rounded-lg !text-sm',
+        }
+    });
+}
+
 // ── Estado do step atual ─────────────────────────────────────────────
 let stepAtual = 1;
 
@@ -1533,7 +2320,10 @@ function goToStep(n) {
 
     stepAtual = n;
 
-    // Ao entrar no step 5 (Revisão), atualiza o preview
+    // Ao entrar no step 4 (Itens), exibe guia interativo
+    if (n === 4) exibirGuiaItens();
+
+    // Ao entrar no step 6 (Revisão), atualiza o preview
     if (n === 6) atualizarPreview();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1544,6 +2334,79 @@ function calcItemTotal(qty, vunit, desc) {
     return qty * vunit * (1 - (desc || 0) / 100);
 }
 
+// ── Atualiza linhas de subtotal por categoria na tabela ──────────────
+function atualizarSubtotaisCategoria(tbody, porCategoria, porCategoriaQtde) {
+    tbody.querySelectorAll('.cat-subtotal-row').forEach(el => el.remove());
+
+    const rows = [...tbody.querySelectorAll('tr')];
+    let currentCat = null;
+    let catQtySum = 0;
+    let catTotalSum = 0;
+    let catItemCount = 0;
+    let lastRowIndex = -1;
+
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cat = row.querySelector('.item-categoria')?.value || '';
+        if (cat === 'Titulo' || cat === 'Subtitulo') continue;
+
+        if (cat !== currentCat) {
+            if (currentCat !== null && catItemCount > 0) {
+                const subRow = document.createElement('tr');
+                subRow.className = 'cat-subtotal-row';
+                subRow.style.background = '#2563eb';
+                subRow.style.color = '#fff';
+                subRow.style.fontWeight = '700';
+                subRow.style.fontSize = '12px';
+                subRow.innerHTML =
+                    '<td colspan="4" style="padding:8px 10px;text-align:right;border-bottom:0.5px solid #fff">' +
+                    'Subtotal ' + currentCat + ' (' + catItemCount + ' ' + (catItemCount === 1 ? 'item' : 'itens') + ')' +
+                    '</td>' +
+                    '<td style="padding:8px 10px;text-align:right;border-bottom:0.5px solid #fff">' +
+                    'Qtd: ' + (Number.isInteger(catQtySum) ? catQtySum : catQtySum.toFixed(3).replace('.', ',')) +
+                    '</td>' +
+                    '<td colspan="2" style="border-bottom:0.5px solid #fff"></td>' +
+                    '<td style="padding:8px 10px;text-align:right;border-bottom:0.5px solid #fff;font-size:13px">' +
+                    fmtBRL(catTotalSum) +
+                    '</td>' +
+                    '<td style="border-bottom:0.5px solid #fff"></td>';
+                rows[lastRowIndex].after(subRow);
+            }
+            currentCat = cat;
+            catQtySum = 0;
+            catTotalSum = 0;
+            catItemCount = 0;
+        }
+
+        catItemCount++;
+        catQtySum += parseFloat(row.querySelector('.item-qty')?.value) || 0;
+        catTotalSum += parseFloat(row.dataset.total) || 0;
+        lastRowIndex = i;
+    }
+
+    if (currentCat !== null && catItemCount > 0) {
+        const subRow = document.createElement('tr');
+        subRow.className = 'cat-subtotal-row';
+        subRow.style.background = '#2563eb';
+        subRow.style.color = '#fff';
+        subRow.style.fontWeight = '700';
+        subRow.style.fontSize = '12px';
+        subRow.innerHTML =
+            '<td colspan="4" style="padding:8px 10px;text-align:right;border-bottom:0.5px solid #fff">' +
+            'Subtotal ' + currentCat + ' (' + catItemCount + ' ' + (catItemCount === 1 ? 'item' : 'itens') + ')' +
+            '</td>' +
+            '<td style="padding:8px 10px;text-align:right;border-bottom:0.5px solid #fff">' +
+            'Qtd: ' + (Number.isInteger(catQtySum) ? catQtySum : catQtySum.toFixed(3).replace('.', ',')) +
+            '</td>' +
+            '<td colspan="2" style="border-bottom:0.5px solid #fff"></td>' +
+            '<td style="padding:8px 10px;text-align:right;border-bottom:0.5px solid #fff;font-size:13px">' +
+            fmtBRL(catTotalSum) +
+            '</td>' +
+            '<td style="border-bottom:0.5px solid #fff"></td>';
+        rows[lastRowIndex].after(subRow);
+    }
+}
+
 // ── Recalcula todos os totais visíveis ───────────────────────────────
 function recalcularTotais() {
     const tbody = document.getElementById('tbody-itens');
@@ -1551,7 +2414,9 @@ function recalcularTotais() {
 
     const rows  = tbody.querySelectorAll('tr');
     let subtotal = 0;
+    let grossSubtotal = 0;
     const porCategoria = {};
+    const porCategoriaQtde = {};
 
     rows.forEach(row => {
         const qty    = parseFloat(row.querySelector('.item-qty')?.value)   || 0;
@@ -1564,17 +2429,29 @@ function recalcularTotais() {
         const cell = row.querySelector('.item-total-cell');
         if (cell) cell.textContent = fmtBRL(total);
 
+        if (cat === 'Titulo' || cat === 'Subtitulo') return;
+
         subtotal += total;
+        grossSubtotal += qty * vunit;
         if (cat !== 'Legenda') {
             porCategoria[cat] = (porCategoria[cat] || 0) + total;
+            porCategoriaQtde[cat] = (porCategoriaQtde[cat] || 0) + qty;
         }
     });
+
+    const itemDiscount = grossSubtotal - subtotal;
+
+    atualizarSubtotaisCategoria(tbody, porCategoria, porCategoriaQtde);
 
     // ── Totais por categoria (Step 3) ── (chips menores)
     const divCats3 = document.getElementById('totais-por-categoria');
     if (divCats3) {
         divCats3.innerHTML = '';
-        Object.entries(porCategoria).forEach(([cat, val]) => {
+        const catsComValor = Object.entries(porCategoria).filter(([, val]) => val > 0);
+        if (catsComValor.length === 0) {
+            divCats3.innerHTML = '<p class="text-xs text-gray-400 italic">Nenhum item.</p>';
+        }
+        catsComValor.forEach(([cat, val]) => {
             const cor = CATEGORIA_CORES[cat] || CATEGORIA_CORES['Outros'];
             divCats3.insertAdjacentHTML('beforeend', `
                 <div style="display:flex;align-items:center;gap:6px">
@@ -1591,7 +2468,11 @@ function recalcularTotais() {
     // ── Contador e subtotal (Step 3) ──
     const countEl = document.getElementById('count-itens');
     const subEl   = document.getElementById('display-subtotal');
-    if (countEl) countEl.textContent = rows.length;
+    const itemCount = [...rows].filter(r => {
+        const cat = r.querySelector('.item-categoria')?.value || '';
+        return cat !== 'Titulo' && cat !== 'Subtitulo';
+    }).length;
+    if (countEl) countEl.textContent = itemCount;
     if (subEl)   subEl.textContent   = fmtBRL(subtotal);
 
     // ── Financeiro (Step 4) ──
@@ -1616,10 +2497,10 @@ function recalcularTotais() {
     const divCats4 = document.getElementById('fin-categorias');
     if (divCats4) {
         divCats4.innerHTML = '';
-        if (Object.keys(porCategoria).length === 0) {
+        if (Object.keys(porCategoria).length === 0 || Object.values(porCategoria).every(v => v <= 0)) {
             divCats4.innerHTML = '<p class="text-xs text-gray-400 italic">Nenhum item cadastrado ainda.</p>';
         }
-        Object.entries(porCategoria).forEach(([cat, val]) => {
+        Object.entries(porCategoria).filter(([, val]) => val > 0).forEach(([cat, val]) => {
             const cor = CATEGORIA_CORES[cat] || CATEGORIA_CORES['Outros'];
             const cnt = [...tbody.querySelectorAll('.item-categoria')]
                             .filter(s => s.value === cat).length;
@@ -1641,8 +2522,11 @@ function recalcularTotais() {
     }
 
     // Linhas de totais (Step 4)
+    setEl('fin-subtotal-bruto', fmtBRL(grossSubtotal));
+    setEl('fin-item-desc',      itemDiscount > 0 ? `− ${fmtBRL(itemDiscount)}` : fmtBRL(0));
+    document.getElementById('fin-item-desc')?.style.setProperty('color', itemDiscount > 0 ? 'var(--danger)' : '#111827');
     setEl('fin-subtotal',  fmtBRL(subtotal));
-    setEl('fin-desc-label', `Desconto${descTipo==='percentual' && descValor>0 ? ` (${descValor}%)`:''}`);
+    setEl('fin-desc-label', `Desconto Global${descTipo==='percentual' && descValor>0 ? ` (${descValor}%)`:''}`);
     setEl('fin-desconto',  descontoCalc > 0 ? `− ${fmtBRL(descontoCalc)}` : fmtBRL(0));
     document.getElementById('fin-desconto')?.style.setProperty('color', descontoCalc > 0 ? 'var(--danger)' : '#111827');
     setEl('fin-imp-label', `Impostos (${impPerc}%)`);
@@ -1728,11 +2612,11 @@ function atualizarPreview() {
     const compDiv = document.getElementById('prev-composicao');
     if (compDiv && tots) {
         compDiv.innerHTML = '';
-        if (Object.keys(tots.porCategoria).length === 0) {
+        if (Object.keys(tots.porCategoria).length === 0 || Object.values(tots.porCategoria).every(v => v <= 0)) {
             compDiv.innerHTML = '<p class="text-xs text-gray-400 italic">Nenhum item.</p>';
         }
         const tbody = document.getElementById('tbody-itens');
-        Object.entries(tots.porCategoria).forEach(([cat, val]) => {
+        Object.entries(tots.porCategoria).filter(([, val]) => val > 0).forEach(([cat, val]) => {
             const cor = CATEGORIA_CORES[cat] || CATEGORIA_CORES['Outros'];
             const cnt = [...(tbody?.querySelectorAll('.item-categoria') || [])]
                             .filter(s => s.value === cat).length;
@@ -1787,12 +2671,16 @@ function atualizarPreview() {
     const condicao = document.getElementById('condicao_pagamento')?.value || '';
     const prazo    = document.getElementById('prazo_execucao')?.value     || '';
     
+    const selBancoPreview = document.getElementById('banco_id');
+    const bancoNome = selBancoPreview?.options[selBancoPreview.selectedIndex]?.text || '';
+    
     let infoPagamento = [forma, condicao].filter(Boolean).join(' · ');
     
     if (forma === 'Pix') {
         const tipoKey = document.getElementById('pix_tipo_chave')?.value;
         const keyVal = document.getElementById('pix_chave')?.value;
         if (tipoKey && keyVal) infoPagamento += ` (${tipoKey}: ${keyVal})`;
+        if (bancoNome && selBancoPreview?.value) infoPagamento += ` — ${bancoNome}`;
     } else if (forma === 'Transferência Bancária') {
         const dadosBanc = document.getElementById('dados_bancarios')?.value;
         if (dadosBanc) infoPagamento += ` [${dadosBanc}]`;
@@ -1830,15 +2718,21 @@ document.getElementById('btn-add-item')?.addEventListener('click', () => {
     recalcularTotais();
 });
 
-// ── Adicionar legenda ────────────────────────────────────────────────
-document.getElementById('btn-add-legend')?.addEventListener('click', () => {
-    const tmpl  = document.getElementById('tmpl-legend-row');
+// ── Adicionar Título de Seção ──────────────────────────────────────────
+document.getElementById('btn-add-titulo')?.addEventListener('click', () => {
+    const tmpl  = document.getElementById('tmpl-titulo-row');
     const tbody = document.getElementById('tbody-itens');
     if (!tmpl || !tbody) return;
-    
-    const clone = tmpl.content.cloneNode(true);
-    tbody.appendChild(clone);
-    
+    tbody.appendChild(tmpl.content.cloneNode(true));
+    recalcularTotais();
+});
+
+// ── Adicionar Texto Descritivo ─────────────────────────────────────────
+document.getElementById('btn-add-subtitulo')?.addEventListener('click', () => {
+    const tmpl  = document.getElementById('tmpl-subtitulo-row');
+    const tbody = document.getElementById('tbody-itens');
+    if (!tmpl || !tbody) return;
+    tbody.appendChild(tmpl.content.cloneNode(true));
     recalcularTotais();
 });
 
@@ -1915,6 +2809,190 @@ document.querySelectorAll('#tbody-itens select').forEach(sel => {
     sel.addEventListener('change', handleAddNewOption);
 });
 
+// ════════════════════════════════════════════════════════════════════
+// TABELA — CONTEXTUALIZAÇÃO (Empreendedor / Faixa de domínio / KM / Município / Área)
+// ════════════════════════════════════════════════════════════════════
+(function () {
+    const tbody       = document.getElementById('tbody-contextualizacao');
+    const btnAdd       = document.getElementById('btn-add-contexto');
+    const totalCell    = document.getElementById('contexto-total-area');
+    const hiddenJson   = document.getElementById('contextualizacao_json');
+    const hiddenArea   = document.getElementById('area');
+    const hiddenMun    = document.getElementById('municipio');
+
+    function parseNum(v) {
+        if (!v) return 0;
+        const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+        return isNaN(n) ? 0 : n;
+    }
+    function fmtNum(n) {
+        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function novaLinhaContexto(dados) {
+        dados = dados || {};
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="fi ctx-empreendedor" placeholder="Ex: FCA" value="${dados.empreendedor ?? ''}"></td>
+            <td><input type="text" class="fi ctx-faixa" placeholder="Ex: Dentro / Fora" value="${dados.faixa || ''}"></td>
+            <td><input type="text" class="fi ctx-km" placeholder="Ex: KM 137+270" value="${dados.km ?? ''}"></td>
+            <td><input type="text" class="fi ctx-municipio" placeholder="Ex: Cachoeira – BA" value="${dados.municipio ?? ''}"></td>
+            <td><input type="text" class="fi ctx-area" placeholder="0,00" value="${dados.area ?? ''}"></td>
+            <td class="text-center">
+                <button type="button" class="btn-remover-contexto text-gray-300 hover:text-red-500 transition" title="Remover linha">
+                    <i class="fas fa-trash-alt" style="font-size:13px"></i>
+                </button>
+            </td>`;
+        tbody.appendChild(tr);
+        tr.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', syncContexto);
+            el.addEventListener('change', syncContexto);
+        });
+    }
+
+    function syncContexto() {
+        const linhas = [];
+        let totalArea = 0;
+        tbody.querySelectorAll('tr').forEach(tr => {
+            const empreendedor = tr.querySelector('.ctx-empreendedor')?.value || '';
+            const faixa        = tr.querySelector('.ctx-faixa')?.value || '';
+            const km            = tr.querySelector('.ctx-km')?.value || '';
+            const municipio     = tr.querySelector('.ctx-municipio')?.value || '';
+            const area          = tr.querySelector('.ctx-area')?.value || '';
+            totalArea += parseNum(area);
+            linhas.push({ empreendedor, faixa, km, municipio, area });
+        });
+        if (totalCell) totalCell.textContent = fmtNum(totalArea);
+        if (hiddenArea) hiddenArea.value = fmtNum(totalArea);
+        if (hiddenMun && linhas.length) hiddenMun.value = linhas[0].municipio || '';
+        const ocultarVazias = document.getElementById('ctx-ocultar-vazias')?.checked ?? true;
+        const textoIntro = document.getElementById('ctx-texto-intro')?.value ?? '';
+        if (hiddenJson) hiddenJson.value = JSON.stringify({ linhas, ocultar_vazias: ocultarVazias, texto_intro: textoIntro });
+    }
+
+    tbody?.addEventListener('click', e => {
+        const btn = e.target.closest('.btn-remover-contexto');
+        if (!btn) return;
+        if (tbody.querySelectorAll('tr').length <= 1) { btn.closest('tr').querySelectorAll('input').forEach(i => i.value=''); syncContexto(); return; }
+        btn.closest('tr').remove();
+        syncContexto();
+    });
+
+    btnAdd?.addEventListener('click', () => { novaLinhaContexto(); syncContexto(); });
+
+    document.getElementById('ctx-ocultar-vazias')?.addEventListener('change', syncContexto);
+    document.getElementById('ctx-texto-intro')?.addEventListener('input', syncContexto);
+
+    // Carga inicial — uma linha vazia (ou a partir de contextualizacao_json salvo, se existir)
+    const initial = <?= !empty($orc['contextualizacao_json']) ? $orc['contextualizacao_json'] : '[]' ?>;
+    let linhasIniciais;
+    if (Array.isArray(initial)) {
+        linhasIniciais = initial;
+    } else if (typeof initial === 'object' && initial !== null) {
+        linhasIniciais = Array.isArray(initial.linhas) ? initial.linhas : [];
+        const cb = document.getElementById('ctx-ocultar-vazias');
+        if (cb && typeof initial.ocultar_vazias === 'boolean') cb.checked = initial.ocultar_vazias;
+        const ti = document.getElementById('ctx-texto-intro');
+        if (ti && typeof initial.texto_intro === 'string') ti.value = initial.texto_intro;
+    } else {
+        linhasIniciais = [];
+    }
+    if (linhasIniciais.length) {
+        linhasIniciais.forEach(novaLinhaContexto);
+    } else {
+        novaLinhaContexto({ empreendedor: 'FCA', faixa: 'Dentro', km: '', municipio: '<?= htmlspecialchars($def['cliente_municipio']) ?>', area: '' });
+    }
+    syncContexto();
+})();
+
+// ════════════════════════════════════════════════════════════════════
+// TABELA — EQUIPE DO PROJETO
+// ════════════════════════════════════════════════════════════════════
+(function () {
+    const tbody     = document.getElementById('tbody-equipe');
+    const btnAdd    = document.getElementById('btn-add-equipe');
+    const hiddenJson = document.getElementById('equipe_json');
+
+    function novaLinhaEquipe(dados) {
+        dados = dados || {};
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="text" class="fi eq-profissional" placeholder="Ex: Engenheiro Florestal Pleno" value="${dados.profissional ?? ''}"></td>
+            <td>
+                <select class="fi eq-campo">
+                    <option value="Escritório" ${dados.campo === 'Escritório' ? 'selected' : ''}>Escritório</option>
+                    <option value="Campo" ${dados.campo === 'Campo' ? 'selected' : ''}>Campo</option>
+                    <option value="Escritório e Campo" ${dados.campo === 'Escritório e Campo' ? 'selected' : ''}>Escritório e Campo</option>
+                </select>
+            </td>
+            <td><textarea class="fi eq-funcao" rows="2" placeholder="Descreva a função..."
+                          oninput="this.style.height='';this.style.height=this.scrollHeight+'px'">${dados.funcao ?? ''}</textarea></td>
+            <td class="text-center">
+                <button type="button" class="btn-remover-equipe text-gray-300 hover:text-red-500 transition" title="Remover profissional">
+                    <i class="fas fa-trash-alt" style="font-size:13px"></i>
+                </button>
+            </td>`;
+        tbody.appendChild(tr);
+        tr.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('input', syncEquipe);
+            el.addEventListener('change', syncEquipe);
+        });
+        const ta = tr.querySelector('.eq-funcao');
+        if (ta) { ta.style.height = ''; ta.style.height = ta.scrollHeight + 'px'; }
+    }
+
+    function syncEquipe() {
+        const membros = [];
+        tbody.querySelectorAll('tr').forEach(tr => {
+            membros.push({
+                profissional: tr.querySelector('.eq-profissional')?.value || '',
+                campo:        tr.querySelector('.eq-campo')?.value || '',
+                funcao:       tr.querySelector('.eq-funcao')?.value || '',
+            });
+        });
+        const textoIntro = document.getElementById('eq-texto-intro')?.value ?? '';
+        if (hiddenJson) hiddenJson.value = JSON.stringify({ membros, texto_intro: textoIntro });
+    }
+
+    tbody?.addEventListener('click', e => {
+        const btn = e.target.closest('.btn-remover-equipe');
+        if (!btn) return;
+        if (tbody.querySelectorAll('tr').length <= 1) { btn.closest('tr').querySelectorAll('input,textarea').forEach(i => i.value=''); syncEquipe(); return; }
+        btn.closest('tr').remove();
+        syncEquipe();
+    });
+
+    btnAdd?.addEventListener('click', () => { novaLinhaEquipe(); syncEquipe(); });
+
+    document.getElementById('eq-texto-intro')?.addEventListener('input', syncEquipe);
+
+    // Carga inicial — a partir de equipe_json salvo, ou os 4 perfis padrão do projeto
+    const initialEquipe = <?= !empty($orc['equipe_json']) ? $orc['equipe_json'] : '[]' ?>;
+    let membrosIniciais;
+    if (Array.isArray(initialEquipe)) {
+        membrosIniciais = initialEquipe;
+    } else if (typeof initialEquipe === 'object' && initialEquipe !== null) {
+        membrosIniciais = Array.isArray(initialEquipe.membros) ? initialEquipe.membros : [];
+        const ti = document.getElementById('eq-texto-intro');
+        if (ti && typeof initialEquipe.texto_intro === 'string') ti.value = initialEquipe.texto_intro;
+    } else {
+        membrosIniciais = [];
+    }
+    const equipePadrao = [
+        { profissional: 'Serviços de Coordenadoria', campo: 'Escritório',
+          funcao: 'Coordenação geral do projeto, preparação e controle orçamentário, orientação e determinação de funções e atividades a serem desenvolvidas, planejamento logístico, planejamento de cronograma de execução e etc.' },
+        { profissional: 'Engenheiro Florestal Pleno', campo: 'Escritório e Campo',
+          funcao: 'Coleta de dados em campo de inventário florestal, orientação de equipes em campo, garantir seguimento de procedimentos técnicos e de segurança do trabalho, garantir qualidade de dados, liderança geral da equipe. Identificação botânica de indivíduos florestais a nível científico, auxílio de medição dendrométrica auxílio em atividades em geral.' },
+        { profissional: 'Engenheiro Florestal Sênior', campo: 'Escritório e Campo',
+          funcao: 'Coleta de dados em campo de inventário florestal, orientação de equipes em campo, garantir seguimento de procedimentos técnicos e de segurança do trabalho, garantir qualidade de dados, liderança geral da equipe. Elaboração de Relatórios Técnicos.' },
+        { profissional: 'Editoração de Relatórios', campo: 'Escritório',
+          funcao: 'Padronização de documentos, revisão do relatório, nomenclatura e estruturação de projetos. Editoração em geral.' },
+    ];
+    const baseEquipe = membrosIniciais.length ? membrosIniciais : equipePadrao;
+    baseEquipe.forEach(novaLinhaEquipe);
+    syncEquipe();
+})();
+
 // Bind nos campos financeiros que influenciam os totais
 ['desconto_tipo','desconto_valor','impostos_perc'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', recalcularTotais);
@@ -1951,7 +3029,7 @@ document.getElementById('permitir-edicao-versao')?.addEventListener('change', fu
         input.style.background = '#fff';
         input.style.color      = '#111827';
         input.style.cursor     = 'text';
-        input.style.boxShadow  = '0 0 0 3px rgba(24,95,165,.12)';
+        input.style.boxShadow  = '0 0 0 3px rgba(37,99,235,.12)';
         input.style.borderColor = 'var(--brand)';
         if (icone) { icone.classList.replace('fa-lock', 'fa-lock-open'); icone.style.color = 'var(--brand)'; }
     } else {
@@ -1968,19 +3046,86 @@ document.getElementById('permitir-edicao-versao')?.addEventListener('change', fu
 // ── Toggle projeto / contrato vinculado ───────────────────────────────
 document.getElementById('has-projeto-checkbox')?.addEventListener('change', function () {
     const sec = document.getElementById('section-projeto');
+    const sel = document.getElementById('projeto_id');
     if (sec) sec.classList.toggle('hidden', !this.checked);
+    if (!this.checked && sel) {
+        sel.value = '';
+        document.getElementById('project-details-container')?.classList.add('hidden');
+    }
 });
 
 document.getElementById('has-contrato-checkbox')?.addEventListener('change', function () {
     const sec = document.getElementById('section-contrato');
+    const sel = document.getElementById('contrato_id');
     if (sec) sec.classList.toggle('hidden', !this.checked);
     if (!this.checked) {
+        if (sel) sel.value = '';
         document.getElementById('section-contrato-detalhes')?.classList.add('hidden');
     }
 });
 
 // ── Sigla automática ao selecionar cliente ────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+
+    // ── Toggle campos de pagamento (fora do setTimeout para ficar acessível globalmente) ──
+    const selForma = document.getElementById('forma_pagamento');
+    const contBanco = document.getElementById('container-banco');
+    const contPix = document.getElementById('container-pix');
+    const contTransf = document.getElementById('container-transferencia');
+    const selBanco = document.getElementById('banco_id');
+
+    window.preencherDadosBanco = function () {
+        if (!selBanco) return;
+        const opt = selBanco.options[selBanco.selectedIndex];
+        if (!opt || !opt.value) return;
+
+        const pixTipoRaw = opt.getAttribute('data-pix-tipo') || '';
+        const pixChave = opt.getAttribute('data-pix-chave') || '';
+        const dadosBancarios = opt.getAttribute('data-dados-bancarios') || '';
+
+        const mapaTipo = {
+            'cpf_cnpj': pixChave.length > 14 ? 'CNPJ' : 'CPF',
+            'email': 'E-mail',
+            'telefone': 'Celular',
+            'aleatoria': 'Chave Aleatória',
+        };
+        const pixTipo = mapaTipo[pixTipoRaw] || pixTipoRaw;
+
+        const pixTipoField = document.getElementById('pix_tipo_chave');
+        const pixChaveField = document.getElementById('pix_chave');
+        const dadosBancField = document.getElementById('dados_bancarios');
+
+        if (pixTipoField) pixTipoField.value = pixTipo;
+        if (pixChaveField) pixChaveField.value = pixChave;
+        if (dadosBancField) dadosBancField.value = dadosBancarios;
+
+        const optText = opt.text;
+        const bancoHint = document.getElementById('banco-selecionado-hint');
+        if (bancoHint) {
+            bancoHint.textContent = optText ? 'Conta: ' + optText : '';
+            bancoHint.classList.toggle('hidden', !optText);
+        }
+    };
+
+    function updatePaymentFields() {
+        const val = selForma.value;
+        const isPix = val === 'Pix';
+        const isTransf = val === 'Transferência Bancária';
+        const mostraBanco = isPix || isTransf;
+
+        contBanco?.classList.toggle('hidden', !mostraBanco);
+        contPix?.classList.toggle('hidden', !mostraBanco);
+        contTransf?.classList.toggle('hidden', !isTransf);
+
+        if (mostraBanco && selBanco.value) {
+            window.preencherDadosBanco();
+        }
+    }
+
+    selForma?.addEventListener('change', updatePaymentFields);
+    selBanco?.addEventListener('change', window.preencherDadosBanco);
+    updatePaymentFields();
+
     setTimeout(() => {
         const selCli = document.getElementById('select-cliente');
 
@@ -2007,7 +3152,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const sigla = opt?.getAttribute('data-sigla') || '';
             const email = opt?.getAttribute('data-email') || '';
             const representante = opt?.getAttribute('data-representante') || '';
-            const endereco = opt?.getAttribute('data-endereco') || '';
+            const bairro = opt?.getAttribute('data-bairro') || '';
+            const clienteMunicipio = opt?.getAttribute('data-municipio') || '';
+            const clienteUf = opt?.getAttribute('data-uf') || '';
             const telefone = opt?.getAttribute('data-telefone') || '';
             const documento = opt?.getAttribute('data-documento') || '';
             
@@ -2047,14 +3194,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const telInput = document.getElementById('telefone_cliente');
             if (telInput && telefone) telInput.value = formatPhone(telefone);
 
+            const logradouro = opt?.getAttribute('data-logradouro') || '';
+            const numero = opt?.getAttribute('data-numero') || '';
+            const complemento = opt?.getAttribute('data-complemento') || '';
+
+            const logradouroInput = document.getElementById('cliente_logradouro');
+            const numeroInput = document.getElementById('cliente_numero');
+            const complementoInput = document.getElementById('cliente_complemento');
+            const bairroInput = document.getElementById('cliente_bairro');
+            const clienteMunicipioInput = document.getElementById('cliente_municipio');
+            const clienteUfInput = document.getElementById('cliente_uf');
+
+            if (logradouroInput) logradouroInput.value = logradouro;
+            if (numeroInput) numeroInput.value = numero;
+            if (complementoInput) complementoInput.value = complemento;
+            if (bairroInput) bairroInput.value = bairro;
+            if (clienteMunicipioInput) clienteMunicipioInput.value = clienteMunicipio;
+            if (clienteUfInput) clienteUfInput.value = clienteUf;
+
             // Preenche Município / Estado se estiver vazio
             const munInput = document.getElementById('municipio');
-            if (munInput && !munInput.value && endereco) {
-                // O endereço formatado no model é "Rua... - Bairro - Cidade/UF"
-                // Pegamos apenas a última parte após o último hífen
-                const partes = endereco.split(' - ');
-                const cidadeUf = partes.length > 1 ? partes[partes.length - 1] : endereco;
-                munInput.value = cidadeUf.trim();
+            if (munInput && !munInput.value && clienteMunicipio) {
+                munInput.value = clienteMunicipio;
             }
 
             // Preenche preferências financeiras se for um novo registro
@@ -2374,26 +3535,18 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsText(file);
     });
 
-    // ── Toggle campos de pagamento ──
-    const selForma = document.getElementById('forma_pagamento');
-    const contPix = document.getElementById('container-pix');
-    const contTransf = document.getElementById('container-transferencia');
-
-    function updatePaymentFields() {
-        const val = selForma.value;
-        contPix?.classList.toggle('hidden', val !== 'Pix');
-        contTransf?.classList.toggle('hidden', val !== 'Transferência Bancária');
-    }
-
-    selForma?.addEventListener('change', updatePaymentFields);
-    updatePaymentFields();
-
     }, 100);
 });
 
 // ── Preenche campos ocultos antes do submit ───────────────────────────
 function preSubmit() {
     recalcularTotais();
+    // Se "outro" estiver selecionado, usa o valor do campo de texto
+    const condSelect = document.getElementById('condicao_pagamento');
+    const condOutro = document.getElementById('condicao_pagamento_outro');
+    if (condSelect && condSelect.value === 'outro' && condOutro) {
+        condSelect.value = condOutro.value.trim() || condOutro.placeholder;
+    }
     // Serializa cronograma
     const hidden = document.getElementById('crono-hidden-data');
     if (hidden) {
@@ -2402,7 +3555,9 @@ function preSubmit() {
             startDate: document.getElementById('crono-data-inicio').value,
             totalPeriods: document.getElementById('crono-total-periods').value,
             activities: typeof window.getRowNames === 'function' ? window.getRowNames() : [],
-            state: window._cronoState || {}
+            state: window._cronoState || {},
+            texto_intro: document.getElementById('cronograma-texto-intro')?.value ?? '',
+            texto_footer: document.getElementById('cronograma-texto-footer')?.value ?? ''
         };
         hidden.value = JSON.stringify(data);
     }
@@ -2412,6 +3567,14 @@ function preSubmit() {
 document.addEventListener('DOMContentLoaded', () => {
     recalcularTotais();
     goToStep(1);
+
+    // Inicializa largura dinâmica dos campos
+    const codigoInput = document.getElementById('codigo');
+    if (codigoInput) codigoInput.style.width = (codigoInput.scrollWidth + 4) + 'px';
+    const respSelect = document.getElementById('responsavel_id');
+    if (respSelect) respSelect.style.width = (respSelect.scrollWidth + 4) + 'px';
+    const dataInput = document.getElementById('data_proposta');
+    if (dataInput) dataInput.style.width = (dataInput.scrollWidth + 4) + 'px';
 
     // Ajusta altura inicial de todas as legendas existentes
     document.querySelectorAll('textarea[name="item_descricao[]"]').forEach(el => {
@@ -2426,6 +3589,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (saved) {
                 window._cronoState = saved.state || {};
                 window._cronoMode  = saved.mode || 'dias';
+                document.getElementById('cronograma-texto-intro') && (document.getElementById('cronograma-texto-intro').value = saved.texto_intro || '');
+                document.getElementById('cronograma-texto-footer') && (document.getElementById('cronograma-texto-footer').value = saved.texto_footer || '');
                 // Atualiza campos da interface
                 if (saved.startDate) document.getElementById('crono-data-inicio').value = saved.startDate;
                 if (saved.totalPeriods) document.getElementById('crono-total-periods').value = saved.totalPeriods;
@@ -2446,12 +3611,99 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Tenta restaurar o banco selecionado pelos dados já salvos
+    const selBancoRestore = document.getElementById('banco_id');
+    const pixTipoSalvo = document.getElementById('pix_tipo_chave')?.value || '';
+    const pixChaveSalvo = document.getElementById('pix_chave')?.value || '';
+    const dadosBancSalvo = document.getElementById('dados_bancarios')?.value || '';
+    if (selBancoRestore && !selBancoRestore.value) {
+        // Mapeamento reverso (form → banco) para comparação
+        const mapaReverso = { 'CPF': 'cpf_cnpj', 'CNPJ': 'cpf_cnpj', 'E-mail': 'email', 'Celular': 'telefone', 'Chave Aleatória': 'aleatoria' };
+        const tipoBanco = mapaReverso[pixTipoSalvo] || pixTipoSalvo;
+        for (const opt of selBancoRestore.options) {
+            if (!opt.value) continue;
+            const optTipo = opt.getAttribute('data-pix-tipo') || '';
+            const optChave = opt.getAttribute('data-pix-chave') || '';
+            const optDados = opt.getAttribute('data-dados-bancarios') || '';
+            const matchPix = optTipo === tipoBanco && optChave === pixChaveSalvo;
+            const matchDados = optDados === dadosBancSalvo;
+            if ((pixChaveSalvo && matchPix) || (dadosBancSalvo && matchDados)) {
+                selBancoRestore.value = opt.value;
+                preencherDadosBanco();
+                break;
+            }
+        }
+    }
+
     // Inicia cronograma
     if (typeof cronoBuildTable === 'function' && !document.getElementById('crono-body').innerHTML) {
         if (!document.getElementById('crono-data-inicio').value) {
             document.getElementById('crono-data-inicio').value = new Date().toISOString().split('T')[0];
         }
         cronoBuildTable();
+    }
+
+    // ── Mostra/esconde campo "outro" da condição de pagamento ──
+    const condSelect = document.getElementById('condicao_pagamento');
+    const condOutro = document.getElementById('condicao_pagamento_outro');
+    if (condSelect && condOutro) {
+        condSelect.addEventListener('change', function () {
+            condOutro.style.display = this.value === 'outro' ? 'block' : 'none';
+            if (this.value === 'outro') condOutro.focus();
+        });
+    }
+
+    // ── Sticky header da tabela de itens ──
+    const thead = document.getElementById('thead-itens');
+    if (thead) {
+        let floating = null;
+        function syncHeaderWidths() {
+            if (!floating) return;
+            const ths = thead.querySelectorAll('th');
+            const fths = floating.querySelectorAll('th');
+            const wrapper = thead.closest('[style*="overflow"]');
+            const wrapperRect = wrapper?.getBoundingClientRect();
+            ths.forEach((th, i) => {
+                if (fths[i]) fths[i].style.width = th.offsetWidth + 'px';
+            });
+            if (wrapperRect) {
+                floating.style.left = wrapperRect.left + 'px';
+                floating.style.width = wrapperRect.width + 'px';
+            }
+        }
+        function updateStickyHeader() {
+            const panel = document.getElementById('step-panel-4');
+            if (!panel?.classList.contains('active')) { if (floating) { floating.remove(); floating = null; } return; }
+            const rect = thead.getBoundingClientRect();
+            if (rect.top < 58) {
+                if (!floating) {
+                    floating = document.createElement('div');
+                    floating.id = 'floating-thead';
+                    const isDark = document.body.classList.contains('dark-theme');
+                    const bg = isDark ? '#1e293b' : '#fff';
+                    const border = isDark ? '#334155' : '#E5E7EB';
+                    floating.style.cssText = 'position:fixed;top:58px;z-index:15;background:' + bg + ';border-bottom:1px solid ' + border + ';box-shadow:0 2px 6px rgba(0,0,0,.08);overflow:hidden;border-radius:0 0 8px 8px';
+                    const table = document.createElement('table');
+                    table.className = 'w-full';
+                    table.style.tableLayout = 'fixed';
+                    const clone = thead.cloneNode(true);
+                    clone.style.display = 'table-header-group';
+                    table.appendChild(clone);
+                    floating.appendChild(table);
+                    document.body.appendChild(floating);
+                    syncHeaderWidths();
+                }
+                syncHeaderWidths();
+            } else {
+                if (floating) { floating.remove(); floating = null; }
+            }
+        }
+        window.addEventListener('scroll', updateStickyHeader, { passive: true });
+        window.addEventListener('resize', () => { if (floating) { floating.remove(); floating = null; } });
+        const origGo = window.goToStep;
+        if (origGo) {
+            window.goToStep = function(n) { origGo(n); if (n === 4) setTimeout(updateStickyHeader, 100); };
+        }
     }
 });
 
@@ -2484,13 +3736,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.crono-mode-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
-        // Atualiza os labels das opções do select "Total de períodos" para corresponder ao tipo selecionado
-        const selectPeriods = document.getElementById('crono-total-periods');
-        if (selectPeriods) {
-            const unitLabel = m === 'semanas' ? 'Semanas' : (m === 'meses' ? 'Meses' : 'dias');
-            Array.from(selectPeriods.options).forEach(opt => {
-                opt.textContent = `${opt.value} ${unitLabel}`;
-            });
+        // Atualiza o placeholder do input "Total de períodos" conforme o tipo selecionado
+        const inputPeriods = document.getElementById('crono-total-periods');
+        if (inputPeriods) {
+            const unitLabel = m === 'semanas' ? 'semanas' : (m === 'meses' ? 'meses' : 'dias');
+            inputPeriods.placeholder = `Nº de ${unitLabel}`;
         }
 
         cronoBuildTable();
@@ -2731,6 +3981,143 @@ document.addEventListener('DOMContentLoaded', () => {
         window._cronoState = {};
         cronoBuildTable();
     };
+})();
+// ========== LÓGICA DE ASSINATURAS ==========
+(function() {
+    function toggleVisibility(selectId, targets) {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        sel.addEventListener('change', function() {
+            var v = this.value;
+            targets.forEach(function(t) {
+                var el = document.getElementById(t.id);
+                if (el) el.classList.toggle('hidden', v !== t.val);
+            });
+        });
+    }
+
+    // Contratada
+    toggleVisibility('assinatura_tipo', [
+        { id: 'ctd_imagem_container', val: 'imagem' },
+        { id: 'ctd_certificado_container', val: 'certificado' }
+    ]);
+
+    // Elaborador checkbox
+    var elabChk = document.getElementById('elab_checkbox');
+    var elabFields = document.getElementById('elab_signature_fields');
+    if (elabChk && elabFields) {
+        elabChk.addEventListener('change', function() {
+            elabFields.classList.toggle('hidden', !this.checked);
+        });
+    }
+
+    // Elaborador tipo
+    toggleVisibility('elab_assinatura_tipo', [
+        { id: 'elab_imagem_container', val: 'imagem' },
+        { id: 'elab_certificado_container', val: 'certificado' }
+    ]);
+
+    // Upload genérico via data attributes
+    document.querySelectorAll('.sig-img-input').forEach(function(inp) {
+        inp.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 500 * 1024) {
+                alert('A imagem deve ter no máximo 500KB.');
+                this.value = '';
+                return;
+            }
+            var hiddenId = this.dataset.hidden;
+            var preview = document.getElementById(this.dataset.preview);
+            var hidden = document.getElementById(hiddenId);
+            var removerField = document.getElementById(this.dataset.removerField);
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                var b64 = ev.target.result.split(',')[1];
+                if (hidden) hidden.value = b64;
+                if (preview) preview.innerHTML = '<img src=\"data:image/png;base64,' + b64 + '\" style=\"max-height:50px; max-width:200px; object-fit:contain;\">';
+                if (removerField) removerField.value = '0';
+                var btn = document.querySelector('.btn-limpar-sig[data-hidden=\"' + hiddenId + '\"]');
+                if (btn) btn.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    document.querySelectorAll('.btn-limpar-sig').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var hidden = document.getElementById(this.dataset.hidden);
+            var preview = document.getElementById(this.dataset.preview);
+            var removerField = document.getElementById(this.dataset.removerField);
+            if (hidden) hidden.value = '';
+            if (removerField) removerField.value = '1';
+            if (preview) preview.innerHTML = '<span class=\"text-xs text-gray-400\">Nenhuma</span>';
+            this.classList.add('hidden');
+            var inp = document.querySelector('.sig-img-input[data-hidden=\"' + this.dataset.hidden + '\"]');
+            if (inp) inp.value = '';
+        });
+    });
+
+    // ========== CERTIFICADO DIGITAL A1 ==========
+    function setupCertUpload(target) {
+        var fileInput = document.querySelector('.cert-file-input[data-target=\"' + target + '\"]');
+        var pwdInput = document.querySelector('.cert-password-input[data-target=\"' + target + '\"]');
+        var statusEl = document.getElementById(target + '_cert_status');
+        var infoEl = document.getElementById(target + '_cert_info');
+        var pathHidden = document.getElementById(target + '_cert_path_hidden');
+        var senhaHidden = document.getElementById(target + '_cert_senha_hidden');
+        var nomeHidden = document.getElementById(target + '_cert_nome_hidden');
+        var cpfHidden = document.getElementById(target + '_cert_cpf_hidden');
+        var valHidden = document.getElementById(target + '_cert_validade_hidden');
+
+        if (!fileInput || !pwdInput) return;
+
+        function lerCertificado() {
+            var file = fileInput.files[0];
+            var senha = pwdInput.value;
+            if (!file || !senha) {
+                statusEl.innerHTML = '<span class=\"text-xs text-red-500\">Selecione o arquivo e informe a senha.</span>';
+                return;
+            }
+            var fd = new FormData();
+            fd.append('certificado_file', file);
+            fd.append('certificado_senha', senha);
+            statusEl.innerHTML = '<span class=\"text-xs text-sky-500\"><i class=\"fas fa-spinner fa-spin\"></i> Lendo certificado...</span>';
+            infoEl.classList.add('hidden');
+            fetch(BASE_URL + '/orcamento/uploadCertificado', { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.success) {
+                    var d = res.data;
+                    statusEl.innerHTML = '<span class=\"text-xs text-green-600\"><i class=\"fas fa-check-circle\"></i> Certificado v\u00e1lido</span>';
+                    document.getElementById(target + '_cert_nome').textContent = d.nome || '-';
+                    document.getElementById(target + '_cert_doc').textContent = d.documento || d.cpf || d.cnpj || '-';
+                    document.getElementById(target + '_cert_validade').textContent = d.validade_ate || '-';
+                    document.getElementById(target + '_cert_icp').textContent = d.icp_brasil ? 'Sim' : 'N\u00e3o';
+                    infoEl.classList.remove('hidden');
+                    if (pathHidden) pathHidden.value = d.path;
+                    if (senhaHidden) senhaHidden.value = senha;
+                    if (nomeHidden) nomeHidden.value = d.nome || '';
+                    if (cpfHidden) cpfHidden.value = d.documento || d.cpf || '';
+                    if (valHidden) valHidden.value = d.validade_ate || '';
+                } else {
+                    statusEl.innerHTML = '<span class=\"text-xs text-red-500\"><i class=\"fas fa-exclamation-triangle\"></i> ' + (res.error || 'Erro') + '</span>';
+                    if (pathHidden) pathHidden.value = '';
+                    if (senhaHidden) senhaHidden.value = '';
+                }
+            })
+            .catch(function(err) {
+                statusEl.innerHTML = '<span class=\"text-xs text-red-500\">Erro de comunica\u00e7\u00e3o.</span>';
+                console.error(err);
+            });
+        }
+        fileInput.addEventListener('change', lerCertificado);
+        pwdInput.addEventListener('blur', function() {
+            if (fileInput.files[0]) lerCertificado();
+        });
+    }
+    setupCertUpload('ctd');
+    setupCertUpload('elab');
 })();
 </script>
 

@@ -13,7 +13,7 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
 ?>
 
 <div class="flex justify-between items-center mb-6">
-    <h3 class="text-xl font-semibold text-gray-800">Controle de Orçamento</h3>
+    <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Controle de Orçamento</h3>
     <button id="open-orcamento-modal-btn" class="bg-violet-600 text-white px-4 py-2 rounded-md hover:bg-violet-700 font-medium shadow-sm">
         + Adicionar Item
     </button>
@@ -21,36 +21,36 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
 
 <!-- Cards de Resumo -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-    <div class="bg-green-50 p-4 rounded-lg shadow border-l-4 border-green-500">
-        <h4 class="font-semibold text-gray-500 text-sm">Receita Prevista</h4>
-        <p class="text-2xl font-bold text-green-700"><?php echo formatCurrency($summary['receita_prevista']); ?></p>
+    <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg shadow border-l-4 border-green-500">
+        <h4 class="font-semibold text-gray-500 dark:text-gray-400 text-sm">Receita Prevista</h4>
+        <p class="text-2xl font-bold text-green-700 dark:text-green-400"><?php echo formatCurrency($summary['receita_prevista']); ?></p>
     </div>
-    <div class="bg-green-100 p-4 rounded-lg shadow border-l-4 border-green-600">
-        <h4 class="font-semibold text-gray-500 text-sm">Receita Realizada</h4>
-        <p class="text-2xl font-bold text-green-800"><?php echo formatCurrency($summary['receita_real']); ?></p>
+    <div class="bg-green-100 dark:bg-green-900/30 p-4 rounded-lg shadow border-l-4 border-green-600">
+        <h4 class="font-semibold text-gray-500 dark:text-gray-400 text-sm">Receita Realizada</h4>
+        <p class="text-2xl font-bold text-green-800 dark:text-green-300"><?php echo formatCurrency($summary['receita_real']); ?></p>
     </div>
-    <div class="bg-red-50 p-4 rounded-lg shadow border-l-4 border-red-500">
-        <h4 class="font-semibold text-gray-500 text-sm">Despesa Prevista</h4>
-        <p class="text-2xl font-bold text-red-700"><?php echo formatCurrency($summary['despesa_prevista']); ?></p>
+    <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg shadow border-l-4 border-red-500">
+        <h4 class="font-semibold text-gray-500 dark:text-gray-400 text-sm">Despesa Prevista</h4>
+        <p class="text-2xl font-bold text-red-700 dark:text-red-400"><?php echo formatCurrency($summary['despesa_prevista']); ?></p>
     </div>
-    <div class="bg-red-100 p-4 rounded-lg shadow border-l-4 border-red-600">
-        <h4 class="font-semibold text-gray-500 text-sm">Despesa Realizada</h4>
-        <p class="text-2xl font-bold text-red-800"><?php echo formatCurrency($summary['despesa_real']); ?></p>
+    <div class="bg-red-100 dark:bg-red-900/30 p-4 rounded-lg shadow border-l-4 border-red-600">
+        <h4 class="font-semibold text-gray-500 dark:text-gray-400 text-sm">Despesa Realizada</h4>
+        <p class="text-2xl font-bold text-red-800 dark:text-red-300"><?php echo formatCurrency($summary['despesa_real']); ?></p>
     </div>
 </div>
 
 <!-- Cards de Totais Gerais -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-    <div class="bg-blue-50 p-4 rounded-lg shadow border-l-4 border-blue-500">
-        <h4 class="font-semibold text-gray-500 text-sm">Saldo Previsto</h4>
-        <p class="text-2xl font-bold text-blue-700"><?php echo formatCurrency($saldo_previsto); ?></p>
+    <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg shadow border-l-4 border-blue-500">
+        <h4 class="font-semibold text-gray-500 dark:text-gray-400 text-sm">Saldo Previsto</h4>
+        <p class="text-2xl font-bold text-blue-700 dark:text-blue-400"><?php echo formatCurrency($saldo_previsto); ?></p>
     </div>
-    <div class="bg-blue-100 p-4 rounded-lg shadow border-l-4 border-blue-600">
-        <h4 class="font-semibold text-gray-500 text-sm">Saldo Realizado</h4>
-        <p class="text-2xl font-bold text-blue-800"><?php echo formatCurrency($saldo_real); ?></p>
+    <div class="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-lg shadow border-l-4 border-blue-600">
+        <h4 class="font-semibold text-gray-500 dark:text-gray-400 text-sm">Saldo Realizado</h4>
+        <p class="text-2xl font-bold text-blue-800 dark:text-blue-300"><?php echo formatCurrency($saldo_real); ?></p>
     </div>
-    <div class="bg-gray-50 p-4 rounded-lg shadow border-l-4 <?php echo $variancia >= 0 ? 'border-green-500' : 'border-red-500'; ?>">
-        <h4 class="font-semibold text-gray-500 text-sm">Variância (Real vs. Previsto)</h4>
+    <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 <?php echo $variancia >= 0 ? 'border-green-500' : 'border-red-500'; ?>">
+        <h4 class="font-semibold text-gray-500 dark:text-gray-400 text-sm">Variância (Real vs. Previsto)</h4>
         <p class="text-2xl font-bold <?php echo $variancia_color_class; ?>">
             <?php echo ($variancia >= 0 ? '+' : '') . formatCurrency($variancia); ?>
         </p>
@@ -59,27 +59,27 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
 
 <!-- Tabela de Itens do Orçamento -->
 <div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-800">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor Previsto</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor Real</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Descrição</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Tipo</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Categoria</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Valor Previsto</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Valor Real</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ações</th>
             </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             <?php if (!empty($itens_orcamento)): ?>
                 <?php foreach ($itens_orcamento as $item): ?>
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($item['descricao']); ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $item['tipo'] === 'Receita' ? 'text-green-600' : 'text-red-600'; ?>"><?php echo $item['tipo']; ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo htmlspecialchars($item['categoria']); ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><?php echo formatCurrency($item['valor_previsto']); ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-semibold"><?php echo formatCurrency($item['valor_real']); ?></td>
+                    <tr class="dark:hover:bg-gray-800">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200"><?php echo htmlspecialchars($item['descricao']); ?></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm <?php echo $item['tipo'] === 'Receita' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'; ?>"><?php echo $item['tipo']; ?></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"><?php echo htmlspecialchars($item['categoria']); ?></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"><?php echo formatCurrency($item['valor_previsto']); ?></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 font-semibold"><?php echo formatCurrency($item['valor_real']); ?></td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                 <?php if ($item['status'] === 'Aprovado') echo 'bg-green-100 text-green-800';
@@ -113,7 +113,7 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
                 <?php endforeach; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">Nenhum item de orçamento cadastrado para este projeto.</td>
+                    <td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">Nenhum item de orçamento cadastrado para este projeto.</td>
                 </tr>
             <?php endif; ?>
         </tbody>
@@ -122,11 +122,11 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
 
 <!-- Modal para Adicionar/Editar Item do Orçamento -->
 <div id="orcamento-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
-        <div class="flex justify-between items-center pb-3 border-b">
-            <p id="modal-title" class="text-2xl font-bold">Adicionar Item ao Orçamento</p>
+    <div class="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white dark:bg-gray-800 dark:border-gray-700">
+        <div class="flex justify-between items-center pb-3 border-b dark:border-gray-700">
+            <p id="modal-title" class="text-2xl font-bold dark:text-gray-100">Adicionar Item ao Orçamento</p>
             <div id="close-orcamento-modal" class="cursor-pointer z-50">
-                <svg class="fill-current text-black" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                <svg class="fill-current text-black dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
                     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
             </div>
@@ -138,19 +138,19 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
-                        <label for="descricao" class="block text-sm font-medium text-gray-700">Descrição</label>
-                        <input type="text" name="descricao" id="descricao" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                        <label for="descricao" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Descrição</label>
+                        <input type="text" name="descricao" id="descricao" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 dark:bg-gray-700 dark:text-gray-200">
                     </div>
                     <div>
-                        <label for="tipo" class="block text-sm font-medium text-gray-700">Tipo</label>
-                        <select name="tipo" id="tipo" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                        <label for="tipo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
+                        <select name="tipo" id="tipo" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 dark:bg-gray-700 dark:text-gray-200">
                             <option value="Despesa">Despesa</option>
                             <option value="Receita">Receita</option>
                         </select>
                     </div>
                     <div>
-                        <label for="categoria" class="block text-sm font-medium text-gray-700">Categoria</label>
-                        <select name="categoria" id="categoria" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                        <label for="categoria" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+                        <select name="categoria" id="categoria" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 dark:bg-gray-700 dark:text-gray-200">
                             <option value="Equipamentos">Equipamentos</option>
                             <option value="Mão de obra">Mão de obra</option>
                             <option value="Insumos">Insumos</option>
@@ -160,24 +160,24 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
                         </select>
                     </div>
                     <div>
-                        <label for="valor_previsto" class="block text-sm font-medium text-gray-700">Valor Previsto</label>
-                        <input type="number" step="0.01" name="valor_previsto" id="valor_previsto" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                        <label for="valor_previsto" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Valor Previsto</label>
+                        <input type="number" step="0.01" name="valor_previsto" id="valor_previsto" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 dark:bg-gray-700 dark:text-gray-200">
                     </div>
                     <div>
-                        <label for="data_prevista" class="block text-sm font-medium text-gray-700">Data Prevista</label>
-                        <input type="date" name="data_prevista" id="data_prevista" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">
+                        <label for="data_prevista" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Prevista</label>
+                        <input type="date" name="data_prevista" id="data_prevista" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 dark:bg-gray-700 dark:text-gray-200">
                     </div>
                     <div class="md:col-span-2">
-                        <label for="comprovante" class="block text-sm font-medium text-gray-700">Anexar Comprovante (Opcional)</label>
-                        <input type="file" name="comprovante" id="comprovante" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100">
+                        <label for="comprovante" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Anexar Comprovante (Opcional)</label>
+                        <input type="file" name="comprovante" id="comprovante" class="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100">
                     </div>
                     <div class="md:col-span-2">
-                        <label for="observacoes" class="block text-sm font-medium text-gray-700">Observações</label>
-                        <textarea name="observacoes" id="observacoes" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2"></textarea>
+                        <label for="observacoes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Observações</label>
+                        <textarea name="observacoes" id="observacoes" rows="3" class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 dark:bg-gray-700 dark:text-gray-200"></textarea>
                     </div>
                 </div>
 
-                <div class="flex items-center justify-end pt-4 mt-4 border-t">
+                <div class="flex items-center justify-end pt-4 mt-4 border-t dark:border-gray-700">
                     <button type="button" id="cancel-orcamento-modal" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mr-2">
                         Cancelar
                     </button>
@@ -254,8 +254,8 @@ $variancia_color_class = $variancia >= 0 ? 'text-green-700' : 'text-red-700';
 </script>
 
 <!-- Gráfico de Orçamento -->
-<div class="bg-white p-6 rounded-lg shadow-md mt-8">
-    <h3 class="text-lg font-semibold mb-4">Análise Gráfica: Previsto vs. Realizado</h3>
+<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mt-8">
+    <h3 class="text-lg font-semibold mb-4 dark:text-gray-200">Análise Gráfica: Previsto vs. Realizado</h3>
     <div class="relative h-80 w-full">
         <canvas id="orcamentoChart"></canvas>
     </div>

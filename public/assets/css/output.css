@@ -32,6 +32,9 @@
 .static {
   position: static;
 }
+.sticky {
+  position: sticky;
+}
 .top-1\/2 {
   top: calc(1/2 * 100%);
 }
@@ -47,20 +50,32 @@
 .z-10 {
   z-index: 10;
 }
+.z-20 {
+  z-index: 20;
+}
 .z-40 {
   z-index: 40;
 }
 .z-50 {
   z-index: 50;
 }
+.z-\[60\] {
+  z-index: 60;
+}
 .z-\[100\] {
   z-index: 100;
+}
+.col-1 {
+  grid-column: 1;
 }
 .col-span-1 {
   grid-column: span 1 / span 1;
 }
 .col-span-2 {
   grid-column: span 2 / span 2;
+}
+.col-span-full {
+  grid-column: 1 / -1;
 }
 .float-right {
   float: right;
@@ -119,6 +134,9 @@
 .table {
   display: table;
 }
+.table-header-group {
+  display: table-header-group;
+}
 .table-row {
   display: table-row;
 }
@@ -161,8 +179,14 @@
 .min-h-\[42px\] {
   min-height: 42px;
 }
+.min-h-\[60px\] {
+  min-height: 60px;
+}
 .min-h-\[80px\] {
   min-height: 80px;
+}
+.min-h-\[100px\] {
+  min-height: 100px;
 }
 .min-h-\[240px\] {
   min-height: 240px;
@@ -218,11 +242,11 @@
 .w-full {
   width: 100%;
 }
-.w-max {
-  width: max-content;
-}
 .w-px {
   width: 1px;
+}
+.max-w-\[150px\] {
+  max-width: 150px;
 }
 .max-w-full {
   max-width: 100%;
@@ -572,6 +596,9 @@
 .break-words {
   overflow-wrap: break-word;
 }
+.break-all {
+  word-break: break-all;
+}
 .whitespace-nowrap {
   white-space: nowrap;
 }
@@ -583,6 +610,9 @@
 }
 .\!normal-case {
   text-transform: none !important;
+}
+.capitalize {
+  text-transform: capitalize;
 }
 .lowercase {
   text-transform: lowercase;
@@ -609,9 +639,6 @@
 }
 .opacity-0 {
   opacity: 0%;
-}
-.opacity-10 {
-  opacity: 10%;
 }
 .opacity-20 {
   opacity: 20%;
@@ -712,9 +739,6 @@
   -webkit-user-select: none;
   user-select: none;
 }
-.ring-inset {
-  --tw-ring-inset: inset;
-}
 .group-hover\:scale-105 {
   &:is(:where(.group):hover *) {
     @media (hover: hover) {
@@ -735,13 +759,6 @@
     }
   }
 }
-.group-hover\:rotate-6 {
-  &:is(:where(.group):hover *) {
-    @media (hover: hover) {
-      rotate: 6deg;
-    }
-  }
-}
 .group-hover\:rotate-90 {
   &:is(:where(.group):hover *) {
     @media (hover: hover) {
@@ -749,10 +766,10 @@
     }
   }
 }
-.group-hover\:opacity-20 {
+.group-hover\:underline {
   &:is(:where(.group):hover *) {
     @media (hover: hover) {
-      opacity: 20%;
+      text-decoration-line: underline;
     }
   }
 }

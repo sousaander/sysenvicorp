@@ -61,6 +61,7 @@
                     <option value="">Todos os Status</option>
                     <option value="Pago" <?= (isset($filtros['status']) && $filtros['status'] == 'Pago') ? 'selected' : ''; ?>>Somente Pagos/Recebidos</option>
                     <option value="Pendente" <?= (isset($filtros['status']) && $filtros['status'] == 'Pendente') ? 'selected' : ''; ?>>Pendentes / A vencer</option>
+                    <option value="Pago Parcial" <?= (isset($filtros['status']) && $filtros['status'] == 'Pago Parcial') ? 'selected' : ''; ?>>Pagos Parciais</option>
                     <option value="Atrasado" <?= (isset($filtros['status']) && $filtros['status'] == 'Atrasado') ? 'selected' : ''; ?>>Somente Atrasados</option>
                     <option value="Cancelado" <?= (isset($filtros['status']) && $filtros['status'] == 'Cancelado') ? 'selected' : ''; ?>>Cancelados</option>
                 </select>

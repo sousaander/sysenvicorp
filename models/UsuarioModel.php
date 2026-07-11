@@ -142,9 +142,10 @@ class UsuarioModel extends Model
     {
         try {
             // OTIMIZAÇÃO: Removido LOWER/TRIM da coluna para permitir uso de INDICE.
-            $sql = "SELECT u.id, u.nome, u.email, u.senha_hash, u.status, u.avatar_filename, p.nome_perfil as perfil, p.permissoes as permissoes
+            $sql = "SELECT u.id, u.nome, u.email, u.senha_hash, u.status, u.avatar_filename, p.nome_perfil as perfil, p.permissoes as permissoes, c.nome_cargo as cargo_nome
                     FROM usuarios u
                     LEFT JOIN perfis_acesso p ON u.perfil_id = p.perfil_id
+                    LEFT JOIN cargos c ON u.cargo_id = c.cargo_id
                     WHERE u.email = ? AND u.status = 'Ativo' ORDER BY u.id DESC LIMIT 1";
             $stmt = $this->db->prepare($sql);
             $stmt->execute([strtolower(trim($email))]);

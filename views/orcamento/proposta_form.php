@@ -21,6 +21,19 @@ $status = $proposta['status'] ?? 'Rascunho';
 $validade = $proposta['validade_proposta'] ?? '30';
 $data_proposta = $proposta['data_proposta'] ?? date('Y-m-d');
 $responsavel_interno_id = $proposta['responsavel_interno_id'] ?? null;
+
+// Assinatura (Contratada)
+$assinatura_tipo = $proposta['assinatura_tipo'] ?? 'imagem';
+$assinatura_elaborador_responsavel = $proposta['assinatura_elaborador_responsavel'] ?? 0;
+$assinatura_imagem_base64 = $proposta['assinatura_imagem'] ?? null;
+$assinatura_certificado_nome = $proposta['assinatura_certificado_nome'] ?? '';
+$assinatura_certificado_cpf = $proposta['assinatura_certificado_cpf'] ?? '';
+
+// Assinatura do Elaborador (Responsável Técnico)
+$elab_assinatura_tipo = $proposta['assinatura_elaborador_tipo'] ?? 'imagem';
+$elab_assinatura_imagem = $proposta['assinatura_elaborador_imagem'] ?? null;
+$elab_certificado_nome = $proposta['assinatura_elaborador_certificado_nome'] ?? '';
+$elab_certificado_cpf = $proposta['assinatura_elaborador_certificado_cpf'] ?? '';
 ?>
 
 <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
@@ -232,6 +245,178 @@ $responsavel_interno_id = $proposta['responsavel_interno_id'] ?? null;
                 <div>
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Prazo de Execução</label>
                     <textarea name="prazo_execucao" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-sky-500 outline-none transition" placeholder="Ex: 30 dias úteis após assinatura do contrato."><?php echo htmlspecialchars($prazo_execucao); ?></textarea>
+                </div>
+            </div>
+
+            <!-- Seção 5: Assinaturas do PDF -->
+            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                <h3 class="text-sm font-bold text-sky-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fas fa-file-signature"></i> 5. Assinaturas do PDF
+                </h3>
+
+                <!-- Contratada -->
+                <div class="mb-4 p-4 bg-white rounded-lg border border-gray-200">
+                    <h4 class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="fas fa-building text-sky-500"></i> Assinatura da Contratada
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Assinatura</label>
+                            <select name="assinatura_tipo" id="assinatura_tipo" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 outline-none transition">
+                                <option value="imagem" <?php echo $assinatura_tipo === 'imagem' ? 'selected' : ''; ?>>Assinatura por Imagem</option>
+                                <option value="certificado" <?php echo $assinatura_tipo === 'certificado' ? 'selected' : ''; ?>>Assinatura via Certificado Digital</option>
+                                <option value="nenhum" <?php echo $assinatura_tipo === 'nenhum' ? 'selected' : ''; ?>>Nenhum (linha em branco)</option>
+                            </select>
+                        </div>
+                        <div></div>
+                    </div>
+
+                    <div id="ctd_imagem_container" class="mt-3 <?php echo $assinatura_tipo !== 'imagem' ? 'hidden' : ''; ?>">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Upload de Imagem</label>
+                                <input type="file" class="sig-img-input" data-preview="ctd_imagem_preview" data-hidden="ctd_imagem_hidden" data-remover="ctd_btn_limpar" data-remover-field="ctd_imagem_remover" accept="image/png,image/jpeg" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100">
+                                <button type="button" class="btn-limpar-sig text-xs text-red-500 hover:text-red-700 font-bold mt-1 <?php echo !$assinatura_imagem_base64 ? 'hidden' : ''; ?>" data-hidden="ctd_imagem_hidden" data-preview="ctd_imagem_preview" data-remover-field="ctd_imagem_remover" data-input=".sig-img-input[data-hidden='ctd_imagem_hidden']"><i class="fas fa-trash-alt"></i> Remover</button>
+                                <p class="text-[10px] text-gray-400 mt-1">PNG ou JPG, máx. 500KB.</p>
+                                <input type="hidden" name="assinatura_imagem" id="ctd_imagem_hidden" value="<?php echo htmlspecialchars($assinatura_imagem_base64 ?? ''); ?>">
+                                <input type="hidden" name="assinatura_imagem_remover" id="ctd_imagem_remover" value="0">
+                            </div>
+                            <div class="flex items-center justify-center">
+                                <div class="text-center">
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Preview</p>
+                                    <div id="ctd_imagem_preview" class="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[60px] flex items-center justify-center bg-gray-50">
+                                        <?php if ($assinatura_imagem_base64): ?>
+                                            <img src="data:image/png;base64,<?php echo $assinatura_imagem_base64; ?>" style="max-height:50px; max-width:200px; object-fit:contain;">
+                                        <?php else: ?>
+                                            <span class="text-xs text-gray-400">Nenhuma</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="ctd_certificado_container" class="mt-3 <?php echo $assinatura_tipo !== 'certificado' ? 'hidden' : ''; ?>">
+                        <div class="p-4 bg-amber-50 rounded-lg border border-amber-200 cert-container">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Certificado Digital A1 (ICP-Brasil)</label>
+                                <span id="ctd_cert_verified" class="hidden text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
+                                    <i class="fas fa-lock"></i> Senha verificada
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Arquivo (.pfx / .p12)</label>
+                                    <input type="file" class="cert-file-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" accept=".pfx,.p12" data-target="ctd">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Senha do Certificado</label>
+                                    <input type="password" class="cert-password-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none" data-target="ctd" placeholder="Senha do .pfx">
+                                    <a href="#" id="ctd_cert_change" class="hidden text-[10px] text-sky-600 hover:text-sky-800 font-bold mt-1 inline-block"><i class="fas fa-sync-alt"></i> Alterar certificado</a>
+                                </div>
+                            </div>
+                            <div id="ctd_cert_status" class="mt-3"></div>
+                            <div id="ctd_cert_info" class="mt-3 hidden">
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs bg-white p-3 rounded border border-gray-200">
+                                    <div><span class="text-gray-400 block">Titular</span><span id="ctd_cert_nome" class="font-semibold text-gray-700">-</span></div>
+                                    <div><span class="text-gray-400 block">CPF/CNPJ</span><span id="ctd_cert_doc" class="font-semibold text-gray-700">-</span></div>
+                                    <div><span class="text-gray-400 block">Validade</span><span id="ctd_cert_validade" class="font-semibold text-gray-700">-</span></div>
+                                    <div><span class="text-gray-400 block">ICP-Brasil</span><span id="ctd_cert_icp" class="font-semibold text-gray-700">-</span></div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="assinatura_certificado_nome" id="ctd_cert_nome_hidden" value="<?php echo htmlspecialchars($assinatura_certificado_nome); ?>">
+                            <input type="hidden" name="assinatura_certificado_cpf" id="ctd_cert_cpf_hidden" value="<?php echo htmlspecialchars($assinatura_certificado_cpf); ?>">
+                            <input type="hidden" name="assinatura_certificado_path" id="ctd_cert_path_hidden" value="">
+                            <input type="hidden" name="assinatura_certificado_senha" id="ctd_cert_senha_hidden" value="">
+                            <input type="hidden" name="assinatura_certificado_validade" id="ctd_cert_validade_hidden" value="">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Elaborador como Responsável Técnico -->
+                <div class="p-4 bg-white rounded-lg border border-gray-200">
+                    <label class="flex items-center gap-3 cursor-pointer group mb-3">
+                        <input type="checkbox" name="assinatura_elaborador_responsavel" value="1" id="elab_checkbox" <?php echo $assinatura_elaborador_responsavel ? 'checked' : ''; ?> class="w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500">
+                        <span class="text-sm font-medium text-gray-700 group-hover:text-sky-600 transition">
+                            <i class="fas fa-user-check text-sky-500 mr-1"></i>
+                            Elaborador também assina como Responsável Técnico
+                        </span>
+                    </label>
+
+                    <div id="elab_signature_fields" class="<?php echo !$assinatura_elaborador_responsavel ? 'hidden' : ''; ?> space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Assinatura do Elaborador</label>
+                                <select name="assinatura_elaborador_tipo" id="elab_assinatura_tipo" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none">
+                                    <option value="imagem" <?php echo $elab_assinatura_tipo === 'imagem' ? 'selected' : ''; ?>>Assinatura por Imagem</option>
+                                    <option value="certificado" <?php echo $elab_assinatura_tipo === 'certificado' ? 'selected' : ''; ?>>Assinatura via Certificado Digital</option>
+                                    <option value="nenhum" <?php echo $elab_assinatura_tipo === 'nenhum' ? 'selected' : ''; ?>>Nenhum (linha em branco)</option>
+                                </select>
+                            </div>
+                            <div></div>
+                        </div>
+
+                        <div id="elab_imagem_container" class="<?php echo $elab_assinatura_tipo !== 'imagem' ? 'hidden' : ''; ?>">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Imagem de Assinatura</label>
+                                    <input type="file" class="sig-img-input" data-preview="elab_imagem_preview" data-hidden="elab_imagem_hidden" data-remover="elab_btn_limpar" data-remover-field="elab_imagem_remover" accept="image/png,image/jpeg" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100">
+                                    <button type="button" class="btn-limpar-sig text-xs text-red-500 hover:text-red-700 font-bold mt-1 <?php echo !$elab_assinatura_imagem ? 'hidden' : ''; ?>" data-hidden="elab_imagem_hidden" data-preview="elab_imagem_preview" data-remover-field="elab_imagem_remover" data-input=".sig-img-input[data-hidden='elab_imagem_hidden']"><i class="fas fa-trash-alt"></i> Remover</button>
+                                    <p class="text-[10px] text-gray-400 mt-1">PNG ou JPG, máx. 500KB.</p>
+                                    <input type="hidden" name="assinatura_elaborador_imagem" id="elab_imagem_hidden" value="<?php echo htmlspecialchars($elab_assinatura_imagem ?? ''); ?>">
+                                    <input type="hidden" name="assinatura_elaborador_imagem_remover" id="elab_imagem_remover" value="0">
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <div class="text-center">
+                                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Preview</p>
+                                        <div id="elab_imagem_preview" class="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[60px] flex items-center justify-center bg-gray-50">
+                                            <?php if ($elab_assinatura_imagem): ?>
+                                                <img src="data:image/png;base64,<?php echo $elab_assinatura_imagem; ?>" style="max-height:50px; max-width:200px; object-fit:contain;">
+                                            <?php else: ?>
+                                                <span class="text-xs text-gray-400">Nenhuma</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="elab_certificado_container" class="<?php echo $elab_assinatura_tipo !== 'certificado' ? 'hidden' : ''; ?>">
+                            <div class="p-4 bg-amber-50 rounded-lg border border-amber-200 cert-container">
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase">Certificado Digital A1 do Elaborador</label>
+                                    <span id="elab_cert_verified" class="hidden text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-full border border-emerald-200">
+                                        <i class="fas fa-lock"></i> Senha verificada
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Arquivo (.pfx / .p12)</label>
+                                        <input type="file" class="cert-file-input block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" accept=".pfx,.p12" data-target="elab">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Senha do Certificado</label>
+                                        <input type="password" class="cert-password-input w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none" data-target="elab" placeholder="Senha do .pfx">
+                                        <a href="#" id="elab_cert_change" class="hidden text-[10px] text-sky-600 hover:text-sky-800 font-bold mt-1 inline-block"><i class="fas fa-sync-alt"></i> Alterar certificado</a>
+                                    </div>
+                                </div>
+                                <div id="elab_cert_status" class="mt-3"></div>
+                                <div id="elab_cert_info" class="mt-3 hidden">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs bg-white p-3 rounded border border-gray-200">
+                                        <div><span class="text-gray-400 block">Titular</span><span id="elab_cert_nome" class="font-semibold text-gray-700">-</span></div>
+                                        <div><span class="text-gray-400 block">CPF/CNPJ</span><span id="elab_cert_doc" class="font-semibold text-gray-700">-</span></div>
+                                        <div><span class="text-gray-400 block">Validade</span><span id="elab_cert_validade" class="font-semibold text-gray-700">-</span></div>
+                                        <div><span class="text-gray-400 block">ICP-Brasil</span><span id="elab_cert_icp" class="font-semibold text-gray-700">-</span></div>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="assinatura_elaborador_certificado_nome" id="elab_cert_nome_hidden" value="<?php echo htmlspecialchars($elab_certificado_nome); ?>">
+                                <input type="hidden" name="assinatura_elaborador_certificado_cpf" id="elab_cert_cpf_hidden" value="<?php echo htmlspecialchars($elab_certificado_cpf); ?>">
+                                <input type="hidden" name="assinatura_elaborador_certificado_path" id="elab_cert_path_hidden" value="">
+                                <input type="hidden" name="assinatura_elaborador_certificado_senha" id="elab_cert_senha_hidden" value="">
+                                <input type="hidden" name="assinatura_elaborador_certificado_validade" id="elab_cert_validade_hidden" value="">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

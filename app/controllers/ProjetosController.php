@@ -954,6 +954,19 @@ class ProjetosController extends BaseController
 
         $dados = $_POST;
         $id = !empty($dados['id']) ? (int)$dados['id'] : null;
+
+        // Converte orcamento do formato brasileiro (1.234,56 → 1234.56)
+        if (!empty($dados['orcamento'])) {
+            $str = trim($dados['orcamento']);
+            $str = preg_replace('/[^\d\-,.]/', '', $str);
+            if (strpos($str, '.') !== false && strpos($str, ',') !== false) {
+                $str = str_replace('.', '', $str);
+                $str = str_replace(',', '.', $str);
+            } elseif (strpos($str, ',') !== false) {
+                $str = str_replace(',', '.', $str);
+            }
+            $dados['orcamento'] = (float) $str;
+        }
         $numero_projeto = trim($dados['numero_projeto'] ?? '');
 
         // Validação básica de campos obrigatórios
@@ -1086,15 +1099,23 @@ class ProjetosController extends BaseController
      */
     public function arquivados()
     {
-        // Define o filtro para buscar apenas projetos concluídos
-        $filtros = ['status' => 'Concluído'];
+        // Coleta filtros da URL (para permitir filtrar por responsável ou sub-status)
+        $filtros = [
+            'status' => filter_input(INPUT_GET, 'status', FILTER_SANITIZE_SPECIAL_CHARS),
+            'responsavel' => filter_input(INPUT_GET, 'responsavel', FILTER_SANITIZE_SPECIAL_CHARS),
+        ];
+
+        // Default: mostra ambos os status arquivados
+        if (empty($filtros['status']) || $filtros['status'] === 'Todos Ativos') {
+            $filtros['status'] = ['Concluído', 'Cancelado'];
+        }
 
         // Lógica de Paginação
         $paginaAtual = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?: 1;
         $itensPorPagina = 10; // Aumentamos para 10 itens por página na listagem de arquivados
         $offset = ($paginaAtual - 1) * $itensPorPagina;
 
-        // Busca os projetos concluídos no modelo
+        // Busca os projetos arquivados no modelo
         $projetos = $this->model->getProjetos($filtros, $itensPorPagina, $offset);
         $totalProjetos = $this->model->getProjetosCount($filtros);
         $totalPaginas = ceil($totalProjetos / $itensPorPagina);
@@ -1124,8 +1145,16 @@ class ProjetosController extends BaseController
      */
     public function cancelados()
     {
-        // Define o filtro para buscar apenas projetos cancelados
-        $filtros = ['status' => 'Cancelado'];
+        // Coleta filtros da URL (para permitir filtrar por responsável ou sub-status)
+        $filtros = [
+            'status' => filter_input(INPUT_GET, 'status', FILTER_SANITIZE_SPECIAL_CHARS),
+            'responsavel' => filter_input(INPUT_GET, 'responsavel', FILTER_SANITIZE_SPECIAL_CHARS),
+        ];
+
+        // Default: mostra apenas projetos cancelados
+        if (empty($filtros['status']) || $filtros['status'] === 'Todos Ativos') {
+            $filtros['status'] = 'Cancelado';
+        }
 
         // Lógica de Paginação
         $paginaAtual = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?: 1;

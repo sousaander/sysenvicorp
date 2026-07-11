@@ -65,4 +65,33 @@ class EmpresaModel extends Model
                 ORDER BY criado_em DESC LIMIT 1";
         return $this->db->query($sql)->fetch(PDO::FETCH_ASSOC) ?: null;
     }
+
+    public function getRegimeTributario(): string
+    {
+        $dados = $this->getDadosEmpresa();
+        return $dados['regime_tributario'] ?? 'Lucro Presumido';
+    }
+
+    public function getNfeAmbiente(): string
+    {
+        $dados = $this->getDadosEmpresa();
+        return $dados['nfe_ambiente'] ?? 'homologacao';
+    }
+
+    public function salvarDadosFiscais(array $dados): bool
+    {
+        $configAtual = $this->getDadosEmpresa();
+        $camposFiscais = ['regime_tributario', 'nfe_ambiente', 'caminho_certificado', 'senha_certificado', 'codigo_municipio', 'ie', 'cnae'];
+        foreach ($camposFiscais as $c) {
+            if (isset($dados[$c])) {
+                $configAtual[$c] = $dados[$c];
+            }
+        }
+        unset($configAtual['senha_certificado']);
+        $configDir = dirname($this->configFile);
+        if (!is_dir($configDir)) {
+            mkdir($configDir, 0775, true);
+        }
+        return file_put_contents($this->configFile, json_encode($configAtual, JSON_PRETTY_PRINT)) !== false;
+    }
 }
